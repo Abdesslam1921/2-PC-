@@ -93,7 +93,7 @@
 }
 
 .home-card:hover {
-  transform: translateY(-4px);
+  transform: translateY(-4px) scale(1.012);
   border-color: rgba(20, 184, 166, 0.5);
   box-shadow: 0 26px 50px -26px rgba(15, 118, 110, 0.55);
 }

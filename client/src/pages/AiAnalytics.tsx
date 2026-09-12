@@ -113,6 +113,9 @@ const CRO_SEVERITY_STYLES: Record<
 
 export default function AiAnalytics() {
   const productAnalytics = trpc.sharkCod.productAnalytics.useQuery();
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const hasProductData = !!productAnalytics.data?.length;
+
   const wilayaData = trpc.sharkCod.wilayaConversionIntelligence.useQuery(
     { productId: selectedProductId ?? undefined },
     { enabled: !!selectedProductId || hasProductData }
@@ -122,7 +125,6 @@ export default function AiAnalytics() {
   const croAuditMutation = trpc.sharkCod.generateCroAudit.useMutation();
   const croFixMutation = trpc.sharkCod.autoFixCroIssues.useMutation();
 
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [productRecommendations, setProductRecommendations] = useState<string[] | null>(null);
   const [wilayaRecommendations, setWilayaRecommendations] = useState<string[] | null>(null);
   const [croScanStep, setCroScanStep] = useState(0);
@@ -139,14 +141,12 @@ export default function AiAnalytics() {
   const selectedProduct =
     productAnalytics.data?.find(p => p.id === selectedProductId) ??
     productAnalytics.data?.[0];
-  const hasProductData = productAnalytics.data && productAnalytics.data.length > 0;
   const hasWilayaData = wilayaData.data && wilayaData.data.length > 0;
 
   const handleSelectProduct = (value: string) => {
     const id = value ? Number(value) : null;
     setSelectedProductId(id);
     setWilayaRecommendations(null);
-    wilayaData.refetch({ productId: id ?? undefined });
   };
 
   return (

@@ -63,13 +63,37 @@
 }
 
 .brand-shine:hover {
-  transform: translateY(-2px);
   filter: brightness(1.04);
   box-shadow: 0 18px 34px -16px rgba(15, 118, 110, 0.75);
 }
 
 .brand-shine:hover::after {
   animation-duration: 0.85s;
+}
+
+/* ---------------------------------------------------------------------------
+ * Hover "zoom" — applied to every dashboard card and button (all sections).
+ * Cards: gentle lift + scale. Buttons: subtle scale. Transform-only, so it
+ * never affects layout. Disabled by prefers-reduced-motion below.
+ * ------------------------------------------------------------------------- */
+.dash-identity main .bg-white.shadow-soft {
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.28s ease, border-color 0.28s ease;
+}
+
+.dash-identity main .bg-white.shadow-soft:hover {
+  transform: translateY(-3px) scale(1.012);
+  box-shadow: 0 24px 48px -26px rgba(15, 118, 110, 0.5);
+  border-color: rgba(20, 184, 166, 0.45);
+}
+
+.dash-identity button:not(:disabled),
+.dash-identity [role="button"] {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.dash-identity button:not(:disabled):hover {
+  transform: translateY(-1px) scale(1.02);
 }
 
 @keyframes brand-shine {
@@ -155,5 +179,10 @@
   .mascot-float {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
+  }
+  .dash-identity button:not(:disabled):hover,
+  .dash-identity main .bg-white.shadow-soft:hover,
+  .home-card:hover {
+    transform: none !important;
   }
 }
