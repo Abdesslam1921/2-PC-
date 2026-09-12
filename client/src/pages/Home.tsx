@@ -114,7 +114,7 @@ export default function Home() {
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <Button
             onClick={() => setLocation("/products")}
-            className="brand-shine h-11 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-6 font-bold text-white shadow-cta"
+            className="brand-shine cta-gradient h-11 rounded-full px-6 font-bold text-white shadow-cta"
           >
             <Plus className="ml-2 size-4" />
             إضافة منتج
@@ -183,7 +183,7 @@ export default function Home() {
               </p>
               <button
                 onClick={() => setLocation("/templates")}
-                className="brand-shine mt-4 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-5 py-2.5 text-sm font-extrabold text-white shadow-cta"
+                className="brand-shine cta-gradient mt-4 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-extrabold text-white shadow-cta"
               >
                 فتح القوالب
                 <ArrowLeft className="size-4" />

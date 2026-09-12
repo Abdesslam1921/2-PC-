@@ -26,6 +26,15 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Primary CTA gradient — matches the approved design (aqua -> deep teal).
+ * NOTE: the bright stop (#14B8A6) gives white text 2.49:1 (below WCAG AA).
+ * Kept for visual parity with the design; swap to #0F766E -> #0B5D57 for AA.
+ * ------------------------------------------------------------------------- */
+.cta-gradient {
+  background-image: linear-gradient(135deg, #14b8a6, #0b5d57);
+}
+
+/* ---------------------------------------------------------------------------
  * Primary CTA shine — sweeps on hover (same feel as the card hover glow) and
  * keeps a slow idle sweep so it stays noticeable.
  * ------------------------------------------------------------------------- */

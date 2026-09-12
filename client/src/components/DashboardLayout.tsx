@@ -345,7 +345,7 @@ export default function DashboardLayout({
             <StoreSwitcher />
             <button
               onClick={() => setLocation("/stores/new")}
-              className="brand-shine flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-3 py-2.5 text-[11px] font-extrabold text-white shadow-cta sm:px-4 sm:text-xs"
+              className="brand-shine cta-gradient flex items-center gap-2 rounded-full px-3 py-2.5 text-[11px] font-extrabold text-white shadow-cta sm:px-4 sm:text-xs"
             >
               <Store className="size-4" />
               إنشاء متجر
