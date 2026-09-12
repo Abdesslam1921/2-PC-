@@ -213,7 +213,7 @@ export default function ProductEdit() {
       />
     );
   const inputClass =
-    "h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+    "h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
   const field = (
     key: keyof typeof form,
     value: string | boolean | number | undefined
@@ -382,7 +382,7 @@ export default function ProductEdit() {
             <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">
               الوصف
               <textarea
-                className="min-h-36 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="min-h-36 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 value={form.description}
                 onChange={event => field("description", event.target.value)}
               />
@@ -1163,7 +1163,7 @@ export default function ProductEdit() {
                         deliveryCarrierConnectionId: Number(event.target.value),
                       }))
                     }
-                    className="mt-3 h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                    className="mt-3 h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                   >
                     <option value="" disabled>
                       {carrierConnections.data?.length

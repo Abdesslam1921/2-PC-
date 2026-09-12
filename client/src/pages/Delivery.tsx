@@ -476,7 +476,7 @@ export default function Delivery() {
                 onChange={event =>
                   setSelectedRateCarrierId(Number(event.target.value))
                 }
-                className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
               >
                 <option value="" disabled>
                   اختر شركة مرتبطة
@@ -512,7 +512,7 @@ export default function Delivery() {
                           )
                         )
                       }
-                      className="h-9 rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                      className="h-9 rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                     />
                     <input
                       aria-label={`سعر مكتب ${rate.wilayaName}`}
@@ -526,7 +526,7 @@ export default function Delivery() {
                           )
                         )
                       }
-                      className="h-9 rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                      className="h-9 rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                     />
                   </div>
                 ))}
@@ -694,7 +694,7 @@ function DeliveryChooser({ onSelect }: { onSelect: (view: View) => void }) {
       <div className="grid w-full min-w-0 gap-5 md:grid-cols-2">
         <button
           onClick={() => onSelect("configuration")}
-          className="btn-press group min-w-0 rounded-[24px] border border-[#E7E9E2] bg-white p-7 text-right shadow-soft transition-all duration-200 hover:-translate-y-1 hover:border-[#0B5B43]/30 hover:shadow-lift"
+          className="btn-press group min-w-0 rounded-[24px] border border-[#E7E9E2] bg-white p-7 text-right shadow-soft transition-all duration-200 hover:-translate-y-1 hover:border-[var(--brand)]/30 hover:shadow-lift"
         >
           <div className="grid size-13 place-items-center rounded-2xl bg-[var(--brand-soft)] text-[var(--brand)]">
             <Settings2 className="size-6" />
@@ -863,13 +863,13 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                           aria-label="تعديل اسم حساب Ecotrack"
                           value={editName}
                           onChange={event => setEditName(event.target.value)}
-                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                         />
                         <input
                           aria-label="تعديل رابط منصة Ecotrack"
                           value={editUrl}
                           onChange={event => setEditUrl(event.target.value)}
-                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                         />
                         <input
                           aria-label="تغيير API Token"
@@ -877,7 +877,7 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                           value={editToken}
                           onChange={event => setEditToken(event.target.value)}
                           placeholder="اتركه فارغًا للإبقاء على التوكن الحالي"
-                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                          className="h-9 w-full rounded-lg border border-[#E3E1D8] px-2 text-xs outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                         />
                         <div className="flex gap-2">
                           <Button
@@ -956,7 +956,7 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                         value={accountName}
                         onChange={event => setAccountName(event.target.value)}
                         placeholder="مثال: HHD EXPRESS"
-                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                       />
                     </label>
                   )}
@@ -968,7 +968,7 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                         value={apiBaseUrl}
                         onChange={event => setApiBaseUrl(event.target.value)}
                         placeholder="https://hhdexpress.ecotrack.dz"
-                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                       />
                     </label>
                   )}
@@ -979,7 +979,7 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                         value={userGuid}
                         onChange={event => setUserGuid(event.target.value)}
                         placeholder="من حساب شركة التوصيل"
-                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                        className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                       />
                     </label>
                   )}
@@ -991,7 +991,7 @@ function CarrierConnections({ onBack }: { onBack: () => void }) {
                       value={token}
                       onChange={event => setToken(event.target.value)}
                       placeholder="لا يظهر بعد الحفظ"
-                      className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                      className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-semibold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                     />
                   </label>
                   <div className="flex gap-2">
@@ -1062,7 +1062,7 @@ function CarrierChoiceSetting({
   const available = accountCount > 1;
   return (
     <div
-      className={`mt-5 rounded-2xl border p-4 transition-colors duration-200 ${available ? "border-[#0B5B43]/20 bg-[var(--brand-soft)]" : "border-[#E7E9E2] bg-[#F7F8F4]"}`}
+      className={`mt-5 rounded-2xl border p-4 transition-colors duration-200 ${available ? "border-[var(--brand)]/20 bg-[var(--brand-soft)]" : "border-[#E7E9E2] bg-[#F7F8F4]"}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -1131,7 +1131,7 @@ function FixedMethod({
 }) {
   return (
     <div
-      className={`rounded-2xl border p-4 transition-colors duration-200 ${enabled ? "border-[#0B5B43]/20 bg-[var(--brand-soft)]" : "border-[#E7E9E2] bg-[#F7F8F4]"}`}
+      className={`rounded-2xl border p-4 transition-colors duration-200 ${enabled ? "border-[var(--brand)]/20 bg-[var(--brand-soft)]" : "border-[#E7E9E2] bg-[#F7F8F4]"}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-extrabold text-[#1F2A25]">
@@ -1157,7 +1157,7 @@ function FixedMethod({
             value={fee}
             onChange={event => onFeeChange(event.target.value)}
             placeholder="00.00"
-            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-extrabold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-extrabold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
           />
         </label>
       )}
@@ -1242,7 +1242,7 @@ function RateInput({
             value={fee}
             onChange={event => onFeeChange(event.target.value)}
             placeholder="00.00"
-            className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] px-3 text-sm font-extrabold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+            className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] px-3 text-sm font-extrabold outline-none transition-colors duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
           />
         </label>
       )}

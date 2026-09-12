@@ -59,13 +59,13 @@ function parseDesignSystem(raw: string | null): DesignSystem {
   try {
     const value = JSON.parse(raw ?? "{}") as Partial<DesignSystem>;
     return {
-      primaryColor: value.primaryColor ?? "#0B5B43",
+      primaryColor: value.primaryColor ?? "var(--brand)",
       secondaryColor: value.secondaryColor ?? "#182420",
       accentColor: value.accentColor ?? "#E7C671",
     };
   } catch {
     return {
-      primaryColor: "#0B5B43",
+      primaryColor: "var(--brand)",
       secondaryColor: "#182420",
       accentColor: "#E7C671",
     };

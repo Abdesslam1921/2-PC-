@@ -33,7 +33,7 @@ type LoginValues = z.infer<typeof loginSchema>;
 type RegisterValues = z.infer<typeof registerSchema>;
 
 const inputClass =
-  "h-12 w-full rounded-2xl border border-[#E3E1D8] bg-white px-4 pl-11 text-sm font-bold text-[#1F2A25] outline-none transition placeholder:font-medium placeholder:text-[#9AA39C] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "h-12 w-full rounded-2xl border border-[#E3E1D8] bg-white px-4 pl-11 text-sm font-bold text-[#1F2A25] outline-none transition placeholder:font-medium placeholder:text-[#9AA39C] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;

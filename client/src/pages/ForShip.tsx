@@ -281,7 +281,7 @@ export default function ForShip() {
         <select
           value={productId}
           onChange={event => setProductId(event.target.value)}
-          className="h-11 rounded-xl border border-[#E3E1D8] bg-white px-3 text-xs font-extrabold text-[#1F2A25] outline-none transition-shadow focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+          className="h-11 rounded-xl border border-[#E3E1D8] bg-white px-3 text-xs font-extrabold text-[#1F2A25] outline-none transition-shadow focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
         >
           <option value="all">كل المنتجات</option>
           {(productsQuery.data ?? [])

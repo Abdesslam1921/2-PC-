@@ -49,7 +49,7 @@ type CostBatchDraft = {
 const initialColors = ["أسود", "أبيض"];
 const initialSizes = ["S", "M", "L"];
 const inputClass =
-  "h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 function FieldLabel({
   children,
@@ -102,7 +102,7 @@ function TextInput({
   return (
     <input
       {...props}
-      className={`h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10 ${className}`}
+      className={`h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-medium text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 ${className}`}
     />
   );
 }
@@ -588,7 +588,7 @@ export default function ProductCreate() {
                   value={description}
                   onChange={event => setDescription(event.target.value)}
                   placeholder="اكتب وصفًا واضحًا يشرح الخامة والمميزات والاستخدام."
-                  className="min-h-36 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm leading-7 text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                  className="min-h-36 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm leading-7 text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -701,7 +701,7 @@ export default function ProductCreate() {
                   <select
                     value={currency}
                     onChange={event => setCurrency(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                    className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                   >
                     <option value="DZD">DZD · دج</option>
                     <option value="EUR">EUR · €</option>
@@ -1577,7 +1577,7 @@ export default function ProductCreate() {
                     onChange={event =>
                       setDeliveryCarrierConnectionId(Number(event.target.value))
                     }
-                    className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                    className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                   >
                     <option value="" disabled>
                       {ecotrackConnections.length

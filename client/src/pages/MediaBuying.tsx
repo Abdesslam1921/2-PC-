@@ -376,7 +376,7 @@ export default function MediaBuying() {
               </div>
               <textarea
                 aria-label="Targeting JSON"
-                className="mt-3 min-h-24 w-full rounded-xl border border-[#E3E1D8] bg-white p-3 text-left text-xs outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="mt-3 min-h-24 w-full rounded-xl border border-[#E3E1D8] bg-white p-3 text-left text-xs outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 value={executionDetails.targetingJson}
                 onChange={event =>
                   setExecutionDetails(current => ({

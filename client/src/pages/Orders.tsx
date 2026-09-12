@@ -276,7 +276,7 @@ export default function Orders() {
         }
       />
       <div className="home-card mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
-        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0B5B43]/10 sm:max-w-xs">
+        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[var(--brand)]/10 sm:max-w-xs">
           <Search className="size-4" />
           <input
             value={search}
@@ -298,7 +298,7 @@ export default function Orders() {
             aria-label="تحديد كل الطلبات القابلة للرفع"
             checked={allSelected}
             onChange={() => setSelectedIds(allSelected ? [] : selectableIds)}
-            className="size-4 accent-[#0B5B43]"
+            className="size-4 accent-[var(--brand)]"
           />
           <span className="text-xs font-extrabold text-[#4A5A52]">
             {selectedIds.length
@@ -312,7 +312,7 @@ export default function Orders() {
                 aria-label="اختيار حساب Ecotrack للرفع"
                 value={connectionId ?? ""}
                 onChange={event => setConnectionId(Number(event.target.value))}
-                className="h-9 max-w-48 rounded-xl border border-[#E3E1D8] bg-white px-2 text-[11px] font-extrabold text-[var(--brand)] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="h-9 max-w-48 rounded-xl border border-[#E3E1D8] bg-white px-2 text-[11px] font-extrabold text-[var(--brand)] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
               >
                 <option value="" disabled>
                   اختر الحساب
@@ -490,7 +490,7 @@ export default function Orders() {
                           checked={selectedIds.includes(order.id)}
                           disabled={!selectable}
                           onChange={() => toggleOrder(order.id)}
-                          className="size-4 accent-[#0B5B43]"
+                          className="size-4 accent-[var(--brand)]"
                         />
                       </td>
                       <td className="px-5 py-4">
@@ -566,7 +566,7 @@ export default function Orders() {
                             )
                           }
                           aria-label={`تحديث حالة ${order.orderNumber}`}
-                          className="h-9 min-w-36 rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10 disabled:cursor-not-allowed disabled:bg-[#F5F6F2]"
+                          className="h-9 min-w-36 rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:cursor-not-allowed disabled:bg-[#F5F6F2]"
                         >
                           <option value="new" disabled>
                             جديد

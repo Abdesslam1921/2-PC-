@@ -151,7 +151,7 @@ export default function OrderEdit() {
             <input
               value={form.customerName}
               onChange={e => handleChange("customerName", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -162,7 +162,7 @@ export default function OrderEdit() {
             <input
               value={form.customerPhone}
               onChange={e => handleChange("customerPhone", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -172,7 +172,7 @@ export default function OrderEdit() {
             <input
               value={form.customerEmail}
               onChange={e => handleChange("customerEmail", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -183,7 +183,7 @@ export default function OrderEdit() {
             <input
               value={form.wilaya}
               onChange={e => handleChange("wilaya", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -193,7 +193,7 @@ export default function OrderEdit() {
             <input
               value={form.municipality}
               onChange={e => handleChange("municipality", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -203,7 +203,7 @@ export default function OrderEdit() {
             <input
               value={form.address}
               onChange={e => handleChange("address", e.target.value)}
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             />
           </div>
           <div>
@@ -215,7 +215,7 @@ export default function OrderEdit() {
               onChange={e =>
                 handleChange("deliveryMethod", e.target.value as "office" | "home")
               }
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             >
               <option value="home">توصيل للمنزل</option>
               <option value="office">استلام من المكتب</option>
@@ -233,7 +233,7 @@ export default function OrderEdit() {
                   e.target.value as OrderForm["fulfillmentStatus"]
                 )
               }
-              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-10 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             >
               <option value="new">جديد</option>
               <option value="confirmed">مؤكد</option>
@@ -254,7 +254,7 @@ export default function OrderEdit() {
             value={form.notes}
             onChange={e => handleChange("notes", e.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-[#E3E1D8] bg-white px-3 py-2 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+            className="w-full rounded-xl border border-[#E3E1D8] bg-white px-3 py-2 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
           />
         </div>
         <div className="rounded-[16px] border border-[#E7E9E2] bg-[#FAFAF7] p-4">

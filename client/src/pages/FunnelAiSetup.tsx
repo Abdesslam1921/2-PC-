@@ -42,7 +42,7 @@ const lengths: Array<{
 ];
 
 const fieldClass =
-  "w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 export default function FunnelAiSetup() {
   const [, setLocation] = useLocation();
@@ -131,7 +131,7 @@ export default function FunnelAiSetup() {
               aria-label="اختر المنتج"
               value={productId}
               onChange={event => setProductId(event.target.value)}
-              className="h-12 w-full appearance-none rounded-xl border border-[#E3E1D8] bg-white px-4 pl-12 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+              className="h-12 w-full appearance-none rounded-xl border border-[#E3E1D8] bg-white px-4 pl-12 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
             >
               <option value="">اختر منتجًا من الكتالوج</option>
               {products.map(product => (
@@ -386,7 +386,7 @@ export default function FunnelAiSetup() {
         }
       />
       <section className="overflow-hidden rounded-[24px] border border-[#E7E9E2] bg-white shadow-soft animate-fade-up">
-        <div className="relative overflow-hidden bg-[radial-gradient(circle_at_80%_20%,rgba(222,124,42,.32),transparent_26%),linear-gradient(120deg,#084534,#0B5B43)] p-6 text-white sm:p-8">
+        <div className="relative overflow-hidden bg-[radial-gradient(circle_at_80%_20%,rgba(222,124,42,.32),transparent_26%),linear-gradient(120deg,var(--brand-strong),var(--brand))] p-6 text-white sm:p-8">
           <p className="text-[10px] font-bold tracking-[.18em] text-[#F2D9B8]">
             AI LANDING STUDIO
           </p>

@@ -354,7 +354,7 @@ const cards: Card[] = [
     kind: "content_guard",
     title: "ContentGuard · حماية محتوى المتجر",
     short: "تقليل نسخ الصور والمحتوى والكشط مع إعدادات حماية متدرجة.",
-    accent: "#0B5B43",
+    accent: "var(--brand)",
     icon: ShieldCheck,
     identifier: "",
     secret: "",
@@ -1299,7 +1299,7 @@ export default function Connecteurs() {
           return (
             <section
               key={card.kind}
-              className={`animate-fade-up overflow-hidden rounded-[24px] border bg-white shadow-soft transition hover:shadow-lift ${isOpen ? "border-[#0B5B43]/40" : "border-[#E7E9E2]"}`}
+              className={`animate-fade-up overflow-hidden rounded-[24px] border bg-white shadow-soft transition hover:shadow-lift ${isOpen ? "border-[var(--brand)]/40" : "border-[#E7E9E2]"}`}
               style={{ animationDelay: `${Math.min(cardIndex, 8) * 45}ms` }}
             >
               <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
@@ -1663,7 +1663,7 @@ export default function Connecteurs() {
                                 .value as Form["sharkTargetMode"],
                             })
                           }
-                          className="mt-3 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                          className="mt-3 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                         >
                           <option value="all">كل صفحات المنتج والفانل</option>
                           <option value="product">
@@ -1902,7 +1902,7 @@ export default function Connecteurs() {
                                   .value as Form["orderCleanAction"],
                               })
                             }
-                            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           >
                             <option value="review">
                               وضع للمراجعة — لا تمنع الطلب مباشرة
@@ -1994,7 +1994,7 @@ export default function Connecteurs() {
                                       contactPhoneEnabled: event.target.checked,
                                     })
                                   }
-                                  className="size-4 accent-[#0B5B43]"
+                                  className="size-4 accent-[var(--brand)]"
                                 />{" "}
                                 تفعيل
                               </label>
@@ -2017,7 +2017,7 @@ export default function Connecteurs() {
                                     contactPhoneSticky: event.target.checked,
                                   })
                                 }
-                                className="size-4 accent-[#0B5B43]"
+                                className="size-4 accent-[var(--brand)]"
                               />{" "}
                               زر ثابت على الشاشة
                             </label>
@@ -2095,7 +2095,7 @@ export default function Connecteurs() {
                                   contactShowOnStore: event.target.checked,
                                 })
                               }
-                              className="size-4 accent-[#0B5B43]"
+                              className="size-4 accent-[var(--brand)]"
                             />{" "}
                             واجهة المتجر
                           </label>
@@ -2108,7 +2108,7 @@ export default function Connecteurs() {
                                   contactShowOnProduct: event.target.checked,
                                 })
                               }
-                              className="size-4 accent-[#0B5B43]"
+                              className="size-4 accent-[var(--brand)]"
                             />{" "}
                             صفحة المنتج
                           </label>
@@ -2121,7 +2121,7 @@ export default function Connecteurs() {
                                   contactShowOnLanding: event.target.checked,
                                 })
                               }
-                              className="size-4 accent-[#0B5B43]"
+                              className="size-4 accent-[var(--brand)]"
                             />{" "}
                             صفحة الفانل
                           </label>
@@ -2181,7 +2181,7 @@ export default function Connecteurs() {
                             }
                             rows={4}
                             placeholder="تم إرسال طلبك بنجاح، سنتصل بك في أقرب وقت."
-                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           />
                         </label>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -2276,7 +2276,7 @@ export default function Connecteurs() {
                                   guardProtectImages: event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">حماية الصور</b>
@@ -2294,7 +2294,7 @@ export default function Connecteurs() {
                                   guardBlockRightClick: event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">منع الزر الأيمن</b>
@@ -2312,7 +2312,7 @@ export default function Connecteurs() {
                                   guardPreventSelection: event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">منع تحديد النص</b>
@@ -2330,7 +2330,7 @@ export default function Connecteurs() {
                                   guardWatermarkEnabled: event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">علامة مائية</b>
@@ -2370,7 +2370,7 @@ export default function Connecteurs() {
                                   guardBlockAdReferrers: event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">
@@ -2392,7 +2392,7 @@ export default function Connecteurs() {
                                     event.target.checked,
                                 })
                               }
-                              className="mt-0.5 size-4 accent-[#0B5B43]"
+                              className="mt-0.5 size-4 accent-[var(--brand)]"
                             />
                             <span>
                               <b className="block">
@@ -2514,7 +2514,7 @@ export default function Connecteurs() {
                                     enabled: event.target.checked,
                                   })
                                 }
-                                className="accent-[#0B5B43]"
+                                className="accent-[var(--brand)]"
                               />{" "}
                               تفعيل هذا Pixel
                             </label>
@@ -2745,7 +2745,7 @@ export default function Connecteurs() {
                                   trackStatusEnabled: event.target.checked,
                                 })
                               }
-                              className="size-4 accent-[#0B5B43]"
+                              className="size-4 accent-[var(--brand)]"
                             />{" "}
                             تفعيل
                           </label>
@@ -2761,7 +2761,7 @@ export default function Connecteurs() {
                             }
                             rows={4}
                             placeholder="مرحبًا {customerName}… طلبك {orderNumber} أصبح بحالة: {status}"
-                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           />
                         </label>
                         <p className="mt-2 text-[11px] leading-6 text-[#8A938D]">
@@ -2808,7 +2808,7 @@ export default function Connecteurs() {
                                   retargetProductId: event.target.value,
                                 })
                               }
-                              className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                              className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                             >
                               <option value="">اختر المنتج…</option>
                               {(productsQuery.data ?? [])
@@ -2864,7 +2864,7 @@ export default function Connecteurs() {
                                   .value as Form["retargetType"],
                               })
                             }
-                            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           >
                             <option value="product">صفحة المنتج</option>
                             <option value="landing">صفحة الهبوط (فانل)</option>
@@ -2881,7 +2881,7 @@ export default function Connecteurs() {
                                     retargetLandingPageId: event.target.value,
                                   })
                                 }
-                                className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                                className="mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                               >
                                 <option value="">اختر الفانل…</option>
                                 {(landingsQuery.data ?? [])
@@ -2919,7 +2919,7 @@ export default function Connecteurs() {
                             }
                             rows={5}
                             placeholder="أهلًا {customerName}…"
-                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           />
                         </label>
                         <p className="mt-2 text-[11px] leading-6 text-[#8A7A5F]">
@@ -3044,7 +3044,7 @@ export default function Connecteurs() {
                             }
                             rows={3}
                             placeholder="مرحبًا! يمكنك إرسال طلبك الآن عبر هذه النافذة..."
-                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           />
                         </label>
                         <label className="mt-4 block text-xs font-extrabold text-[#4A554F]">
@@ -3058,7 +3058,7 @@ export default function Connecteurs() {
                             }
                             rows={3}
                             placeholder="أدخل اسمك ورقم هاتفك وعنوانك، ثم اكتب رسالة تحتوي على المنتجات المطلوبة..."
-                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                            className="mt-2 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm font-semibold leading-7 text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                           />
                         </label>
                       </div>
@@ -3440,7 +3440,7 @@ export default function Connecteurs() {
                         onChange={event =>
                           update(card.kind, { enabled: event.target.checked })
                         }
-                        className="size-4 accent-[#0B5B43]"
+                        className="size-4 accent-[var(--brand)]"
                       />{" "}
                       تفعيل التطبيق
                     </label>
@@ -3534,7 +3534,7 @@ function Field({
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition placeholder:text-[#B7BDB4] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+        className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition placeholder:text-[#B7BDB4] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
       />
     </label>
   );
@@ -3566,7 +3566,7 @@ function SmallField({
         value={value}
         onChange={event => onChange(event.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition placeholder:text-[#B7BDB4] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+        className="h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition placeholder:text-[#B7BDB4] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
       />
     </label>
   );

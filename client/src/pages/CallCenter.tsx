@@ -100,7 +100,7 @@ const emptyForm: AgentForm = {
 };
 
 const inputClass =
-  "mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition-shadow placeholder:text-[#8A938D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "mt-2 h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition-shadow placeholder:text-[#8A938D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 function Stat({
   label,
@@ -150,7 +150,7 @@ function AgentLogin() {
         </p>
         <label className="mt-7 block text-sm font-bold text-[#1F2A25]">
           البريد الإلكتروني
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#E3E1D8] px-3 transition-shadow focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[#0B5B43]/10">
+          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#E3E1D8] px-3 transition-shadow focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[var(--brand)]/10">
             <Mail className="size-4 text-[#8A938D]" />
             <input
               dir="ltr"
@@ -164,7 +164,7 @@ function AgentLogin() {
         </label>
         <label className="mt-4 block text-sm font-bold text-[#1F2A25]">
           كلمة المرور
-          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#E3E1D8] px-3 transition-shadow focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[#0B5B43]/10">
+          <div className="mt-2 flex items-center gap-2 rounded-2xl border border-[#E3E1D8] px-3 transition-shadow focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[var(--brand)]/10">
             <LockKeyhole className="size-4 text-[#8A938D]" />
             <input
               dir="ltr"
@@ -822,7 +822,7 @@ function CallCenterAdmin() {
                     onChange={() =>
                       setForm({ ...form, compensationMode: "all_orders" })
                     }
-                    className="accent-[#0B5B43]"
+                    className="accent-[var(--brand)]"
                   />
                   <span>
                     <b className="text-[#1F2A25]">تأكيد الطلبات العامة</b>
@@ -841,7 +841,7 @@ function CallCenterAdmin() {
                     onChange={() =>
                       setForm({ ...form, compensationMode: "completed_orders" })
                     }
-                    className="accent-[#0B5B43]"
+                    className="accent-[var(--brand)]"
                   />
                   <span>
                     <b className="text-[#1F2A25]">تأكيد الطلبات المكتملة فقط</b>
@@ -889,7 +889,7 @@ function CallCenterAdmin() {
                   onChange={event =>
                     setForm({ ...form, notifyNewOrders: event.target.checked })
                   }
-                  className="size-4 accent-[#0B5B43]"
+                  className="size-4 accent-[var(--brand)]"
                 />
                 طلبات جديدة
               </label>
@@ -903,7 +903,7 @@ function CallCenterAdmin() {
                       notifyStatusChanges: event.target.checked,
                     })
                   }
-                  className="size-4 accent-[#0B5B43]"
+                  className="size-4 accent-[var(--brand)]"
                 />
                 تغيّر حالة الطلب
               </label>
@@ -917,7 +917,7 @@ function CallCenterAdmin() {
                       notifyCancelledOrders: event.target.checked,
                     })
                   }
-                  className="size-4 accent-[#0B5B43]"
+                  className="size-4 accent-[var(--brand)]"
                 />
                 الطلبات الملغاة
               </label>
@@ -931,7 +931,7 @@ function CallCenterAdmin() {
                       notifyUnresponsiveOrders: event.target.checked,
                     })
                   }
-                  className="size-4 accent-[#0B5B43]"
+                  className="size-4 accent-[var(--brand)]"
                 />
                 الزبون لا يرد أو الهاتف ملغى
               </label>
@@ -942,7 +942,7 @@ function CallCenterAdmin() {
                   onChange={event =>
                     setForm({ ...form, notifyFollowUp: event.target.checked })
                   }
-                  className="size-4 accent-[#0B5B43]"
+                  className="size-4 accent-[var(--brand)]"
                 />
                 المتابعة والسويفي
               </label>
@@ -966,7 +966,7 @@ function CallCenterAdmin() {
                     onChange={() =>
                       setForm({ ...form, fullAccess: true, productIds: [] })
                     }
-                    className="accent-[#0B5B43]"
+                    className="accent-[var(--brand)]"
                   />
                   <span>
                     <b className="text-[#1F2A25]">صلاحيات كاملة (كل الطلبات)</b>
@@ -986,7 +986,7 @@ function CallCenterAdmin() {
                     onChange={() =>
                       setForm({ ...form, fullAccess: false, productIds: [] })
                     }
-                    className="accent-[#0B5B43]"
+                    className="accent-[var(--brand)]"
                   />
                   <span>
                     <b className="text-[#1F2A25]">منتجات محددة فقط</b>
@@ -1028,7 +1028,7 @@ function CallCenterAdmin() {
                         form.fullAccess || form.productIds.includes(product.id)
                       }
                       onChange={() => toggleProduct(product.id)}
-                      className="size-4 accent-[#0B5B43]"
+                      className="size-4 accent-[var(--brand)]"
                     />
                     {product.title}
                   </label>

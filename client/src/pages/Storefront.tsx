@@ -150,7 +150,7 @@ function StoreHeader({
           </nav>
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {onSearch && (
-              <label className="hidden w-[min(26vw,280px)] items-center gap-2 rounded-2xl border border-[#E5E3DA] bg-[#F7F6F1] px-3 py-2.5 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0B5B43]/8 md:flex">
+              <label className="hidden w-[min(26vw,280px)] items-center gap-2 rounded-2xl border border-[#E5E3DA] bg-[#F7F6F1] px-3 py-2.5 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[var(--brand)]/8 md:flex">
                 <Search className="size-4 shrink-0" />
                 <input
                   value={search}
@@ -652,7 +652,7 @@ function CatalogView() {
   const customization = (themeQuery.data?.customization ?? {}) as any;
   const templateKey = themeQuery.data?.templateKey ?? "market-pro";
   const themeStyle = {
-    "--store-primary": customization.primaryColor ?? "#0B5B43",
+    "--store-primary": customization.primaryColor ?? "var(--brand)",
     "--store-accent": customization.accentColor ?? "#EEF3EC",
     fontFamily: customization.fontFamily || undefined,
   } as CSSProperties;

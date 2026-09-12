@@ -48,7 +48,7 @@ const stages = [
 ];
 
 const fieldClass =
-  "w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 function Stepper({ current }: { current: number }) {
   return (
@@ -622,7 +622,7 @@ export default function FunnelImportSetup() {
         </label>
         <label className="text-sm font-bold text-[#1F2A25]">
           مسار الرابط *
-          <div className="mt-2 flex h-11 items-center overflow-hidden rounded-xl border border-[#E3E1D8] bg-white transition focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[#0B5B43]/10">
+          <div className="mt-2 flex h-11 items-center overflow-hidden rounded-xl border border-[#E3E1D8] bg-white transition focus-within:border-[var(--brand)] focus-within:ring-4 focus-within:ring-[var(--brand)]/10">
             <span className="shrink-0 border-l border-[#E3E1D8] px-3 text-xs text-[var(--brand)]">
               abdou-store.local/
             </span>

@@ -76,9 +76,9 @@ type AiStyle = {
 };
 
 const inputClass =
-  "h-12 w-full rounded-xl border border-[#E3E1D8] bg-white px-4 text-sm font-bold text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "h-12 w-full rounded-xl border border-[#E3E1D8] bg-white px-4 text-sm font-bold text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 const textareaClass =
-  "w-full rounded-xl border border-[#E3E1D8] bg-white px-4 py-3 text-sm font-bold leading-6 text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10 resize-y min-h-[120px]";
+  "w-full rounded-xl border border-[#E3E1D8] bg-white px-4 py-3 text-sm font-bold leading-6 text-[#1F2A25] outline-none transition placeholder:text-[#9AA39D] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 resize-y min-h-[120px]";
 
 export default function StoreCreate() {
   const [, setLocation] = useLocation();
@@ -234,7 +234,7 @@ export default function StoreCreate() {
                     setAiStyle(null);
                     setStep(2);
                   }}
-                  className={`btn-press rounded-2xl border p-4 text-right transition ${templateId === template.id ? "border-[var(--brand)] ring-4 ring-[#0B5B43]/10" : "border-[#E7E9E2] hover:border-[#C9CFC2] hover:shadow-lift"}`}
+                  className={`btn-press rounded-2xl border p-4 text-right transition ${templateId === template.id ? "border-[var(--brand)] ring-4 ring-[var(--brand)]/10" : "border-[#E7E9E2] hover:border-[#C9CFC2] hover:shadow-lift"}`}
                 >
                   <div className="flex items-center gap-2">
                     <span

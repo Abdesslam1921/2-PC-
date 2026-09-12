@@ -104,7 +104,7 @@ function statusLabel(status: string) {
 function AbTestingCard({ onClick }: { onClick: () => void }) {
   return (
     <article className="group overflow-hidden rounded-[24px] border border-[#E7E9E2] bg-white shadow-soft transition duration-200 hover:-translate-y-1 hover:border-[#CFDED3] hover:shadow-lift">
-      <div className="relative overflow-hidden bg-[radial-gradient(circle_at_15%_10%,#F6E4C9_0,transparent_32%),linear-gradient(135deg,#084534,#0B5B43)] p-6 text-white sm:p-7">
+      <div className="relative overflow-hidden bg-[radial-gradient(circle_at_15%_10%,#F6E4C9_0,transparent_32%),linear-gradient(135deg,var(--brand-strong),var(--brand))] p-6 text-white sm:p-7">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
           <div className="grid size-16 shrink-0 place-items-center rounded-[20px] border-4 border-white/15 bg-white/10 text-[#F3D9AE]">
             <Beaker className="size-8" />

@@ -33,7 +33,7 @@ type Confirmation = {
 };
 
 const fieldClass =
-  "mt-2 h-12 w-full rounded-2xl border border-[#E3E1D8] bg-white px-3.5 text-sm font-semibold text-[#242E29] outline-none transition duration-200 placeholder:font-medium placeholder:text-[#A7AFA9] focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "mt-2 h-12 w-full rounded-2xl border border-[#E3E1D8] bg-white px-3.5 text-sm font-semibold text-[#242E29] outline-none transition duration-200 placeholder:font-medium placeholder:text-[#A7AFA9] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 const labelClass = "block text-sm font-extrabold text-[#2E3833]";
 
 const humanInvalid =

@@ -14,7 +14,7 @@ type AccountDraft = {
   accessToken: string;
 };
 const inputClass =
-  "h-11 rounded-xl border border-[#E3E1D8] bg-white px-3 text-right text-sm outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10";
+  "h-11 rounded-xl border border-[#E3E1D8] bg-white px-3 text-right text-sm outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10";
 
 export default function Profitability() {
   const reportQuery = trpc.profitability.report.useQuery();
@@ -159,7 +159,7 @@ export default function Profitability() {
         }
       />
 
-      <section className="relative mb-5 overflow-hidden rounded-[24px] bg-gradient-to-bl from-[#084534] to-[#0B5B43] p-5 text-white shadow-soft sm:p-7">
+      <section className="relative mb-5 overflow-hidden rounded-[24px] bg-gradient-to-bl from-[var(--brand-strong)] to-[var(--brand)] p-5 text-white shadow-soft sm:p-7">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-sm font-extrabold text-[#BFE3D2]">

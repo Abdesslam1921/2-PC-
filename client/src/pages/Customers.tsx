@@ -24,7 +24,7 @@ export default function Customers() {
       />
       <PresentationNotice />
       <div className="mb-5 rounded-[20px] border border-[#E7E9E2] bg-white p-3 shadow-soft">
-        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition duration-200 focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0B5B43]/10 sm:max-w-sm">
+        <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition duration-200 focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[var(--brand)]/10 sm:max-w-sm">
           <Search className="size-4 shrink-0" />
           <input
             className="w-full bg-transparent text-sm text-[#1F2A25] outline-none placeholder:text-[#9AA39C]"

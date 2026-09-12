@@ -476,7 +476,7 @@ export default function Settings() {
                     value={domain}
                     onChange={event => setDomain(event.target.value)}
                     placeholder="store.example.com"
-                    className="h-12 w-full rounded-xl border border-[#E3E1D8] px-4 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                    className="h-12 w-full rounded-xl border border-[#E3E1D8] px-4 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                   />
                 </label>
                 <label className="block">
@@ -487,7 +487,7 @@ export default function Settings() {
                     value={verificationCode}
                     onChange={event => setVerificationCode(event.target.value)}
                     placeholder="اختياري"
-                    className="h-12 w-full rounded-xl border border-[#E3E1D8] px-4 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                    className="h-12 w-full rounded-xl border border-[#E3E1D8] px-4 text-sm font-bold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                   />
                 </label>
                 <div className="flex items-center justify-between rounded-2xl border border-[#EEF0E8] p-4">

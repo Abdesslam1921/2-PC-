@@ -85,7 +85,7 @@ export default function TemplateAi() {
               value={prompt}
               onChange={event => setPrompt(event.target.value)}
               placeholder="مثال: متجر جزائري لمنتجات العناية الطبيعية، تصميم دافئ وراقي، صور كبيرة، ألوان زيتونية وذهبية، مع أقسام الفئات والمنتجات المميزة والمميزات..."
-              className="min-h-44 rounded-2xl border-[#E3E1D8] leading-7 focus-visible:border-[var(--brand)] focus-visible:ring-4 focus-visible:ring-[#0B5B43]/10"
+              className="min-h-44 rounded-2xl border-[#E3E1D8] leading-7 focus-visible:border-[var(--brand)] focus-visible:ring-4 focus-visible:ring-[var(--brand)]/10"
             />
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs text-[#8A938D]">

@@ -96,7 +96,7 @@ export default function DigitalProducts() {
             label: "المنتجات الرقمية",
             value: products.length,
             icon: FileArchive,
-            tone: "#0B5B43",
+            tone: "var(--brand)",
           },
           {
             label: "الطلبات الرقمية",
@@ -124,7 +124,10 @@ export default function DigitalProducts() {
             <div className="flex items-center justify-between">
               <div
                 className="grid size-10 place-items-center rounded-xl"
-                style={{ backgroundColor: `${item.tone}14`, color: item.tone }}
+                style={{
+                  backgroundColor: `color-mix(in srgb, ${item.tone} 8%, transparent)`,
+                  color: item.tone,
+                }}
               >
                 <item.icon className="size-5" />
               </div>

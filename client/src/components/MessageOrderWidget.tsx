@@ -124,7 +124,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                     setForm(prev => ({ ...prev, customerName: e.target.value }))
                   }
                   placeholder="الاسم الكامل"
-                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </label>
               <label className="block text-xs font-extrabold text-[#4A554F]">
@@ -138,7 +138,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                     setForm(prev => ({ ...prev, customerPhone: e.target.value }))
                   }
                   placeholder="05xxxxxxxx"
-                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </label>
             </div>
@@ -153,7 +153,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                     setForm(prev => ({ ...prev, wilaya: e.target.value }))
                   }
                   placeholder="الولاية"
-                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </label>
               <label className="block text-xs font-extrabold text-[#4A554F]">
@@ -165,7 +165,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                     setForm(prev => ({ ...prev, municipality: e.target.value }))
                   }
                   placeholder="البلدية"
-                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                  className="mt-1.5 h-10 w-full rounded-lg border border-[#E3E1D8] bg-white px-2.5 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </label>
             </div>
@@ -179,7 +179,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                 }
                 rows={2}
                 placeholder="العنوان بالتفصيل"
-                className="mt-1.5 w-full resize-y rounded-lg border border-[#E3E1D8] bg-white px-2.5 py-2 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="mt-1.5 w-full resize-y rounded-lg border border-[#E3E1D8] bg-white px-2.5 py-2 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
               />
             </label>
             <label className="block text-xs font-extrabold text-[#4A554F]">
@@ -192,7 +192,7 @@ export function MessageOrderWidget({ productId }: MessageOrderWidgetProps) {
                 }
                 rows={3}
                 placeholder="اكتب رسالة تحتوي على المنتجات المطلوبة والكميات..."
-                className="mt-1.5 w-full resize-y rounded-lg border border-[#E3E1D8] bg-white px-2.5 py-2 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[#0B5B43]/10"
+                className="mt-1.5 w-full resize-y rounded-lg border border-[#E3E1D8] bg-white px-2.5 py-2 text-xs text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
               />
             </label>
             <button

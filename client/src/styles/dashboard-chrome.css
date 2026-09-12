@@ -126,10 +126,21 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Glass upgrade for existing cards — applies only inside the dashboard main
- * content, and only to elements that already use both `bg-white` and
- * `shadow-soft` (the app's card pattern). Buttons/inputs without both stay
- * unchanged. Non-destructive: layout and logic are untouched.
+ * Glass upgrade for existing cards.
+ *
+ * CONVENTION (important for future work):
+ *   Any card in a dashboard page/component that should receive the glass
+ *   identity MUST use BOTH utility classes `bg-white` AND `shadow-soft`.
+ *   This rule targets `.dash-identity main .bg-white.shadow-soft` only, so:
+ *     - it never touches the sidebar/topbar (header is outside <main>),
+ *     - it never touches Radix portal content (dialogs/dropdowns/sheets are
+ *       rendered into <body>, i.e. outside <main>),
+ *     - it never touches the storefront (outside `.dash-identity`).
+ *   Cards that use a different surface (e.g. `bg-[#F7F8F4]`, `bg-[var(--brand-soft)]`,
+ *   or a gradient) are intentionally NOT affected and keep their own styling.
+ *   To opt a new card in: add `bg-white shadow-soft` to its container.
+ *   To opt out: use any other background class or remove `shadow-soft`.
+ * Non-destructive: no layout/logic is changed.
  * ------------------------------------------------------------------------- */
 .dash-identity main .bg-white.shadow-soft {
   background-color: rgba(255, 255, 255, 0.86);
