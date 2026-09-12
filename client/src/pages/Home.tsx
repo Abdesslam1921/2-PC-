@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { PresentationNotice } from "@/components/PageIntro";
 import { storeConfig } from "@/config/store";
 import { trpc } from "@/lib/trpc";
+import mascotUrl from "@/assets/mascot.svg";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -114,7 +115,7 @@ export default function Home() {
         <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <Button
             onClick={() => setLocation("/products")}
-            className="h-11 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-6 font-bold text-white shadow-cta hover:brightness-105"
+            className="brand-shine h-11 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-6 font-bold text-white shadow-cta"
           >
             <Plus className="ml-2 size-4" />
             إضافة منتج
@@ -173,7 +174,10 @@ export default function Home() {
 
           <section className="home-card relative mt-5 overflow-hidden p-6 sm:p-7">
             <div className="home-card-glow" aria-hidden="true" />
-            <div className="relative z-[1]">
+            <div className="home-float pointer-events-none absolute -bottom-3 right-2 size-[104px] sm:right-5">
+              <img src={mascotUrl} alt="" className="size-full object-contain" />
+            </div>
+            <div className="relative z-[1] max-w-[68%] sm:max-w-[62%]">
               <h3 className="text-xl font-black leading-8 text-[#0C2A26]">
                 طوّر واجهة متجرك بلمسة جاهزة
               </h3>
@@ -183,7 +187,7 @@ export default function Home() {
               </p>
               <button
                 onClick={() => setLocation("/templates")}
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-5 py-2.5 text-sm font-extrabold text-white shadow-cta transition hover:brightness-105"
+                className="brand-shine mt-4 inline-flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-5 py-2.5 text-sm font-extrabold text-white shadow-cta"
               >
                 فتح القوالب
                 <ArrowLeft className="size-4" />

@@ -291,13 +291,13 @@ export default function DashboardLayout({
   if (!auth.user) return null;
 
   return (
-    <div className="min-h-screen bg-[#F5F6F2] text-[#1F2A25]" dir="rtl">
+    <div className="dash-identity min-h-screen text-[#1F2A25]" dir="rtl">
       <aside className="fixed inset-y-0 right-0 z-40 hidden w-[278px] border-l border-[#E7E9E2] bg-white lg:block">
         <SidebarContent />
       </aside>
 
       <div className="min-h-screen lg:mr-[278px]">
-        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#E7E9E2] bg-[rgba(245,246,242,0.88)] px-4 backdrop-blur-xl sm:px-6 lg:px-9">
+        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[rgba(15,118,110,0.14)] bg-[rgba(253,247,238,0.85)] px-4 backdrop-blur-xl sm:px-6 lg:px-9">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
@@ -345,7 +345,7 @@ export default function DashboardLayout({
             <StoreSwitcher />
             <button
               onClick={() => setLocation("/stores/new")}
-              className="brand-shine hidden items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-4 py-2.5 text-xs font-extrabold text-white shadow-cta transition hover:brightness-105 sm:flex"
+              className="brand-shine flex items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-3 py-2.5 text-[11px] font-extrabold text-white shadow-cta sm:px-4 sm:text-xs"
             >
               <Store className="size-4" />
               إنشاء متجر

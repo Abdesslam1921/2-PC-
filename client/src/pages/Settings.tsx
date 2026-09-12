@@ -520,7 +520,7 @@ export default function Settings() {
                       enabled: domainEnabled,
                     })
                   }
-                  className="btn-press w-full rounded-xl bg-[var(--brand)] font-extrabold shadow-cta transition duration-200 hover:bg-[var(--brand-strong)]"
+                  className="brand-shine btn-press w-full rounded-xl bg-[var(--brand)] font-extrabold shadow-cta transition duration-200 hover:bg-[var(--brand-strong)]"
                 >
                   <Save className="ml-2 size-4" />
                   حفظ إعدادات النطاق
@@ -602,7 +602,7 @@ export default function Settings() {
                 </Row>
                 <Button
                   onClick={() => setLocation("/connecteurs")}
-                  className="btn-press mt-3 w-full rounded-xl bg-[var(--brand)] font-extrabold shadow-cta transition duration-200 hover:bg-[var(--brand-strong)]"
+                  className="brand-shine btn-press mt-3 w-full rounded-xl bg-[var(--brand)] font-extrabold shadow-cta transition duration-200 hover:bg-[var(--brand-strong)]"
                 >
                   <ShieldCheck className="ml-2 size-4" />
                   فتح مركز الحماية

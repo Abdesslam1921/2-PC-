@@ -334,7 +334,7 @@ export default function Orders() {
         <Button
           onClick={uploadSelected}
           disabled={!selectedIds.length || bulkUpload.isPending}
-          className="btn-press h-11 rounded-xl bg-[var(--brand)] px-5 text-xs font-extrabold text-white shadow-cta hover:bg-[var(--brand-strong)]"
+          className="brand-shine btn-press h-11 rounded-xl bg-[var(--brand)] px-5 text-xs font-extrabold text-white shadow-cta hover:bg-[var(--brand-strong)]"
         >
           {bulkUpload.isPending ? (
             <Loader2 className="ml-2 size-4 animate-spin" />
