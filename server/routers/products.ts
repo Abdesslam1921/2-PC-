@@ -284,14 +284,24 @@ export const productsRouter = router({
         });
       return product;
     }),
-  publicGet: publicProcedure.input(productIdInput).query(async ({ input }) => {
-    const product = await getPublicStoreProduct(input.id);
-    if (!product)
-      throw new TRPCError({ code: "NOT_FOUND", message: "المنتج غير متاح." });
-    return product;
-  }),
+  publicGet: publicProcedure
+    .input(productIdInput)
+    .query(async ({ ctx, input }) => {
+      const storeId = ctx.store?.id ?? null;
+      // No resolved store host → refuse, so product ids cannot be enumerated
+      // across tenants from the main domain / localhost.
+      if (storeId == null)
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "المنتج غير متاح.",
+        });
+      const product = await getPublicStoreProduct(input.id, storeId);
+      if (!product)
+        throw new TRPCError({ code: "NOT_FOUND", message: "المنتج غير متاح." });
+      return product;
+    }),
   publicList: publicProcedure.query(async ({ ctx }) =>
-    listPublicStoreProducts(ctx.store?.id)
+    ctx.store ? listPublicStoreProducts(ctx.store.id) : []
   ),
   create: protectedProcedure
     .input(productInput)

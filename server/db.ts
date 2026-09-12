@@ -379,13 +379,23 @@ export async function listStoreProducts(storeId: number) {
   );
 }
 
-export async function getPublicStoreProduct(id: number) {
+export async function getPublicStoreProduct(
+  id: number,
+  storeId?: number | null
+) {
   const db = await getDb();
   if (!db) return undefined;
+  const conditions = [
+    eq(storeProducts.id, id),
+    eq(storeProducts.status, "active"),
+  ];
+  // Tenant isolation: when a store context exists, a product from another
+  // store must never resolve (prevents id-enumeration across tenants).
+  if (storeId != null) conditions.push(eq(storeProducts.storeId, storeId));
   const [product] = await db
     .select()
     .from(storeProducts)
-    .where(and(eq(storeProducts.id, id), eq(storeProducts.status, "active")))
+    .where(and(...conditions))
     .limit(1);
   if (!product) return undefined;
   const [images, variants, offers] = await Promise.all([
@@ -439,20 +449,21 @@ export async function getPublicStoreProduct(id: number) {
 export async function listPublicStoreProducts(storeId?: number | null) {
   const db = await getDb();
   if (!db) return [];
+  // Tenant isolation: without a resolved store there is no safe catalog to
+  // return. Never fall back to "all active products across all stores".
+  if (storeId == null) return [];
   const products = await db
     .select()
     .from(storeProducts)
     .where(
-      storeId
-        ? and(
-            eq(storeProducts.status, "active"),
-            eq(storeProducts.storeId, storeId)
-          )
-        : eq(storeProducts.status, "active")
+      and(
+        eq(storeProducts.status, "active"),
+        eq(storeProducts.storeId, storeId)
+      )
     )
     .orderBy(desc(storeProducts.createdAt));
   const hydrated = await Promise.all(
-    products.map(product => getPublicStoreProduct(product.id))
+    products.map(product => getPublicStoreProduct(product.id, storeId))
   );
   return hydrated.filter((product): product is NonNullable<typeof product> =>
     Boolean(product)

@@ -197,7 +197,7 @@ describe("products management actions", () => {
     );
     expect(mocks.duplicateStoreProduct).toHaveBeenCalledWith(7, 7);
     expect(mocks.deleteStoreProduct).toHaveBeenCalledWith(7, 7);
-    expect(mocks.getPublicStoreProduct).toHaveBeenCalledWith(7);
+    expect(mocks.getPublicStoreProduct).toHaveBeenCalledWith(7, 7);
     expect(mocks.listPublicStoreProducts).toHaveBeenCalledOnce();
     expect(updated).toMatchObject({ title: "تيشيرت محدّث" });
     expect(duplicate).toMatchObject({ id: 8 });
