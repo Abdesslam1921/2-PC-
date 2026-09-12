@@ -93,9 +93,9 @@
       .stat-hint { margin: 6px 0 0; font-size: 11px; color: var(--muted); position: relative; z-index: 1; }
 
       .promo { position: relative; overflow: hidden; margin-top: 16px; padding: 22px; }
-      .promo .mascot { position: absolute; bottom: -12px; right: 6px; width: 100px; height: 100px; animation: float 5s ease-in-out infinite; }
+      .promo .body { position: relative; z-index: 1; }
+      .promo .mascot { display: none; }
       @keyframes float { 0%,100%{transform:translateY(0) rotate(0)} 50%{transform:translateY(-9px) rotate(2deg)} }
-      .promo .body { position: relative; z-index: 1; max-width: 66%; }
       .promo h3 { margin: 0 0 8px; font-size: 18px; font-weight: 900; line-height: 1.6; }
       .promo p { margin: 0 0 14px; font-size: 13px; line-height: 1.9; color: var(--muted); }
       .btn-accent { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 999px; padding: 10px 18px; background: linear-gradient(135deg, var(--brand), var(--brand-dark)); color: #fff; font: inherit; font-weight: 800; font-size: 13px; cursor: pointer; }
