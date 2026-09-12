@@ -33,6 +33,7 @@ import TemplateAi from "@/pages/TemplateAi";
 import Storefront from "@/pages/Storefront";
 import { Route, Switch, useLocation } from "wouter";
 import DashboardLayout from "./components/DashboardLayout";
+import { IdentityShell } from "./components/IdentityShell";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
@@ -144,21 +145,17 @@ function Router() {
       <Route
         path="/call-center/login"
         component={() => (
-          <div className="dash-identity min-h-screen" dir="rtl">
-            <main>
-              <CallCenter />
-            </main>
-          </div>
+          <IdentityShell>
+            <CallCenter />
+          </IdentityShell>
         )}
       />
       <Route
         path="/call-center/agent"
         component={() => (
-          <div className="dash-identity min-h-screen" dir="rtl">
-            <main>
-              <CallCenter />
-            </main>
-          </div>
+          <IdentityShell>
+            <CallCenter />
+          </IdentityShell>
         )}
       />
       <Route

@@ -136,7 +136,7 @@ function AgentLogin() {
   return (
     <main
       dir="rtl"
-      className="grid min-h-screen place-items-center bg-[#F5F6F2] px-4 py-10"
+      className="grid min-h-screen place-items-center bg-transparent px-4 py-10"
     >
       <section className="w-full max-w-md rounded-[24px] border border-[#E7E9E2] bg-white p-7 shadow-lift">
         <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-[var(--brand)] text-white shadow-cta">
@@ -243,7 +243,7 @@ function AgentDashboard() {
     return (
       <main
         dir="rtl"
-        className="grid min-h-screen place-items-center bg-[#F5F6F2] p-5"
+        className="grid min-h-screen place-items-center bg-transparent p-5"
       >
         <div className="w-full max-w-sm rounded-[24px] border border-[#E7E9E2] bg-white p-8 text-center shadow-soft">
           <div className="mx-auto grid size-14 place-items-center rounded-2xl border border-[#F3D2CB] bg-[#FCE8E4]">
@@ -268,7 +268,7 @@ function AgentDashboard() {
       </main>
     );
   return (
-    <main dir="rtl" className="min-h-screen bg-[#F5F6F2] px-4 py-7">
+    <main dir="rtl" className="min-h-screen bg-transparent px-4 py-7">
       <div className="mx-auto max-w-6xl">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
