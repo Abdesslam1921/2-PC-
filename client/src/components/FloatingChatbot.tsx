@@ -2,7 +2,7 @@ import { AIChatBox, type Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import mascotUrl from "@/assets/mascot.svg";
-import { MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ShieldCheck, X } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -122,28 +122,23 @@ export default function FloatingChatbot({
         type="button"
         onClick={() => setOpen(value => !value)}
         className={cn(
-          "fixed bottom-5 left-4 z-[71] grid size-[60px] place-items-center rounded-full border-4 border-white bg-[linear-gradient(135deg,#14b8a6,#0b5d57)] text-white shadow-cta transition duration-200 hover:-translate-y-1 active:scale-95 sm:bottom-6 sm:left-6",
-          open && "bg-[#0B5D57]"
+          "fixed bottom-5 left-4 z-[71] grid place-items-center transition duration-200 hover:-translate-y-1 active:scale-95 sm:bottom-6 sm:left-6",
+          open
+            ? "size-[60px] rounded-full bg-[#0B5D57] text-white shadow-cta"
+            : "size-[76px] bg-transparent"
         )}
         aria-label={open ? "إغلاق الشاتبوت" : "فتح الشاتبوت"}
         aria-expanded={open}
       >
-        <span className="absolute inset-1 rounded-full border border-white/20" />
         {open ? (
-          <X className="relative size-6" />
+          <X className="size-6" />
         ) : (
-          <span className="relative flex flex-col items-center">
-            <img
-              src={mascotUrl}
-              alt=""
-              className="mascot-float size-11 object-contain drop-shadow-[0_2px_6px_rgba(6,23,26,0.35)]"
-            />
-            <Sparkles className="absolute -right-2 -top-1 size-3.5 text-[#F2C063]" />
-          </span>
+          <img
+            src={mascotUrl}
+            alt=""
+            className="mascot-float size-full object-contain drop-shadow-[0_10px_22px_rgba(6,23,26,0.28)]"
+          />
         )}
-        <span className="absolute -right-0.5 -top-0.5 grid size-4 place-items-center rounded-full bg-[#F2C063] text-[9px] font-black text-[#4A3A1A]">
-          <MessageCircle className="size-2.5" />
-        </span>
       </button>
     </>
   );
