@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./styles/storefront.tokens.css";
+@import "./styles/home-overview.css";
 
 @custom-variant dark (&:is(.dark *));
 

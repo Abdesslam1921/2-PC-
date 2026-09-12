@@ -1,7 +1,8 @@
 import { AIChatBox, type Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Bot, MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
+import mascotUrl from "@/assets/mascot.svg";
+import { MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 
@@ -69,10 +70,14 @@ export default function FloatingChatbot({
           className="fixed bottom-24 left-4 z-[70] w-[min(92vw,390px)] overflow-hidden rounded-[26px] border border-[#E3EDE7] bg-white shadow-lift sm:bottom-24 sm:left-6"
           dir="rtl"
         >
-          <div className="flex items-center justify-between bg-[linear-gradient(135deg,var(--brand-strong),#16704F)] px-4 py-3.5 text-white">
+          <div className="flex items-center justify-between bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-4 py-3.5 text-white">
             <div className="flex items-center gap-3">
-              <div className="grid size-10 place-items-center rounded-2xl bg-white/20">
-                <Bot className="size-5" />
+              <div className="grid size-10 place-items-center overflow-hidden rounded-2xl bg-white/20">
+                <img
+                  src={mascotUrl}
+                  alt=""
+                  className="size-9 object-contain"
+                />
               </div>
               <div>
                 <p className="text-sm font-extrabold">مساعد عبدو ستور</p>
@@ -117,8 +122,8 @@ export default function FloatingChatbot({
         type="button"
         onClick={() => setOpen(value => !value)}
         className={cn(
-          "fixed bottom-5 left-4 z-[71] grid size-[60px] place-items-center rounded-full border-4 border-white bg-[var(--brand)] text-white shadow-cta transition duration-200 hover:-translate-y-1 hover:bg-[var(--brand-strong)] active:scale-95 sm:bottom-6 sm:left-6",
-          open && "rotate-0 bg-[#1C2822]"
+          "fixed bottom-5 left-4 z-[71] grid size-[60px] place-items-center rounded-full border-4 border-white bg-[linear-gradient(135deg,#14b8a6,#0b5d57)] text-white shadow-cta transition duration-200 hover:-translate-y-1 active:scale-95 sm:bottom-6 sm:left-6",
+          open && "bg-[#0B5D57]"
         )}
         aria-label={open ? "إغلاق الشاتبوت" : "فتح الشاتبوت"}
         aria-expanded={open}
@@ -128,7 +133,11 @@ export default function FloatingChatbot({
           <X className="relative size-6" />
         ) : (
           <span className="relative flex flex-col items-center">
-            <Bot className="size-7" />
+            <img
+              src={mascotUrl}
+              alt=""
+              className="size-11 object-contain drop-shadow-[0_2px_6px_rgba(6,23,26,0.35)]"
+            />
             <Sparkles className="absolute -right-2 -top-1 size-3.5 text-[#F2C063]" />
           </span>
         )}
