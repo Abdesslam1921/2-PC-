@@ -172,10 +172,22 @@
  * Non-destructive: no layout/logic is changed.
  * ------------------------------------------------------------------------- */
 .dash-identity main .bg-white.shadow-soft {
-  background-color: rgba(255, 255, 255, 0.86);
+  background-color: rgba(255, 255, 255, 0.9);
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(255, 255, 255, 0.88) 52%,
+    rgba(228, 243, 239, 0.9) 100%
+  );
   border-color: rgba(15, 118, 110, 0.14);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+}
+
+/* Brand buttons keep their teal gradient across every section. */
+.dash-identity button.bg-\[var\(--brand\)\],
+.dash-identity a.bg-\[var\(--brand\)\] {
+  background-image: linear-gradient(135deg, #14b8a6, #0b5d57);
 }
 
 @media (prefers-reduced-motion: reduce) {
