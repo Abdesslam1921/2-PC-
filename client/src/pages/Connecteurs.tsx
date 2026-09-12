@@ -1307,7 +1307,7 @@ export default function Connecteurs() {
                   <div
                     className="grid size-12 shrink-0 place-items-center rounded-2xl"
                     style={{
-                      backgroundColor: `${card.accent}14`,
+                      backgroundColor: `color-mix(in srgb, ${card.accent} 8%, transparent)`,
                       color: card.accent,
                     }}
                   >
