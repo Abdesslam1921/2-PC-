@@ -292,11 +292,16 @@ export default function DashboardLayout({
 
   return (
     <div className="dash-identity min-h-screen text-[#1F2A25]" dir="rtl">
+      <div className="dash-aurora" aria-hidden="true">
+        <span className="home-orb home-orb-1" />
+        <span className="home-orb home-orb-2" />
+        <span className="home-orb home-orb-3" />
+      </div>
       <aside className="fixed inset-y-0 right-0 z-40 hidden w-[278px] border-l border-[#E7E9E2] bg-white lg:block">
         <SidebarContent />
       </aside>
 
-      <div className="min-h-screen lg:mr-[278px]">
+      <div className="relative z-10 min-h-screen lg:mr-[278px]">
         <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[rgba(15,118,110,0.14)] bg-[rgba(253,247,238,0.85)] px-4 backdrop-blur-xl sm:px-6 lg:px-9">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

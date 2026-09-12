@@ -77,12 +77,6 @@ export default function Home() {
 
   return (
     <div className="home-scope">
-      <div className="home-aurora" aria-hidden="true">
-        <span className="home-orb home-orb-1" />
-        <span className="home-orb home-orb-2" />
-        <span className="home-orb home-orb-3" />
-      </div>
-
       <section className="animate-fade-up text-center">
         <h1 className="bg-[linear-gradient(100deg,#0C2A26_35%,#0F766E_75%)] bg-clip-text text-[30px] font-black leading-[1.35] tracking-[-0.02em] text-transparent sm:text-[34px]">
           نظرة عامة على الحساب

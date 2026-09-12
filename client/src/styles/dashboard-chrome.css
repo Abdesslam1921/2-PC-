@@ -113,6 +113,31 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Global ambient aurora — rendered once in the layout so EVERY dashboard page
+ * gets the identity background. Sits behind content (z-index 0).
+ * ------------------------------------------------------------------------- */
+.dash-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+ * Glass upgrade for existing cards — applies only inside the dashboard main
+ * content, and only to elements that already use both `bg-white` and
+ * `shadow-soft` (the app's card pattern). Buttons/inputs without both stay
+ * unchanged. Non-destructive: layout and logic are untouched.
+ * ------------------------------------------------------------------------- */
+.dash-identity main .bg-white.shadow-soft {
+  background-color: rgba(255, 255, 255, 0.86);
+  border-color: rgba(15, 118, 110, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .brand-shine::after,
   .notif-ping,

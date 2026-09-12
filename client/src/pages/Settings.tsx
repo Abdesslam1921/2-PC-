@@ -179,11 +179,6 @@ export default function Settings() {
 
   return (
     <div dir="rtl" className="home-scope mx-auto max-w-[1080px] pb-10">
-      <div className="home-aurora" aria-hidden="true">
-        <span className="home-orb home-orb-1" />
-        <span className="home-orb home-orb-2" />
-        <span className="home-orb home-orb-3" />
-      </div>
       <PageIntro
         eyebrow="مركز الحساب"
         title="الإعدادات"

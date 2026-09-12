@@ -265,11 +265,6 @@ export default function Orders() {
 
   return (
     <div className="home-scope" dir="rtl">
-      <div className="home-aurora" aria-hidden="true">
-        <span className="home-orb home-orb-1" />
-        <span className="home-orb home-orb-2" />
-        <span className="home-orb home-orb-3" />
-      </div>
       <PageIntro
         eyebrow="التشغيل"
         title="الطلبات"
