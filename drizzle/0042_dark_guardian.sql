@@ -1,0 +1,1 @@
+ALTER TABLE `meta_ad_accounts` ADD `scheduleCronTaskUid` varchar(65);

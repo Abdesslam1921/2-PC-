@@ -1,0 +1,1 @@
+ALTER TABLE `delivery_carrier_connections` ADD `apiBaseUrl` varchar(500);

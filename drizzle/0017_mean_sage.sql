@@ -1,0 +1,1 @@
+ALTER TABLE `delivery_settings` ADD `pricingMode` enum('fixed','carrier','manual') DEFAULT 'manual' NOT NULL;

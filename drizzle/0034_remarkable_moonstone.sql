@@ -1,0 +1,3 @@
+ALTER TABLE `store_orders` MODIFY COLUMN `fulfillmentStatus` enum('new','review','confirmed','processing','at_carrier','shipped','delivered','returned','cancelled','customer_unresponsive','phone_cancelled','fake') NOT NULL DEFAULT 'new';--> statement-breakpoint
+ALTER TABLE `store_orders` ADD `carrierStatus` varchar(120);--> statement-breakpoint
+ALTER TABLE `store_orders` ADD `carrierStatusUpdatedAt` timestamp;

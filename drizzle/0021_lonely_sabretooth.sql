@@ -1,0 +1,1 @@
+ALTER TABLE `store_connecteurs` MODIFY COLUMN `kind` enum('meta_capi','tiktok_capi','snapchat_capi','facebook_domain','cloudflare_turnstile','google_sheets','abandoned_orders','notifications') NOT NULL;

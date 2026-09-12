@@ -1,0 +1,1 @@
+ALTER TABLE `store_orders` ADD `wilayaCode` varchar(3);

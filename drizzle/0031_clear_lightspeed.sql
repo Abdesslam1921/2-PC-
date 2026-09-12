@@ -1,0 +1,2 @@
+ALTER TABLE `call_center_agents` ADD `notifyCancelledOrders` boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE `call_center_agents` ADD `notifyUnresponsiveOrders` boolean DEFAULT true NOT NULL;

@@ -1,0 +1,1 @@
+ALTER TABLE `landing_sections` ADD `microCommitmentJson` text;

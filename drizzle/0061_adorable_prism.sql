@@ -1,0 +1,1 @@
+ALTER TABLE `negotiator_settings` DROP COLUMN `customRules`;

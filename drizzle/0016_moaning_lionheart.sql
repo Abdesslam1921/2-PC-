@@ -1,0 +1,2 @@
+ALTER TABLE `store_products` ADD `deliveryPricingMode` enum('fixed','carrier','manual') DEFAULT 'manual' NOT NULL;--> statement-breakpoint
+ALTER TABLE `store_products` ADD `deliveryCarrierConnectionId` int;

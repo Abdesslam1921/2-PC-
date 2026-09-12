@@ -1,0 +1,1 @@
+ALTER TABLE `shark_cod_events` MODIFY COLUMN `eventType` enum('view','cta_click','discount_order','reject_price','reject_delivery','reject_compare','reject_hesitate','reject_payment','reject_changed_mind') NOT NULL;

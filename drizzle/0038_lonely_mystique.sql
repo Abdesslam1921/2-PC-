@@ -1,0 +1,1 @@
+ALTER TABLE `store_products` MODIFY COLUMN `costBatches` varchar(8000) NOT NULL DEFAULT '[]';

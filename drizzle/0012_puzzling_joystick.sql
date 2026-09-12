@@ -1,0 +1,1 @@
+ALTER TABLE `store_orders` MODIFY COLUMN `fulfillmentStatus` enum('new','confirmed','processing','at_carrier','shipped','delivered','cancelled','customer_unresponsive','phone_cancelled','fake') NOT NULL DEFAULT 'new';
