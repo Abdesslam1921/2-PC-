@@ -1,0 +1,141 @@
+/* =============================================================================
+ * Storefront Design System — scoped token contract.
+ *
+ * Phase 1 scope: VARIABLE NAMES + SCOPING only. No approved visual VALUES are
+ * assigned here. The bridge declarations below only reference the project's
+ * existing tokens so the contract is inert (nothing carries `data-sf-root`
+ * yet) and safe to apply in Phase 3 before Phase 2 values are finalised.
+ *
+ * Isolation guarantee:
+ * - Every variable is `--sf-*` and is declared only inside `[data-sf-root]`,
+ *   so it can never reach the Dashboard or another store's subtree.
+ * - Runtime per-store overrides are set as inline custom properties on the
+ *   storefront root and therefore win over these bridge declarations.
+ * ========================================================================== */
+
+/* Tailwind v4 utility mapping. This creates namespaced utilities such as
+ * `bg-sf-surface`, `text-sf-text`, `rounded-sf-lg`, `shadow-sf-soft`,
+ * `p-sf-md`, `text-sf-h1`, `font-sf-heading`. It defines no visual values. */
+@theme inline {
+  --color-sf-background: var(--sf-color-background);
+  --color-sf-surface: var(--sf-color-surface);
+  --color-sf-surface-muted: var(--sf-color-surface-muted);
+  --color-sf-surface-raised: var(--sf-color-surface-raised);
+  --color-sf-text: var(--sf-color-text);
+  --color-sf-text-muted: var(--sf-color-text-muted);
+  --color-sf-text-inverted: var(--sf-color-text-inverted);
+  --color-sf-border: var(--sf-color-border);
+  --color-sf-border-strong: var(--sf-color-border-strong);
+  --color-sf-primary: var(--sf-color-primary);
+  --color-sf-primary-foreground: var(--sf-color-primary-foreground);
+  --color-sf-primary-hover: var(--sf-color-primary-hover);
+  --color-sf-accent: var(--sf-color-accent);
+  --color-sf-accent-foreground: var(--sf-color-accent-foreground);
+  --color-sf-success: var(--sf-color-success);
+  --color-sf-warning: var(--sf-color-warning);
+  --color-sf-danger: var(--sf-color-danger);
+  --color-sf-focus-ring: var(--sf-color-focus-ring);
+  --color-sf-overlay: var(--sf-color-overlay);
+  --color-sf-price: var(--sf-color-price);
+  --color-sf-price-compare: var(--sf-color-price-compare);
+  --color-sf-badge-discount: var(--sf-color-badge-discount);
+  --color-sf-badge-sold-out: var(--sf-color-badge-sold-out);
+  --color-sf-announcement-background: var(--sf-color-announcement-background);
+  --color-sf-announcement-foreground: var(--sf-color-announcement-foreground);
+
+  --font-sf-heading: var(--sf-font-heading);
+  --font-sf-body: var(--sf-font-body);
+  --font-sf-price: var(--sf-font-price);
+
+  --text-sf-display: var(--sf-text-display);
+  --text-sf-h1: var(--sf-text-h1);
+  --text-sf-h2: var(--sf-text-h2);
+  --text-sf-h3: var(--sf-text-h3);
+  --text-sf-h4: var(--sf-text-h4);
+  --text-sf-body-lg: var(--sf-text-body-lg);
+  --text-sf-body: var(--sf-text-body);
+  --text-sf-body-sm: var(--sf-text-body-sm);
+  --text-sf-caption: var(--sf-text-caption);
+  --text-sf-overline: var(--sf-text-overline);
+
+  --leading-sf-tight: var(--sf-leading-tight);
+  --leading-sf-snug: var(--sf-leading-snug);
+  --leading-sf-normal: var(--sf-leading-normal);
+  --leading-sf-relaxed: var(--sf-leading-relaxed);
+
+  --tracking-sf-tight: var(--sf-tracking-tight);
+  --tracking-sf-normal: var(--sf-tracking-normal);
+  --tracking-sf-wide: var(--sf-tracking-wide);
+  --tracking-sf-editorial: var(--sf-tracking-editorial);
+
+  --spacing-sf-none: var(--sf-space-none);
+  --spacing-sf-2xs: var(--sf-space-2xs);
+  --spacing-sf-xs: var(--sf-space-xs);
+  --spacing-sf-sm: var(--sf-space-sm);
+  --spacing-sf-md: var(--sf-space-md);
+  --spacing-sf-lg: var(--sf-space-lg);
+  --spacing-sf-xl: var(--sf-space-xl);
+  --spacing-sf-2xl: var(--sf-space-2xl);
+  --spacing-sf-3xl: var(--sf-space-3xl);
+  --spacing-sf-section-tight: var(--sf-space-section-tight);
+  --spacing-sf-section: var(--sf-space-section);
+  --spacing-sf-section-loose: var(--sf-space-section-loose);
+
+  --radius-sf-none: var(--sf-radius-none);
+  --radius-sf-sm: var(--sf-radius-sm);
+  --radius-sf-md: var(--sf-radius-md);
+  --radius-sf-lg: var(--sf-radius-lg);
+  --radius-sf-xl: var(--sf-radius-xl);
+  --radius-sf-pill: var(--sf-radius-pill);
+
+  --shadow-sf-none: var(--sf-shadow-none);
+  --shadow-sf-soft: var(--sf-shadow-soft);
+  --shadow-sf-raised: var(--sf-shadow-raised);
+  --shadow-sf-floating: var(--sf-shadow-floating);
+  --shadow-sf-overlay: var(--sf-shadow-overlay);
+}
+
+/* Scoped bridge contract. Values are intentionally NOT finalised in Phase 1:
+ * every declaration below only REFERENCES an existing project token. Phase 2
+ * approves the Storefront palette/scale; per-store runtime overrides set the
+ * remaining groups as inline custom properties and win over this block. */
+[data-sf-root] {
+  /* Colors — bridged to existing project tokens (no new palette values). */
+  --sf-color-background: var(--background);
+  --sf-color-surface: var(--card);
+  --sf-color-surface-muted: var(--muted);
+  --sf-color-surface-raised: var(--card);
+  --sf-color-text: var(--foreground);
+  --sf-color-text-muted: var(--muted-foreground);
+  --sf-color-text-inverted: var(--primary-foreground);
+  --sf-color-border: var(--border);
+  --sf-color-border-strong: var(--input);
+  --sf-color-primary: var(--brand);
+  --sf-color-primary-foreground: var(--primary-foreground);
+  --sf-color-primary-hover: var(--brand-strong);
+  --sf-color-accent: var(--warm);
+  --sf-color-accent-foreground: var(--accent-foreground);
+  --sf-color-success: var(--primary);
+  --sf-color-warning: var(--warm);
+  --sf-color-danger: var(--destructive);
+  --sf-color-focus-ring: var(--ring);
+  --sf-color-overlay: var(--foreground);
+  --sf-color-price: var(--brand-strong);
+  --sf-color-price-compare: var(--muted-foreground);
+  --sf-color-badge-discount: var(--warm);
+  --sf-color-badge-sold-out: var(--foreground);
+  --sf-color-announcement-background: var(--brand-strong);
+  --sf-color-announcement-foreground: var(--primary-foreground);
+
+  /* Shadows — bridged to existing project shadows (no new receipt). */
+  --sf-shadow-soft: var(--shadow-soft);
+  --sf-shadow-raised: var(--shadow-lift);
+  --sf-shadow-floating: var(--shadow-lift);
+  --sf-shadow-overlay: var(--shadow-lift);
+
+  /* Typography, font scale, font weights, line heights, letter spacing,
+   * spacing, layout, borders, radius, effects and density are intentionally
+   * left WITHOUT values in Phase 1. They are supplied per store in Phase 2/3
+   * from validated configuration; declaring none here avoids locking in an
+   * unapproved look. */
+}
