@@ -73,27 +73,32 @@
 
 /* ---------------------------------------------------------------------------
  * Hover "zoom" — applied to every dashboard card and button (all sections).
- * Cards: gentle lift + scale. Buttons: subtle scale. Transform-only, so it
- * never affects layout. Disabled by prefers-reduced-motion below.
+ * Uses the standalone `translate`/`scale` properties (NOT `transform`) so it
+ * is not blocked by `animate-fade-up` (which fills `transform: translateY(0)`
+ * with `animation-fill-mode: both`). Transform-only, no layout impact.
+ * Disabled by prefers-reduced-motion below.
  * ------------------------------------------------------------------------- */
 .dash-identity main .bg-white.shadow-soft {
-  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 0.28s ease, border-color 0.28s ease;
+  transition: translate 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    scale 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.28s ease,
+    border-color 0.28s ease;
 }
 
 .dash-identity main .bg-white.shadow-soft:hover {
-  transform: translateY(-3px) scale(1.012);
+  translate: 0 -3px;
+  scale: 1.012;
   box-shadow: 0 24px 48px -26px rgba(15, 118, 110, 0.5);
   border-color: rgba(20, 184, 166, 0.45);
 }
 
 .dash-identity button:not(:disabled),
 .dash-identity [role="button"] {
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  transition: translate 0.18s ease, scale 0.18s ease, box-shadow 0.18s ease;
 }
 
 .dash-identity button:not(:disabled):hover {
-  transform: translateY(-1px) scale(1.02);
+  translate: 0 -1px;
+  scale: 1.02;
 }
 
 @keyframes brand-shine {
@@ -183,6 +188,7 @@
   .dash-identity button:not(:disabled):hover,
   .dash-identity main .bg-white.shadow-soft:hover,
   .home-card:hover {
-    transform: none !important;
+    translate: 0;
+    scale: 1 !important;
   }
 }

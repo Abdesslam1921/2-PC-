@@ -141,8 +141,26 @@ function Router() {
           </DashboardPage>
         )}
       />
-      <Route path="/call-center/login" component={CallCenter} />
-      <Route path="/call-center/agent" component={CallCenter} />
+      <Route
+        path="/call-center/login"
+        component={() => (
+          <div className="dash-identity min-h-screen" dir="rtl">
+            <main>
+              <CallCenter />
+            </main>
+          </div>
+        )}
+      />
+      <Route
+        path="/call-center/agent"
+        component={() => (
+          <div className="dash-identity min-h-screen" dir="rtl">
+            <main>
+              <CallCenter />
+            </main>
+          </div>
+        )}
+      />
       <Route
         path="/funnels"
         component={() => (
