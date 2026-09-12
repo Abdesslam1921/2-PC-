@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./styles/storefront.tokens.css";
 @import "./styles/home-overview.css";
+@import "./styles/dashboard-chrome.css";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button";
 import { PresentationNotice } from "@/components/PageIntro";
 import { storeConfig } from "@/config/store";
 import { trpc } from "@/lib/trpc";
-import mascotUrl from "@/assets/mascot.svg";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -174,10 +173,7 @@ export default function Home() {
 
           <section className="home-card relative mt-5 overflow-hidden p-6 sm:p-7">
             <div className="home-card-glow" aria-hidden="true" />
-            <div className="home-float pointer-events-none absolute -bottom-3 right-2 size-[104px] sm:right-5">
-              <img src={mascotUrl} alt="" className="size-full object-contain" />
-            </div>
-            <div className="relative z-[1] max-w-[68%] sm:max-w-[62%]">
+            <div className="relative z-[1]">
               <h3 className="text-xl font-black leading-8 text-[#0C2A26]">
                 طوّر واجهة متجرك بلمسة جاهزة
               </h3>
@@ -280,7 +276,7 @@ export default function Home() {
                     onClick={() => setLocation(step.path)}
                     className="group flex w-full items-center gap-3 rounded-2xl p-3 text-right transition hover:bg-white/70"
                   >
-                    <span className="text-xs font-black text-[#14B8A6]">
+                    <span className="text-xs font-black text-[#0F766E]">
                       {step.number}
                     </span>
                     <span className="flex-1">
@@ -291,7 +287,7 @@ export default function Home() {
                         {step.text}
                       </span>
                     </span>
-                    <ChevronLeft className="size-4 text-[#BFC7C0] transition group-hover:-translate-x-0.5 group-hover:text-[#0F766E]" />
+                    <ChevronLeft className="size-4 text-[#576B66] transition group-hover:-translate-x-0.5 group-hover:text-[#0F766E]" />
                   </button>
                 ))}
               </div>

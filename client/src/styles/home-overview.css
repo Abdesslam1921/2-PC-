@@ -11,6 +11,14 @@
   font-family: "Cairo", var(--font-sans);
   position: relative;
   isolation: isolate;
+
+  /* Scoped brand re-map: re-colors every `var(--brand)` inside the page to the
+   * teal identity without touching global tokens or other pages. */
+  --brand: #0f766e;
+  --brand-strong: #0b5d57;
+  --brand-soft: #e4f3ef;
+  --warm: #b45309;
+  --warm-soft: #fbf1de;
 }
 
 /* ---------- Ambient aurora ---------- */

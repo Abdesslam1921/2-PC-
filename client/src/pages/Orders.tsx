@@ -264,7 +264,12 @@ export default function Orders() {
   };
 
   return (
-    <div dir="rtl">
+    <div className="home-scope" dir="rtl">
+      <div className="home-aurora" aria-hidden="true">
+        <span className="home-orb home-orb-1" />
+        <span className="home-orb home-orb-2" />
+        <span className="home-orb home-orb-3" />
+      </div>
       <PageIntro
         eyebrow="التشغيل"
         title="الطلبات"
@@ -275,7 +280,7 @@ export default function Orders() {
           </div>
         }
       />
-      <div className="mb-5 flex flex-col gap-3 rounded-[20px] border border-[#E7E9E2] bg-white p-3 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+      <div className="home-card mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#0B5B43]/10 sm:max-w-xs">
           <Search className="size-4" />
           <input
@@ -291,7 +296,7 @@ export default function Orders() {
           الدفع عند الاستلام
         </div>
       </div>
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#E7E9E2] bg-white p-3 shadow-soft sm:p-4">
+      <div className="home-card mb-5 flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <input
             type="checkbox"
@@ -381,7 +386,7 @@ export default function Orders() {
         </p>
       )}
       {messageOrdersQuery.data?.length ? (
-        <div className="mb-6 overflow-hidden rounded-[20px] border border-[#D8E6DD] bg-white shadow-soft">
+        <div className="home-card mb-6 overflow-hidden">
           <div className="border-b border-[#ECEDE6] bg-[var(--brand-soft)] p-4">
             <h3 className="text-sm font-extrabold text-[var(--brand-strong)]">
               طلبات الرسائل ({messageOrdersQuery.data.length})
@@ -451,7 +456,7 @@ export default function Orders() {
           <Loader2 className="size-7 animate-spin text-[var(--brand)]" />
         </div>
       ) : orders.length ? (
-        <div className="overflow-hidden rounded-[20px] border border-[#E7E9E2] bg-white shadow-soft">
+        <div className="home-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-[1100px] w-full text-right">
               <thead className="border-b border-[#EEEFE8] bg-[#FAFAF7] text-xs font-extrabold text-[#8A938D]">

@@ -136,7 +136,7 @@ export default function FloatingChatbot({
             <img
               src={mascotUrl}
               alt=""
-              className="size-11 object-contain drop-shadow-[0_2px_6px_rgba(6,23,26,0.35)]"
+              className="mascot-float size-11 object-contain drop-shadow-[0_2px_6px_rgba(6,23,26,0.35)]"
             />
             <Sparkles className="absolute -right-2 -top-1 size-3.5 text-[#F2C063]" />
           </span>

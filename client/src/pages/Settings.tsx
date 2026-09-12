@@ -102,8 +102,8 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="animate-fade-up overflow-hidden rounded-[24px] border border-[#E7E9E2] bg-white shadow-soft">
-      <div className="border-b border-[#EEF0E8] bg-[#FBFBF7] px-5 py-6 sm:px-8 sm:py-8">
+    <section className="home-card animate-fade-up overflow-hidden">
+      <div className="border-b border-[#EEF0E8] bg-[rgba(255,255,255,0.6)] px-5 py-6 sm:px-8 sm:py-8">
         <p className="text-xs font-extrabold tracking-[0.08em] text-[var(--brand)]">
           {eyebrow}
         </p>
@@ -178,7 +178,12 @@ export default function Settings() {
   };
 
   return (
-    <div dir="rtl" className="mx-auto max-w-[1080px] pb-10">
+    <div dir="rtl" className="home-scope mx-auto max-w-[1080px] pb-10">
+      <div className="home-aurora" aria-hidden="true">
+        <span className="home-orb home-orb-1" />
+        <span className="home-orb home-orb-2" />
+        <span className="home-orb home-orb-3" />
+      </div>
       <PageIntro
         eyebrow="مركز الحساب"
         title="الإعدادات"
@@ -195,7 +200,7 @@ export default function Settings() {
         }
       />
       <div className="grid gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
-        <aside className="hidden h-fit rounded-[24px] border border-[#E7E9E2] bg-white p-3 shadow-soft lg:block">
+        <aside className="home-card hidden h-fit p-3 lg:block">
           <div className="mb-3 rounded-2xl bg-[var(--brand-soft)] p-4">
             <p className="text-xs font-bold text-[#5E7268]">حساب المتجر</p>
             <p className="mt-1 truncate font-extrabold text-[#1F2A25]">

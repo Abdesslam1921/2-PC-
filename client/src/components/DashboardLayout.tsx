@@ -344,6 +344,13 @@ export default function DashboardLayout({
           <div className="flex items-center gap-2 sm:gap-3">
             <StoreSwitcher />
             <button
+              onClick={() => setLocation("/stores/new")}
+              className="brand-shine hidden items-center gap-2 rounded-full bg-[linear-gradient(135deg,#0F766E,#0B5D57)] px-4 py-2.5 text-xs font-extrabold text-white shadow-cta transition hover:brightness-105 sm:flex"
+            >
+              <Store className="size-4" />
+              إنشاء متجر
+            </button>
+            <button
               onClick={() =>
                 toast.info("سيظهر مركز المساعدة مع أدوات المتجر في تحديث لاحق.")
               }
@@ -360,7 +367,7 @@ export default function DashboardLayout({
               aria-label="التنبيهات"
             >
               <Bell className="size-[18px]" />
-              <span className="absolute left-2 top-2 size-1.5 rounded-full bg-[var(--warm)]" />
+              <span className="notif-ping absolute left-2 top-2 size-1.5 rounded-full bg-[var(--warm)]" />
             </button>
             <div className="hidden w-48 sm:block">
               <UserAccount />
