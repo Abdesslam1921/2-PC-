@@ -69,7 +69,7 @@ export default function TemplateAi() {
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="rounded-[24px] border-[#E7E9E2] shadow-soft">
+        <Card className="rounded-[24px] border-[#E7E9E2] bg-white shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-extrabold text-[#1F2A25]">
               <Sparkles className="size-5 text-[var(--brand)]" />
@@ -92,7 +92,7 @@ export default function TemplateAi() {
                 {prompt.length}/1600 حرف
               </span>
               <Button
-                className="btn-press rounded-xl bg-[var(--brand)] text-white shadow-cta hover:bg-[var(--brand-strong)]"
+                className="brand-shine cta-gradient btn-press rounded-xl bg-[var(--brand)] text-white shadow-cta"
                 onClick={handleGenerate}
                 disabled={prompt.trim().length < 12 || generate.isPending}
               >
@@ -138,7 +138,7 @@ export default function TemplateAi() {
         </Card>
       </div>
       {draft && (
-        <Card className="animate-fade-up overflow-hidden rounded-[24px] border-[#E7E9E2] shadow-lift">
+        <Card className="animate-fade-up overflow-hidden rounded-[24px] border-[#E7E9E2] bg-white shadow-soft">
           <CardHeader className="flex flex-row items-center justify-between bg-[#FAF9F5]">
             <div>
               <Badge className="mb-2 rounded-full bg-[var(--brand-soft)] text-[var(--brand)] hover:bg-[var(--brand-soft)]">
@@ -200,7 +200,7 @@ export default function TemplateAi() {
                 تعديل الوصف
               </Button>
               <Button
-                className="btn-press w-full rounded-xl bg-[var(--brand)] text-white shadow-cta hover:bg-[var(--brand-strong)]"
+                className="brand-shine cta-gradient btn-press w-full rounded-xl bg-[var(--brand)] text-white shadow-cta"
                 onClick={handleActivate}
                 disabled={save.isPending}
               >

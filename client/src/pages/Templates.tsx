@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 
 const FALLBACK_CUSTOMIZATION = {
-  primaryColor: "#6257e8",
+  primaryColor: "var(--brand)",
   accentColor: "#f4b84a",
   fontFamily: "Cairo",
   showCountdown: true,
@@ -187,9 +187,9 @@ export default function Templates() {
 
   return (
     <div dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-12">
-      <div className="flex flex-col gap-4 rounded-[2rem] border border-[#e8e6f8] bg-gradient-to-l from-[#f7f4ff] via-white to-[#fffaf1] p-6 shadow-[0_18px_60px_rgba(98,87,232,0.08)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-[2rem] border border-[rgba(15,118,110,0.14)] bg-gradient-to-l from-[var(--brand-soft)] via-white to-[#fffaf1] p-6 shadow-[0_18px_60px_rgba(15,118,110,0.10)] sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[#7165d8]">
+          <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--brand)]">
             <LayoutTemplate className="size-4" /> مركز القوالب البرو
           </div>
           <h1 className="text-3xl font-black tracking-tight text-[#181a2b]">
@@ -201,7 +201,7 @@ export default function Templates() {
           </p>
         </div>
         <Link href="/templates/ai">
-          <Button className="h-12 rounded-2xl bg-[#6257e8] px-5 font-extrabold shadow-lg shadow-[#6257e8]/20">
+          <Button className="brand-shine cta-gradient h-12 rounded-2xl bg-[var(--brand)] px-5 font-extrabold shadow-lg shadow-[var(--brand)]/20">
             <Sparkles className="ml-2 size-4" />
             إنشاء قالب بالذكاء الاصطناعي
           </Button>
@@ -227,7 +227,7 @@ export default function Templates() {
             {(presets.data ?? []).map(template => (
               <Card
                 key={template.key}
-                className={`overflow-hidden rounded-[1.7rem] border-[#eceaf7] transition hover:shadow-xl ${activeKey === template.key ? "ring-2 ring-[#6257e8] shadow-lg" : ""}`}
+                className={`overflow-hidden rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft transition hover:shadow-xl ${activeKey === template.key ? "ring-2 ring-[var(--brand)] shadow-lg" : ""}`}
               >
                 <div className="relative h-64 overflow-hidden bg-white border-b">
                   <MiniPreview
@@ -250,7 +250,7 @@ export default function Templates() {
                       {template.name}
                     </CardTitle>
                     {activeKey === template.key && (
-                      <Badge className="rounded-full bg-[#edeaff] text-[#6257e8] hover:bg-[#edeaff]">
+                      <Badge className="rounded-full bg-[var(--brand-soft)] text-[var(--brand)] hover:bg-[var(--brand-soft)]">
                         <Check className="ml-1 size-3" />
                         مفعّل
                       </Badge>
@@ -259,7 +259,7 @@ export default function Templates() {
                   <p className="text-[13px] leading-5 text-[#77798d]">
                     {template.description}
                   </p>
-                  <p className="text-[11px] text-[#6257e8] font-bold">
+                  <p className="text-[11px] text-[var(--brand)] font-bold">
                     مثالي لـ: {(template as any).bestFor}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
@@ -295,7 +295,7 @@ export default function Templates() {
                       معاينة
                     </Button>
                     <Button
-                      className="flex-1 rounded-xl bg-[#6257e8] h-10"
+                      className="brand-shine cta-gradient flex-1 rounded-xl bg-[var(--brand)] h-10"
                       onClick={() => {
                         choose(template.key);
                         save.mutate({
@@ -316,8 +316,8 @@ export default function Templates() {
         </section>
 
         <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <Card className="overflow-hidden rounded-[1.7rem] border-[#eceaf7]">
-            <CardHeader className="border-b border-[#f0eef8] bg-[#fbfaff]">
+          <Card className="overflow-hidden rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft">
+            <CardHeader className="border-b border-[rgba(15,118,110,0.12)] bg-[var(--brand-soft)]">
               <div className="flex items-center justify-between">
                 <CardTitle className="font-black flex items-center gap-2">
                   <Palette className="size-4" />
@@ -389,7 +389,7 @@ export default function Templates() {
                     />
                   </div>
                 </div>
-                <div className="flex items-center justify-between rounded-xl bg-[#faf9ff] p-3">
+                <div className="flex items-center justify-between rounded-xl bg-[var(--brand-soft)] p-3">
                   <Label>عرض العداد</Label>
                   <Switch
                     checked={customization.showCountdown}
@@ -398,7 +398,7 @@ export default function Templates() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-xl bg-[#faf9ff] p-3">
+                <div className="flex items-center justify-between rounded-xl bg-[var(--brand-soft)] p-3">
                   <Label>عناصر الثقة</Label>
                   <Switch
                     checked={customization.showTrustBadges}
@@ -408,7 +408,7 @@ export default function Templates() {
                   />
                 </div>
                 <Button
-                  className="w-full rounded-xl bg-[#6257e8] h-11 font-black"
+                  className="brand-shine cta-gradient w-full rounded-xl bg-[var(--brand)] h-11 font-black"
                   onClick={saveTemplate}
                   disabled={save.isPending}
                 >
