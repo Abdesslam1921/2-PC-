@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>معاينة Theme Editor — غير مرتبطة ببيانات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Rubik:ital,wght@0,300..800;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =====================================================================
+       * PREVIEW ONLY — Storefront Theme Editor (Phase 5).
+       * No DB/API/routing/persistence. Static mock.
+       * RTL: categories = RTL start (right), controls = RTL end (left),
+       * live preview center. Values mirror the Phase 1 token structure (--sf-*).
+       * ===================================================================== */
+      :root {
+        /* Token VALUES shown in this mock (AA-verified) */
+        --sf-color-background: #fffcf6;
+        --sf-color-surface: #ffffff;
+        --sf-color-text: #0c2a26;
+        --sf-color-text-muted: #576b66;
+        --sf-color-primary: #0f766e;
+        --sf-color-primary-foreground: #ffffff;
+        --sf-color-accent: #b45309;
+        --sf-radius-lg: 22px;
+        --sf-font-heading: "Cairo", system-ui, sans-serif;
+        --sf-font-body: "Rubik", system-ui, sans-serif;
+        --panel-bg: #f4f1ea;
+        --line: #e7e9e8;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body { background: var(--panel-bg); color: #0c2a26; font-family: "Cairo", system-ui, sans-serif; overflow: hidden; }
+      button { font-family: inherit; cursor: pointer; }
+      :focus-visible { outline: 2px solid var(--sf-color-primary); outline-offset: 2px; }
+      .note { background: #0c2a26; color: #d9ece8; text-align: center; font-size: 11px; padding: 6px 12px; }
+
+      /* Toolbar */
+      .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff; border-bottom: 1px solid var(--line); padding: 10px 14px; flex-wrap: wrap; }
+      .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .back { font-size: 12.5px; font-weight: 800; color: #576b66; }
+      .title { font-size: 14px; font-weight: 900; }
+      .badge { border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 800; background: #e4f3ef; color: #0b5d57; }
+      .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; border: 1px solid var(--line); background: #fff; padding: 8px 12px; font-size: 12.5px; font-weight: 800; }
+      .btn-primary { border-color: transparent; background: linear-gradient(135deg, #14b8a6, #0b5d57); color: #fff; }
+      .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+      .save { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: #576b66; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #d97706; }
+
+      /* Layout */
+      .app { display: grid; grid-template-columns: 1fr; height: calc(100vh - 96px); }
+      .panel { background: #fff; overflow-y: auto; }
+      .panel-head { position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--line); padding: 12px 14px; font-size: 13.5px; font-weight: 900; }
+      .canvas-wrap { padding: 18px; overflow: auto; display: grid; justify-items: center; }
+
+      /* Categories (right) */
+      .cats { border-inline-start: 1px solid var(--line); display: none; }
+      .cat { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid #f1f3f2; font-size: 13px; font-weight: 700; color: #2f433f; }
+      .cat:hover { background: #f7faf9; }
+      .cat.active { background: #e4f3ef; color: #0b5d57; box-shadow: inset 3px 0 0 var(--sf-color-primary); }
+      .cat .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: #f1f3f2; font-size: 12px; }
+
+      /* Controls (left) */
+      .controls { border-inline-end: 1px solid var(--line); display: none; }
+      .field { padding: 12px 14px; border-bottom: 1px solid #f1f3f2; }
+      .field label { display: block; font-size: 11.5px; font-weight: 800; color: #576b66; margin-bottom: 6px; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      input[type="text"], select { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-family: inherit; font-size: 13px; }
+      input[type="color"] { width: 46px; height: 40px; padding: 2px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; }
+      .seg { display: inline-flex; background: #f1f3f2; border-radius: 10px; padding: 3px; }
+      .seg button { border: 0; background: transparent; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 800; color: #576b66; }
+      .seg button.active { background: #fff; color: #0c2a26; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+      .hint { padding: 10px 14px; font-size: 11px; color: #576b66; }
+      .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+      .sw { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--line); }
+
+      /* Live preview (center) */
+      .frame { width: 100%; max-width: 860px; background: var(--sf-color-background); color: var(--sf-color-text); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px -40px rgba(12,42,38,.5); font-family: var(--sf-font-body); }
+      .frame.mobile { max-width: 390px; }
+      .announce { background: var(--sf-color-primary); color: var(--sf-color-primary-foreground); text-align: center; font-size: 11px; font-weight: 700; padding: 8px; font-family: var(--sf-font-heading); }
+      .head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(0,0,0,.08); }
+      .head b { font-family: var(--sf-font-heading); font-size: 15px; font-weight: 900; }
+      .head span { font-size: 11.5px; color: var(--sf-color-text-muted); }
+      .hero { padding: 30px 22px; background: linear-gradient(135deg, var(--sf-color-primary), #0b5d57); color: #fff; }
+      .hero h1 { margin: 8px 0; font-family: var(--sf-font-heading); font-size: 26px; font-weight: 900; }
+      .hero p { margin: 0 0 14px; font-size: 12px; opacity: .9; }
+      .hero button { border: 0; border-radius: var(--sf-radius-lg); background: var(--sf-color-surface); color: var(--sf-color-primary); padding: 9px 18px; font-size: 12px; font-weight: 800; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px; }
+      .card { background: var(--sf-color-surface); border: 1px solid rgba(0,0,0,.06); border-radius: var(--sf-radius-lg); overflow: hidden; }
+      .card .ph { height: 72px; background: linear-gradient(135deg, color-mix(in srgb, var(--sf-color-primary) 18%, #fff), color-mix(in srgb, var(--sf-color-accent) 14%, #fff)); }
+      .card .bd { padding: 9px; }
+      .card b { font-size: 11.5px; font-family: var(--sf-font-heading); }
+      .card span { display: block; margin-top: 4px; font-size: 11px; color: var(--sf-color-accent); font-weight: 800; }
+      .promo { margin: 0 16px 16px; border-radius: var(--sf-radius-lg); background: color-mix(in srgb, var(--sf-color-accent) 12%, #fff); padding: 16px; font-size: 11.5px; color: var(--sf-color-text-muted); }
+      .foot { background: var(--sf-color-text); color: #cfe0dc; padding: 14px; font-size: 11px; text-align: center; }
+
+      .status { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #fff; border-top: 1px solid var(--line); padding: 8px 14px; font-size: 11.5px; color: #576b66; flex-wrap: wrap; }
+      .mobile-bar { display: flex; gap: 8px; padding: 10px 14px; background: #fff; border-top: 1px solid var(--line); }
+      .mobile-bar .btn { flex: 1; justify-content: center; }
+
+      @media (min-width: 1024px) {
+        .app { grid-template-columns: 320px 1fr 280px; }
+        .controls, .cats { display: block; }
+        .mobile-bar { display: none; }
+      }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="note">معاينة شكل Theme Editor فقط — غير مرتبطة بقاعدة البيانات أو API أو التخزين (Rule 27)</div>
+
+    <div class="toolbar">
+      <div class="group">
+        <span class="back">← رجوع</span>
+        <span class="title">محرّر ثيم المتجر</span>
+        <span class="badge">القالب: Modern</span>
+      </div>
+      <div class="group">
+        <button class="icon-btn" title="تراجع">↺</button>
+        <button class="icon-btn" title="إعادة">↻</button>
+        <span class="save"><span class="dot"></span> تغييرات غير محفوظة</span>
+        <button class="btn">إعادة تعيين</button>
+        <button class="btn">مضاعفة الثيم</button>
+        <button class="btn">حفظ مسودة</button>
+        <button class="btn">معاينة</button>
+        <button class="btn btn-primary">نشر</button>
+        <span class="badge">منشور: v4</span>
+      </div>
+    </div>
+
+    <div class="app">
+      <!-- Controls (RTL end / left) -->
+      <aside class="panel controls">
+        <div class="panel-head">الألوان</div>
+        <div class="field">
+          <label>اللون الأساسي</label>
+          <div class="row">
+            <input type="color" value="#0f766e" />
+            <input type="text" value="#0F766E" />
+          </div>
+          <div class="swatches" style="margin-top:8px">
+            <span class="sw" style="background:#0f766e"></span>
+            <span class="sw" style="background:#2563eb"></span>
+            <span class="sw" style="background:#7c3aed"></span>
+            <span class="sw" style="background:#b45309"></span>
+            <span class="sw" style="background:#15803d"></span>
+          </div>
+        </div>
+        <div class="field">
+          <label>لون التمييز</label>
+          <div class="row"><input type="color" value="#b45309" /><input type="text" value="#B45309" /></div>
+        </div>
+        <div class="field">
+          <label>لون الخلفية</label>
+          <div class="row"><input type="color" value="#fffcf6" /><input type="text" value="#FFFCF6" /></div>
+        </div>
+        <div class="field">
+          <label>لون النص</label>
+          <div class="row"><input type="color" value="#0c2a26" /><input type="text" value="#0C2A26" /></div>
+        </div>
+        <div class="field">
+          <label>نوع خط العناوين</label>
+          <select><option>Cairo</option><option>Tajawal</option><option>Rubik</option></select>
+        </div>
+        <div class="field">
+          <label>انحناء الحواف (px)</label>
+          <input type="text" value="22" />
+        </div>
+        <div class="field">
+          <label>الكثافة</label>
+          <div class="seg"><button>مدمجة</button><button class="active">مريحة</button><button>واسعة</button></div>
+        </div>
+        <p class="hint">القيم تُتحقَّق عبر مخطط الثيم من Phase 1 — لا CSS/JS مخصّص.</p>
+      </aside>
+
+      <!-- Live preview (center) -->
+      <main class="canvas-wrap">
+        <div class="frame">
+          <div class="announce">توصيل لكل الولايات · الدفع عند الاستلام</div>
+          <div class="head"><b>عبدو ستور</b><span>السلة (0)</span></div>
+          <div class="hero">
+            <span style="font-size:10.5px;font-weight:800;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 12px">✦ وصل حديثًا</span>
+            <h1>أناقة عملية لكل يوم</h1>
+            <p>تشكيلة مختارة بعناية، بأسعار مدروسة وتوصيل سريع.</p>
+            <button>تسوق الآن ←</button>
+          </div>
+          <div class="grid">
+            <div class="card"><div class="ph"></div><div class="bd"><b>تيشيرت قطني</b><span>2,560 دج</span></div></div>
+            <div class="card"><div class="ph"></div><div class="bd"><b>حذاء رياضي</b><span>4,900 دج</span></div></div>
+            <div class="card"><div class="ph"></div><div class="bd"><b>حقيبة يومية</b><span>3,450 دج</span></div></div>
+          </div>
+          <div class="promo"><b style="color:var(--sf-color-text)">عرض الأسبوع — حتى 30%</b><br />لفترة محدودة على المختارات.</div>
+          <div class="foot">© 2026 عبدو ستور</div>
+        </div>
+      </main>
+
+      <!-- Categories (RTL start / right) -->
+      <aside class="panel cats">
+        <div class="panel-head">فئات الثيم</div>
+        <div class="cat active"><span class="ic">◐</span> الألوان</div>
+        <div class="cat"><span class="ic">Aa</span> الطباعة</div>
+        <div class="cat"><span class="ic">↔</span> المسافات</div>
+        <div class="cat"><span class="ic">▭</span> التخطيط</div>
+        <div class="cat"><span class="ic">◜</span> الحواف</div>
+        <div class="cat"><span class="ic">▤</span> الحدود</div>
+        <div class="cat"><span class="ic">✷</span> الظلال والتأثيرات</div>
+        <div class="cat"><span class="ic">≣</span> الكثافة</div>
+      </aside>
+    </div>
+
+    <div class="mobile-bar">
+      <button class="btn">☰ الفئات</button>
+      <button class="btn">⚙ الخصائص</button>
+    </div>
+
+    <div class="status">
+      <span>حفظ تلقائي · آخر حفظ قبل 8 ثوانٍ</span>
+      <span>الإصدار المنشور v4 · مسودة محفوظة</span>
+      <span>لا تأثير على لوحة التحكم</span>
+    </div>
+  </body>
+</html>
