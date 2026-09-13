@@ -141,6 +141,7 @@ export default function BuilderPage() {
   const saveDraft = trpc.storefront.saveDraft.useMutation();
   const publish = trpc.storefront.publish.useMutation();
   const uploadAsset = trpc.storefront.uploadAsset.useMutation();
+  const rollback = trpc.storefront.rollback.useMutation();
   const utils = trpc.useUtils();
 
   const {
@@ -164,6 +165,7 @@ export default function BuilderPage() {
   const [addType, setAddType] = useState<StorefrontSectionType>("hero");
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const initialized = useRef(false);
   const seededRef = useRef(false);
 
@@ -358,6 +360,17 @@ export default function BuilderPage() {
       await utils.storefront.managed.invalidate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "تعذّر النشر.");
+    }
+  };
+
+  const doRollback = async (versionNumber: number) => {
+    try {
+      const res = await rollback.mutateAsync({ versionNumber });
+      toast.success(`تم التراجع — أُنشئ الإصدار ${res.versionNumber}`);
+      await utils.storefront.managed.invalidate();
+      setHistoryOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تعذّر التراجع.");
     }
   };
 
@@ -763,6 +776,13 @@ export default function BuilderPage() {
           </span>
           <Button
             variant="outline"
+            onClick={() => setHistoryOpen(true)}
+            className="h-9 rounded-lg px-3 text-xs font-extrabold"
+          >
+            السجل ({managed.data?.versions.length ?? 0})
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => window.open("/store", "_blank")}
             className="h-9 rounded-lg px-3 text-xs font-extrabold"
           >
@@ -836,6 +856,59 @@ export default function BuilderPage() {
           {settings}
         </aside>
       </div>
+
+      {/* Version history + rollback */}
+      <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+        <SheetContent side="left" className="w-[340px] overflow-y-auto p-0">
+          <SheetHeader>
+            <SheetTitle>سجل الإصدارات</SheetTitle>
+          </SheetHeader>
+          <div className="p-4">
+            {managed.data?.published ? (
+              <p className="mb-3 text-[12px] font-bold text-[#0B5D57]">
+                المنشور الحالي: الإصدار {managed.data.published.versionNumber}
+              </p>
+            ) : null}
+            <div className="space-y-2">
+              {(managed.data?.versions ?? []).map(version => (
+                <div
+                  key={version.id}
+                  className="rounded-xl border border-[#e7e9e8] p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <b className="text-[13px]">
+                      الإصدار {version.versionNumber}
+                    </b>
+                    <span className="text-[11px] text-[#576B66]">
+                      {new Date(
+                        version.publishedAt as unknown as string
+                      ).toLocaleString("ar-DZ")}
+                    </span>
+                  </div>
+                  {version.note ? (
+                    <p className="mt-1 text-[11.5px] text-[#576B66]">
+                      {version.note}
+                    </p>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    onClick={() => doRollback(version.versionNumber)}
+                    disabled={rollback.isPending}
+                    className="mt-2 h-8 rounded-lg text-xs font-extrabold"
+                  >
+                    التراجع إلى هذا الإصدار
+                  </Button>
+                </div>
+              ))}
+              {!managed.data?.versions.length ? (
+                <p className="text-[12.5px] text-[#576B66]">
+                  لا توجد إصدارات منشورة بعد.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Mobile drawers */}
       <div className="flex gap-2 border-t border-[#e7e9e8] bg-white p-3 lg:hidden">
