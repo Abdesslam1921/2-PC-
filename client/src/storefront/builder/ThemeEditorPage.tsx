@@ -45,6 +45,58 @@ const COLOR_FIELDS: Array<{ token: string; label: string }> = [
 ];
 const FONT_OPTIONS = ["Cairo", "Tajawal", "Rubik"];
 
+type Ctrl = {
+  group: string;
+  token: string;
+  label: string;
+  type: "px" | "ms" | "select";
+  options?: Array<{ value: string; label: string }>;
+};
+const CONTROLS: Record<Category, Ctrl[]> = {
+  colors: [],
+  typography: [],
+  radius: [],
+  spacing: [
+    { group: "spacing", token: "--sf-space-section", label: "المسافة الرأسية بين الأقسام (px)", type: "px" },
+  ],
+  layout: [
+    { group: "layout", token: "--sf-container-max", label: "أقصى عرض للمحتوى (px)", type: "px" },
+  ],
+  borders: [
+    { group: "borders", token: "--sf-border-width-base", label: "سماكة حدود الأقسام (px)", type: "px" },
+    {
+      group: "borders",
+      token: "--sf-border-style",
+      label: "نمط الحدود",
+      type: "select",
+      options: [
+        { value: "solid", label: "متصل" },
+        { value: "dashed", label: "متقطع" },
+      ],
+    },
+  ],
+  effects: [
+    {
+      group: "shadows",
+      token: "--sf-shadow-soft",
+      label: "ظل الأقسام",
+      type: "select",
+      options: [
+        { value: "none", label: "بدون" },
+        { value: "0 8px 24px rgba(12,42,38,0.10)", label: "ناعم" },
+        { value: "0 20px 44px rgba(12,42,38,0.22)", label: "قوي" },
+      ],
+    },
+    { group: "effects", token: "--sf-effect-transition-base", label: "مدة الانتقال (ms)", type: "ms" },
+  ],
+  density: [],
+};
+const DENSITY_PRESETS = [
+  { id: "compact", label: "مدمجة", pad: "40px" },
+  { id: "comfortable", label: "مريحة", pad: "64px" },
+  { id: "spacious", label: "واسعة", pad: "88px" },
+];
+
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const luminance = (hex: string) => {
@@ -108,6 +160,12 @@ export default function ThemeEditorPage() {
     patchTheme({ radius: { ...radius, [token]: value } });
   const setFont = (value: string) =>
     patchTheme({ fontFamilies: { ...fontFamilies, "--sf-font-heading": value } });
+  const setToken = (group: string, token: string, value?: string) => {
+    const current = { ...((theme[group] as Record<string, string>) ?? {}) };
+    if (!value) delete current[token];
+    else current[token] = value;
+    patchTheme({ [group]: current });
+  };
 
   useEffect(() => {
     if (!baseConfig || !dirty || conflict !== null) return;
@@ -395,8 +453,91 @@ export default function ThemeEditorPage() {
             </div>
           ) : null}
 
-          {category !== "colors" && category !== "typography" && category !== "radius" ? (
-            <div className="p-3.5">{unimplemented}</div>
+          {["spacing", "layout", "borders", "effects"].includes(category) ? (
+            <div className="space-y-3 p-3.5">
+              {CONTROLS[category].map(ctrl => {
+                const current =
+                  ((theme[ctrl.group] as Record<string, string>) ?? {})[ctrl.token] ?? "";
+                if (ctrl.type === "select") {
+                  return (
+                    <div key={ctrl.token}>
+                      <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                        {ctrl.label}
+                      </label>
+                      <select
+                        value={current}
+                        onChange={e =>
+                          setToken(ctrl.group, ctrl.token, e.target.value || undefined)
+                        }
+                        className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
+                      >
+                        <option value="">افتراضي القالب</option>
+                        {(ctrl.options ?? []).map(o => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+                const unit = ctrl.type === "ms" ? "ms" : "px";
+                return (
+                  <div key={ctrl.token}>
+                    <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                      {ctrl.label}
+                    </label>
+                    <input
+                      type="number"
+                      value={current ? parseInt(current, 10) : ""}
+                      onChange={e =>
+                        setToken(
+                          ctrl.group,
+                          ctrl.token,
+                          e.target.value ? `${Number(e.target.value)}${unit}` : undefined
+                        )
+                      }
+                      className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
+                    />
+                  </div>
+                );
+              })}
+              <p className="text-[11px] text-[#576B66]">
+                تُطبَّق على الأقسام مباشرةً؛ وعند غياب القيمة يبقى مظهر القالب كما هو.
+              </p>
+            </div>
+          ) : null}
+
+          {category === "density" ? (
+            <div className="space-y-3 p-3.5">
+              <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                الكثافة
+              </label>
+              <div className="inline-flex rounded-[10px] bg-[#f1f3f2] p-1">
+                {DENSITY_PRESETS.map(d => {
+                  const active =
+                    ((theme.spacing as Record<string, string>) ?? {})[
+                      "--sf-space-section"
+                    ] === d.pad;
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setToken("spacing", "--sf-space-section", d.pad)}
+                      className={`rounded-lg px-3 py-1.5 text-[12px] font-bold ${
+                        active ? "bg-white text-[#0C2A26]" : "text-[#576B66]"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-[#576B66]">
+                الكثافة تُطبَّق حاليًا كمسافة رأسية للأقسام؛ وربطها الكامل بالمسافات
+                يبقى مشروعًا منفصلًا.
+              </p>
+            </div>
           ) : null}
 
           {/* Version history + rollback */}

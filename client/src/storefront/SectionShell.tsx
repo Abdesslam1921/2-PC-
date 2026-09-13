@@ -73,10 +73,23 @@ export function SectionShell({
   children,
 }: SectionShellProps) {
   const applied = sectionStyleFromSettings(settings);
+  // Theme-level tokens applied to the section element. The `revert-layer`
+  // fallback means: when the merchant sets no theme value, the declaration is
+  // dropped and the template's own styles apply unchanged.
+  const themeBase: CSSProperties = {
+    paddingTop: "var(--sf-space-section, revert-layer)",
+    paddingBottom: "var(--sf-space-section, revert-layer)",
+    borderWidth: "var(--sf-border-width-base, revert-layer)",
+    borderStyle: "var(--sf-border-style, revert-layer)",
+    boxShadow: "var(--sf-shadow-soft, revert-layer)",
+    transitionDuration: "var(--sf-effect-transition-base, revert-layer)",
+  };
+  const merged = { ...themeBase, ...applied };
   const styled =
-    isValidElement(children) && Object.keys(applied).length > 0
+    isValidElement(children) && Object.keys(merged).length > 0
       ? cloneElement(children as ReactElement<{ style?: CSSProperties }>, {
           style: {
+            ...themeBase,
             ...((children as ReactElement<{ style?: CSSProperties }>).props
               .style ?? {}),
             ...applied,

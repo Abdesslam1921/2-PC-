@@ -49,7 +49,7 @@ const str = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
 const LABEL = "text-[11px] uppercase tracking-[0.22em] text-[var(--sf-color-text-muted,#576B66)]";
-const WRAP = "mx-auto w-full max-w-[1080px] px-5 sm:px-8";
+const WRAP = "mx-auto w-full max-w-[var(--sf-container-max,1080px)] px-5 sm:px-8";
 
 export function MinimalStorefront({
   config,

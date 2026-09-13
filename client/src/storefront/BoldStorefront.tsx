@@ -48,7 +48,7 @@ function getPrice(product: CatalogProduct) {
 const str = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
-const WRAP = "mx-auto w-full max-w-[1240px] px-4 sm:px-6";
+const WRAP = "mx-auto w-full max-w-[var(--sf-container-max,1240px)] px-4 sm:px-6";
 
 export function BoldStorefront({
   config,

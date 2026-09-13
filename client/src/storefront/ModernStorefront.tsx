@@ -216,7 +216,7 @@ export function ModernStorefront({
                 key={section.id}
                 className="sticky top-0 z-30 border-b border-[#E6EEEB] bg-[rgba(255,252,246,0.9)] backdrop-blur-xl"
               >
-                <div className="mx-auto flex h-[68px] max-w-[1200px] items-center justify-between gap-3 px-4">
+                <div className="mx-auto flex h-[68px] max-w-[var(--sf-container-max,1200px)] items-center justify-between gap-3 px-4">
                   <div className="flex items-center gap-2.5 text-[18px] font-black">
                     <span className="grid size-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] font-black text-white">
                       {storeName.slice(0, 1)}
@@ -279,7 +279,7 @@ export function ModernStorefront({
                   />
                 ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(6,23,26,0.55),transparent_55%)]" />
-                <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 py-12 text-white">
+                <div className="relative z-10 mx-auto w-full max-w-[var(--sf-container-max,1200px)] px-4 py-12 text-white">
                   {str(section.settings.eyebrow) ? (
                     <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3.5 py-1.5 text-[12px] font-extrabold">
                       ✦ {str(section.settings.eyebrow)}
@@ -312,7 +312,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="mx-auto max-w-[1200px] px-4 py-14"
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-14"
               >
                 <div className="mb-5 flex items-end justify-between gap-3">
                   <div>
@@ -358,7 +358,7 @@ export function ModernStorefront({
               <section
                 key={section.id}
                 id="featured"
-                className="mx-auto max-w-[1200px] px-4 py-6"
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-6"
               >
                 <div className="mb-5 flex items-end justify-between gap-3">
                   <div>
@@ -385,7 +385,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="mx-auto max-w-[1200px] px-4 py-6"
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-6"
               >
                 <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[linear-gradient(120deg,#0B5D57,#0F766E_60%,#12907F)] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
                   <div>
@@ -414,7 +414,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="mx-auto max-w-[1200px] px-4 py-8"
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-8"
               >
                 {str(section.settings.title) ? (
                   <h2 className="mb-5 text-center text-[22px] font-black sm:text-[26px]">
@@ -448,7 +448,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="mx-auto max-w-[1200px] px-4 py-8"
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-8"
               >
                 <div className="grid items-center gap-4 rounded-[var(--sf-radius-lg,22px)] border border-[#E6EEEB] bg-[#F3F7F6] p-7 sm:grid-cols-[1fr_auto] sm:p-9">
                   <div>
@@ -481,7 +481,7 @@ export function ModernStorefront({
           case "footer":
             return (
               <footer key={section.id} className="mt-14 bg-[#0C2A26] text-[#CFE0DC]">
-                <div className="mx-auto grid max-w-[1200px] gap-7 px-4 py-11 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="mx-auto grid max-w-[var(--sf-container-max,1200px)] gap-7 px-4 py-11 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
                     <div className="flex items-center gap-2.5 text-[18px] font-black text-white">
                       <span className="grid size-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] text-white">
@@ -510,7 +510,7 @@ export function ModernStorefront({
                     </div>
                   ))}
                 </div>
-                <div className="mx-auto flex max-w-[1200px] flex-wrap justify-between gap-2.5 border-t border-white/10 px-4 py-4 text-[12px] text-[#9FB8B3]">
+                <div className="mx-auto flex max-w-[var(--sf-container-max,1200px)] flex-wrap justify-between gap-2.5 border-t border-white/10 px-4 py-4 text-[12px] text-[#9FB8B3]">
                   <span>© {new Date().getFullYear()} {storeName}</span>
                   <span>جميع الحقوق محفوظة</span>
                 </div>

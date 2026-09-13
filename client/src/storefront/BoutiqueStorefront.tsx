@@ -48,7 +48,7 @@ function getPrice(product: CatalogProduct) {
 const str = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
-const WRAP = "mx-auto w-full max-w-[1140px] px-5 sm:px-7";
+const WRAP = "mx-auto w-full max-w-[var(--sf-container-max,1140px)] px-5 sm:px-7";
 const LABEL =
   "text-[11px] uppercase tracking-[0.3em] text-[#8A6A3B]";
 
