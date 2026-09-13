@@ -143,6 +143,8 @@ export default function ThemeEditorPage() {
   const colors = (theme.colors ?? {}) as Record<string, string>;
   const radius = (theme.radius ?? {}) as Record<string, string>;
   const fontFamilies = (theme.fontFamilies ?? {}) as Record<string, string>;
+  const spacingTokens = (theme.spacing ?? {}) as Record<string, string>;
+  const spacingPad = spacingTokens["--sf-space-section"] ?? "";
   const effective = (token: string) => colors[token] ?? defaults[token] ?? "#000000";
 
   const previewStyle = useMemo(
@@ -532,6 +534,25 @@ export default function ThemeEditorPage() {
                     </button>
                   );
                 })}
+              </div>
+              {/* Synced with density: same token, shown together so the change is
+                  visible immediately in both controls. */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={spacingPad ? parseInt(spacingPad, 10) : ""}
+                  onChange={e =>
+                    setToken(
+                      "spacing",
+                      "--sf-space-section",
+                      e.target.value ? `${Number(e.target.value)}px` : undefined
+                    )
+                  }
+                  className="h-10 w-28 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
+                />
+                <span className="text-[12px] font-bold text-[#576B66]">
+                  px (نفس رقم فئة «المسافات»)
+                </span>
               </div>
               <p className="text-[11px] text-[#576B66]">
                 الكثافة تُطبَّق حاليًا كمسافة رأسية للأقسام؛ وربطها الكامل بالمسافات
