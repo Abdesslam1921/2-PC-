@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   Check,
   Eye,
@@ -160,6 +160,7 @@ export default function Templates() {
   });
   const [selected, setSelected] = useState("market-pro");
   const storefrontManaged = trpc.storefront.managed.useQuery();
+  const [, setLocation] = useLocation();
   const enableTemplate = trpc.storefront.enableTemplate.useMutation({
     onSuccess: data => {
       toast.success(`تم تفعيل قالب ${data.templateKey} ونشره على واجهة المتجر.`);
@@ -167,6 +168,15 @@ export default function Templates() {
     },
     onError: error => toast.error(error.message),
   });
+  const startEditing = trpc.storefront.startEditing.useMutation();
+  const openEditor = (templateKey: "modern" | "minimal" | "bold" | "boutique") =>
+    startEditing.mutate(
+      { templateKey },
+      {
+        onSuccess: () => setLocation("/store/builder"),
+        onError: error => toast.error(error.message),
+      }
+    );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
     "mobile"
   );
@@ -218,54 +228,54 @@ export default function Templates() {
       </div>
 
       <Card className="rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <div>
+        <CardContent className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm font-black text-[var(--brand)]">
-              <Sparkles className="size-4" /> نظام القوالب الجديد (Modern)
+              <Sparkles className="size-4" /> نظام القوالب الجديد
             </div>
-            <p className="mt-1 text-xs text-[#576B66]">
+            <span className="text-xs font-bold text-[#576B66]">
               {storefrontManaged.data?.published
-                ? `منشور على الواجهة الحقيقية — الإصدار ${storefrontManaged.data.published.versionNumber}`
-                : "غير مُفعّل بعد — المتجر يعمل حالياً بالواجهة القديمة (Legacy)."}
-            </p>
+                ? `المنشور: ${storefrontManaged.data.published.templateKey ?? "—"} · الإصدار ${storefrontManaged.data.published.versionNumber}`
+                : "لم يُفعَّل بعد — الواجهة القديمة (Legacy) تعمل."}
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => enableTemplate.mutate({ templateKey: "modern" })}
-              disabled={enableTemplate.isPending}
-              className="brand-shine cta-gradient h-10 rounded-xl px-5 font-extrabold"
-            >
-              {enableTemplate.isPending ? "جارٍ التفعيل…" : "تفعيل Modern"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => enableTemplate.mutate({ templateKey: "minimal" })}
-              disabled={enableTemplate.isPending}
-              className="brand-shine h-10 rounded-xl border-[var(--brand)] px-5 font-extrabold text-[var(--brand)]"
-            >
-              تفعيل Minimal
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => enableTemplate.mutate({ templateKey: "bold" })}
-              disabled={enableTemplate.isPending}
-              className="brand-shine h-10 rounded-xl border-[var(--brand)] px-5 font-extrabold text-[var(--brand)]"
-            >
-              تفعيل Bold
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => enableTemplate.mutate({ templateKey: "boutique" })}
-              disabled={enableTemplate.isPending}
-              className="brand-shine h-10 rounded-xl border-[var(--brand)] px-5 font-extrabold text-[var(--brand)]"
-            >
-              تفعيل Boutique
-            </Button>
-            <Link href="/store/builder">
-              <Button className="h-10 rounded-xl bg-[#0C2A26] px-5 font-extrabold text-white">
-                فتح المحرّر
-              </Button>
-            </Link>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {(["modern", "minimal", "bold", "boutique"] as const).map(key => {
+              const isPublished =
+                storefrontManaged.data?.published?.templateKey === key;
+              return (
+                <div
+                  key={key}
+                  className="rounded-2xl border border-[#e7e9e8] p-3.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <b className="text-sm capitalize">{key}</b>
+                    {isPublished ? (
+                      <Badge className="rounded-full bg-[#e4f3ef] text-[var(--brand)] hover:bg-[#e4f3ef]">
+                        منشور
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      onClick={() => enableTemplate.mutate({ templateKey: key })}
+                      disabled={enableTemplate.isPending}
+                      className="h-9 flex-1 rounded-lg text-xs font-extrabold"
+                    >
+                      تفعيل
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => openEditor(key)}
+                      disabled={startEditing.isPending}
+                      className="h-9 flex-1 rounded-lg text-xs font-extrabold"
+                    >
+                      تعديل
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

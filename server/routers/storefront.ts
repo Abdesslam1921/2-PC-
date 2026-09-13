@@ -132,6 +132,15 @@ export const storefrontRouter = router({
         draftConfig = null;
       }
     }
+    let publishedTemplateKey: string | null = null;
+    if (published) {
+      try {
+        const v = validateStorefrontConfig(JSON.parse(published.snapshotJson));
+        publishedTemplateKey = v.ok ? v.data?.templateKey ?? null : null;
+      } catch {
+        publishedTemplateKey = null;
+      }
+    }
     return {
       isOverride,
       draft: draft
@@ -141,6 +150,7 @@ export const storefrontRouter = router({
         ? {
             versionNumber: published.versionNumber,
             publishedAt: published.publishedAt,
+            templateKey: publishedTemplateKey,
           }
         : null,
       versions,
@@ -298,6 +308,58 @@ export const storefrontRouter = router({
       const key = `storefront/${storeId}/${Date.now()}-${safe}`;
       const { url } = await storagePut(key, buffer, contentType);
       return { url };
+    }),
+
+  /**
+   * Open a template for editing: seeds the DRAFT (never publishes) with that
+   * template's default config if the draft is for a different template.
+   */
+  startEditing: protectedProcedure
+    .input(z.object({ templateKey: z.enum(STOREFRONT_TEMPLATE_KEYS) }))
+    .mutation(async ({ ctx, input }) => {
+      const { storeId, isOverride, userId, role } = assertOwner(ctx);
+      const existing = await getStorefrontDraft(storeId);
+      let existingKey: string | null = null;
+      if (existing) {
+        try {
+          const v = validateStorefrontConfig(JSON.parse(existing.configJson));
+          existingKey = v.ok ? v.data?.templateKey ?? null : null;
+        } catch {
+          existingKey = null;
+        }
+      }
+      if (existing && existingKey === input.templateKey) {
+        return {
+          templateKey: input.templateKey,
+          version: existing.concurrencyVersion,
+          changed: false,
+        };
+      }
+      const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[input.templateKey]);
+      if (!valid.ok || !valid.data) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      }
+      const saved = await saveStorefrontDraft({
+        ownerId: userId,
+        storeId,
+        configJson: JSON.stringify(valid.data),
+        expectedVersion: existing ? existing.concurrencyVersion : 0,
+        updatedBy: userId,
+      });
+      await recordStorefrontAuditLog({
+        storeId,
+        actorId: userId,
+        actorRole: role,
+        isOverride,
+        action: "draft_template_switch",
+        entityType: "draft",
+        metadataJson: JSON.stringify({ templateKey: input.templateKey }),
+      });
+      return {
+        templateKey: input.templateKey,
+        version: saved.version ?? 0,
+        changed: true,
+      };
     }),
 
   /** One-click opt-in for any approved template (publishes immediately). */
