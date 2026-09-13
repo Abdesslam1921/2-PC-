@@ -49,6 +49,7 @@ import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { useDraftHistory } from "@/storefront/builder/useDraftHistory";
 import {
   ADDABLE_SECTION_TYPES,
+  COMMON_STYLE_FIELDS,
   SECTION_FIELDS,
   SECTION_LABELS,
 } from "@shared/storefront/sectionFields";
@@ -184,7 +185,7 @@ export default function BuilderPage() {
 
   // Minimal's hero is intentionally text-only, so hide the image field there.
   const visibleFields = (type: StorefrontSectionType) =>
-    SECTION_FIELDS[type].filter(
+    [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS].filter(
       f => !(f.type === "image" && config?.templateKey === "minimal")
     );
 
@@ -507,6 +508,77 @@ export default function BuilderPage() {
                     }
                     className="mt-2 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
                   />
+                </div>
+              );
+            }
+            if (field.type === "color") {
+              const current = typeof value === "string" ? value : "";
+              const swatch = /^#[0-9a-fA-F]{6}$/.test(current)
+                ? current
+                : "#ffffff";
+              return (
+                <div key={field.key}>
+                  <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                    {field.label}
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={swatch}
+                      onChange={e =>
+                        patchSection(selected.id, {
+                          settings: {
+                            ...selected.settings,
+                            [field.key]: e.target.value,
+                          },
+                        })
+                      }
+                      className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
+                    />
+                    <input
+                      type="text"
+                      value={current}
+                      placeholder="#FFFFFF أو oklch(...)"
+                      onChange={e =>
+                        patchSection(selected.id, {
+                          settings: {
+                            ...selected.settings,
+                            [field.key]: e.target.value,
+                          },
+                        })
+                      }
+                      className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
+                    />
+                  </div>
+                </div>
+              );
+            }
+            if (field.type === "select") {
+              const current = typeof value === "string" ? value : "";
+              return (
+                <div key={field.key}>
+                  <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                    {field.label}
+                  </label>
+                  <select
+                    value={current}
+                    onChange={e =>
+                      patchSection(selected.id, {
+                        settings: {
+                          ...selected.settings,
+                          [field.key]: e.target.value,
+                        },
+                      })
+                    }
+                    className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold outline-none focus:border-[#0F766E]"
+                  >
+                    <option value="">افتراضي القالب</option>
+                    {(field.options ?? []).map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               );
             }

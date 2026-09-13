@@ -460,6 +460,7 @@ export function BoldStorefront({
             key={section.id}
             id={section.id}
             label={SECTION_LABELS[section.type]}
+            settings={section.settings}
             highlight={highlightSectionId === section.id}
             onSelect={onSelectSection}
           >

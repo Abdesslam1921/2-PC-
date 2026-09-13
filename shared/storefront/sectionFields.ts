@@ -10,13 +10,21 @@ export type SectionFieldType =
   | "textarea"
   | "number"
   | "boolean"
-  | "image";
+  | "image"
+  | "color"
+  | "select";
+
+export interface SectionFieldOption {
+  value: string;
+  label: string;
+}
 
 export interface SectionField {
   key: string;
   label: string;
   type: SectionFieldType;
   placeholder?: string;
+  options?: SectionFieldOption[];
 }
 
 export const SECTION_LABELS: Record<StorefrontSectionType, string> = {
@@ -85,4 +93,23 @@ export const ADDABLE_SECTION_TYPES: StorefrontSectionType[] = [
   "promo",
   "benefits",
   "newsletter",
+];
+
+export const FONT_OPTIONS: SectionFieldOption[] = [
+  { value: "cairo", label: "Cairo" },
+  { value: "tajawal", label: "Tajawal" },
+  { value: "rubik", label: "Rubik" },
+];
+
+/**
+ * Common per-section style controls available on EVERY section (WordPress-like).
+ * Applied to the section element itself by `SectionShell`, so they work across
+ * all templates without duplicating styling code.
+ */
+export const COMMON_STYLE_FIELDS: SectionField[] = [
+  { key: "styleImage", label: "صورة الخلفية", type: "image" },
+  { key: "styleBg", label: "لون الخلفية", type: "color" },
+  { key: "styleText", label: "لون النص", type: "color" },
+  { key: "styleFont", label: "نوع الخط", type: "select", options: FONT_OPTIONS },
+  { key: "stylePadY", label: "الحشوة الرأسية (px)", type: "number" },
 ];
