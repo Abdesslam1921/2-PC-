@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>معاينة قالب Bold — متجر تجريبي (غير مرتبطة ببيانات)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Rubik:ital,wght@0,400..900;1,400&family=Tajawal:wght@400;500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =====================================================================
+       * PREVIEW ONLY — Bold storefront template.
+       * Structural identity: compact rhythm · thick borders & big radius ·
+       * full-bleed dark hero with huge type · high information density ·
+       * dark high-contrast header/footer. AA-verified values only.
+       * ===================================================================== */
+      :root {
+        --sf-bg: #ffffff;
+        --sf-surface: #ffffff;
+        --sf-ink: #0c2a26;
+        --sf-muted: #576b66;
+        --sf-line: #0c2a26;
+        --sf-teal: #0f766e;
+        --sf-teal-soft: #5eead4;
+        --sf-gold: #f5b13d;
+        --sf-radius: 28px;
+        --sf-radius-pill: 999px;
+        --sf-gutter: 16px;
+        --sf-section: 48px;
+        --sf-container: 1240px;
+        --sf-heading: "Cairo", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+        --sf-body: "Rubik", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--sf-bg);
+        color: var(--sf-ink);
+        font-family: var(--sf-body);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      h1, h2, h3 { font-family: var(--sf-heading); margin: 0; font-weight: 900; }
+      a { color: inherit; text-decoration: none; }
+      button { font-family: inherit; cursor: pointer; }
+      :focus-visible { outline: 3px solid var(--sf-teal); outline-offset: 3px; }
+      .wrap { max-width: var(--sf-container); margin: 0 auto; padding-inline: var(--sf-gutter); }
+      .note { background: var(--sf-ink); color: var(--sf-teal-soft); text-align: center; font-size: 11px; font-weight: 700; padding: 7px 12px; }
+
+      /* Announcement — bold dark strip */
+      .announce {
+        background: var(--sf-ink);
+        color: var(--sf-gold);
+        text-align: center;
+        font-size: 12.5px;
+        font-weight: 800;
+        letter-spacing: .02em;
+        padding: 11px 12px;
+      }
+
+      /* Header — dark, thick, prominent CTA */
+      .header { position: sticky; top: 0; z-index: 30; background: var(--sf-ink); color: #fff; border-bottom: 3px solid var(--sf-gold); }
+      .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 74px; }
+      .brand { font-family: var(--sf-heading); font-size: 22px; font-weight: 900; letter-spacing: -.01em; }
+      .nav { display: none; gap: 20px; font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #d7e6e2; }
+      .nav a:hover { color: var(--sf-gold); }
+      .cta-header {
+        display: inline-flex; align-items: center; gap: 8px;
+        background: var(--sf-gold); color: var(--sf-ink);
+        border: 2px solid var(--sf-ink); border-radius: var(--sf-radius-pill);
+        padding: 10px 18px; font-size: 13px; font-weight: 900;
+      }
+      .cart-btn { position: relative; width: 46px; height: 46px; border-radius: 16px; border: 2px solid rgba(255,255,255,.36); background: transparent; color: #fff; display: grid; place-items: center; }
+      .cart-count { position: absolute; top: -8px; left: -8px; min-width: 22px; height: 22px; border-radius: 999px; background: var(--sf-teal-soft); color: var(--sf-ink); font-size: 11px; font-weight: 900; display: grid; place-items: center; padding: 0 5px; }
+
+      /* Hero — full-bleed dark, huge type */
+      .hero { position: relative; background: radial-gradient(120% 120% at 82% 0%, rgba(94,234,212,.22), transparent 55%), linear-gradient(150deg, #0c2a26, #0b1c19 60%, #050d0c); color: #fff; overflow: hidden; }
+      .hero-inner { padding-block: clamp(56px, 11vw, 120px); }
+      .hero .kicker { display: inline-flex; align-items: center; gap: 8px; background: var(--sf-gold); color: var(--sf-ink); border-radius: var(--sf-radius-pill); padding: 8px 16px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+      .hero h1 { font-size: clamp(38px, 10vw, 92px); line-height: 1.02; letter-spacing: -.03em; font-weight: 900; margin: 22px 0 18px; max-width: 15ch; }
+      .hero h1 em { font-style: normal; color: var(--sf-teal-soft); }
+      .hero p { margin: 0 0 30px; font-size: clamp(14px, 3.4vw, 18px); font-weight: 500; line-height: 1.9; color: #cfe6e1; max-width: 46ch; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+      .btn-xl { display: inline-flex; align-items: center; gap: 10px; border: 3px solid var(--sf-ink); border-radius: var(--sf-radius-pill); padding: 16px 30px; font-size: 16px; font-weight: 900; }
+      .btn-gold { background: var(--sf-gold); color: var(--sf-ink); }
+      .btn-outline-light { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+      .hero-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 34px; }
+      .stat-chip { border: 2px solid rgba(255,255,255,.22); border-radius: 16px; padding: 10px 16px; font-size: 12.5px; font-weight: 800; color: #d7e6e2; }
+      .stat-chip b { color: var(--sf-gold); }
+
+      /* Sections — compact */
+      .section { padding: var(--sf-section) 0; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+      .section-head h2 { font-size: clamp(24px, 5vw, 40px); letter-spacing: -.02em; }
+      .section-head .more { font-size: 13px; font-weight: 900; color: var(--sf-teal); text-transform: uppercase; }
+
+      /* Product grid — 1 col mobile, 2 large columns desktop, thick borders */
+      .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+      .product {
+        position: relative; display: grid; grid-template-columns: 44% 56%;
+        background: var(--sf-surface); border: 3px solid var(--sf-line);
+        border-radius: var(--sf-radius); overflow: hidden;
+        box-shadow: 8px 8px 0 0 var(--sf-ink);
+        transition: translate .2s ease, box-shadow .2s ease;
+      }
+      .product:hover { translate: -2px -2px; box-shadow: 12px 12px 0 0 var(--sf-ink); }
+      .product-media { background: linear-gradient(145deg, #dff2ee, #bfe6de); min-height: 190px; position: relative; }
+      .discount {
+        position: absolute; top: 10px; right: 10px;
+        background: var(--sf-gold); color: var(--sf-ink);
+        border: 2px solid var(--sf-ink); border-radius: var(--sf-radius-pill);
+        padding: 5px 12px; font-size: 12px; font-weight: 900;
+      }
+      .product-body { padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+      .product-body h3 { font-size: 20px; font-weight: 900; line-height: 1.35; }
+      .rating { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--sf-muted); }
+      .rating .stars { color: var(--sf-gold); letter-spacing: 2px; }
+      .price { display: flex; align-items: baseline; gap: 10px; }
+      .price b { font-size: 30px; font-weight: 900; }
+      .price .old { font-size: 14px; color: var(--sf-muted); text-decoration: line-through; }
+      .quick {
+        margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        background: var(--sf-ink); color: #fff; border: 3px solid var(--sf-ink);
+        border-radius: var(--sf-radius-pill); padding: 14px; font-size: 14px; font-weight: 900;
+      }
+      .quick:hover { background: var(--sf-teal); border-color: var(--sf-teal); }
+
+      /* Promo — full-bleed gold band */
+      .promo { background: var(--sf-gold); border-block: 3px solid var(--sf-ink); }
+      .promo-inner { padding: 40px 0; display: grid; gap: 18px; }
+      .promo h2 { font-size: clamp(28px, 7vw, 60px); letter-spacing: -.025em; line-height: 1.05; }
+      .promo p { margin: 0; font-size: 15px; font-weight: 700; max-width: 52ch; }
+      .btn-ink { display: inline-flex; align-items: center; gap: 10px; background: var(--sf-ink); color: #fff; border-radius: var(--sf-radius-pill); padding: 15px 28px; font-size: 15px; font-weight: 900; border: 3px solid var(--sf-ink); }
+
+      /* Benefits — dark strip */
+      .benefits { background: var(--sf-ink); color: #fff; }
+      .benefits-inner { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 28px 0; }
+      .benefit { border: 2px solid rgba(255,255,255,.18); border-radius: 18px; padding: 14px; }
+      .benefit b { display: block; font-size: 14px; font-weight: 900; color: var(--sf-gold); }
+      .benefit span { font-size: 12px; color: #cfe6e1; }
+
+      /* Newsletter — bold dark block */
+      .newsletter { background: var(--sf-ink); color: #fff; border-radius: var(--sf-radius); padding: clamp(26px, 6vw, 48px); display: grid; gap: 18px; }
+      .newsletter h2 { font-size: clamp(24px, 5vw, 40px); letter-spacing: -.02em; }
+      .newsletter p { margin: 0; color: #cfe6e1; font-size: 14px; font-weight: 500; }
+      .nl-form { display: flex; gap: 10px; flex-wrap: wrap; }
+      .nl-form input { flex: 1; min-width: 220px; height: 56px; border-radius: var(--sf-radius-pill); border: 3px solid #fff; background: transparent; color: #fff; padding: 0 18px; font-family: inherit; font-size: 15px; font-weight: 600; }
+      .nl-form input::placeholder { color: #9fc0ba; }
+      .nl-form button { height: 56px; border-radius: var(--sf-radius-pill); border: 3px solid var(--sf-gold); background: var(--sf-gold); color: var(--sf-ink); padding: 0 26px; font-size: 15px; font-weight: 900; }
+
+      /* Footer — dark full grid */
+      .footer { background: var(--sf-ink); color: #cfe6e1; margin-top: var(--sf-section); border-top: 3px solid var(--sf-gold); }
+      .footer-inner { display: grid; gap: 24px; padding: 40px 0 26px; }
+      .footer .brand { color: #fff; }
+      .footer h3 { color: var(--sf-gold); font-size: 14px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .06em; }
+      .footer a, .footer span { display: block; font-size: 13px; margin-bottom: 9px; }
+      .footer-bottom { border-top: 2px solid rgba(255,255,255,.14); padding: 16px 0; font-size: 12px; color: #9fc0ba; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+
+      @media (min-width: 640px) {
+        :root { --sf-gutter: 24px; --sf-section: 60px; }
+        .hero-inner { padding-block: clamp(72px, 10vw, 130px); }
+        .grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        .benefits-inner { grid-template-columns: repeat(4, 1fr); }
+        .promo-inner { grid-template-columns: 1.5fr auto; align-items: center; }
+        .footer-inner { grid-template-columns: 1.5fr 1fr 1fr 1fr; }
+      }
+      @media (min-width: 900px) {
+        .nav { display: flex; }
+      }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="note">معاينة قالب Bold فقط — غير مرتبطة بقاعدة البيانات أو API أو التوجيه أو التخزين</div>
+
+    <div class="announce">خصم يصل إلى 40% · توصيل 58 ولاية · الدفع عند الاستلام</div>
+
+    <header class="header">
+      <div class="wrap header-inner">
+        <span class="brand">عبدو ستور</span>
+        <nav class="nav">
+          <a href="#">جديد</a>
+          <a href="#">الأكثر مبيعًا</a>
+          <a href="#">عروض</a>
+          <a href="#">الفئات</a>
+        </nav>
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="cta-header">تسوق الآن</button>
+          <button class="cart-btn" aria-label="السلة">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.7"/><circle cx="18" cy="20" r="1.7"/><path d="M2 3h3l2.4 12h11.2L21 7H6"/></svg>
+            <span class="cart-count">3</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <span class="kicker">🔥 عرض الأسبوع</span>
+        <h1>قوّتك في <em>التفاصيل</em>. تسوّق بجرأة.</h1>
+        <p>قطع عالية الجودة بأسعار تنافسية — تصاميم جسورة، خامات متينة، وتوصيل سريع لكل الولايات.</p>
+        <div class="hero-actions">
+          <button class="btn-xl btn-gold">تسوق المجموعة</button>
+          <button class="btn-xl btn-outline-light">شاهد العروض</button>
+        </div>
+        <div class="hero-stats">
+          <span class="stat-chip"><b>48h</b> توصيل سريع</span>
+          <span class="stat-chip"><b>+12K</b> عميل</span>
+          <span class="stat-chip"><b>4.9★</b> تقييم</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>الأكثر مبيعًا</h2>
+          <a class="more" href="#">كل المنتجات ←</a>
+        </div>
+        <div class="grid">
+          <article class="product">
+            <div class="product-media"><span class="discount">-25%</span></div>
+            <div class="product-body">
+              <h3>حذاء رياضي عالي</h3>
+              <div class="rating"><span class="stars">★★★★★</span> 4.9 (128)</div>
+              <div class="price"><b>4,900 دج</b><span class="old">6,500 دج</span></div>
+              <button class="quick">أضف للسلة فورًا</button>
+            </div>
+          </article>
+          <article class="product">
+            <div class="product-media"><span class="discount">-15%</span></div>
+            <div class="product-body">
+              <h3>حقيبة ظهر متينة</h3>
+              <div class="rating"><span class="stars">★★★★☆</span> 4.6 (74)</div>
+              <div class="price"><b>3,450 دج</b><span class="old">4,050 دج</span></div>
+              <button class="quick">أضف للسلة فورًا</button>
+            </div>
+          </article>
+          <article class="product">
+            <div class="product-media"><span class="discount">جديد</span></div>
+            <div class="product-body">
+              <h3>ساعة يد معدنية</h3>
+              <div class="rating"><span class="stars">★★★★★</span> 5.0 (41)</div>
+              <div class="price"><b>6,200 دج</b></div>
+              <button class="quick">أضف للسلة فورًا</button>
+            </div>
+          </article>
+          <article class="product">
+            <div class="product-media"><span class="discount">-30%</span></div>
+            <div class="product-body">
+              <h3>نظارة شمسية</h3>
+              <div class="rating"><span class="stars">★★★★☆</span> 4.4 (63)</div>
+              <div class="price"><b>2,190 دج</b><span class="old">3,130 دج</span></div>
+              <button class="quick">أضف للسلة فورًا</button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="promo">
+      <div class="wrap promo-inner">
+        <div>
+          <h2>يبدأ العرض الآن.</h2>
+          <p>حتى 40% على مختارات كاملة — الكمية محدودة، والطلب أسرع من الأمس.</p>
+        </div>
+        <button class="btn-ink">اكتشف العروض</button>
+      </div>
+    </section>
+
+    <div class="benefits">
+      <div class="wrap benefits-inner">
+        <div class="benefit"><b>توصيل 58 ولاية</b><span>خلال 48–72 ساعة</span></div>
+        <div class="benefit"><b>دفع عند الاستلام</b><span>افحص قبل الدفع</span></div>
+        <div class="benefit"><b>إرجاع 7 أيام</b><span>استرجاع سهل</span></div>
+        <div class="benefit"><b>دفع آمن</b><span>بيانات محمية</span></div>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="newsletter">
+          <div>
+            <h2>لا تفوّت العروض.</h2>
+            <p>اشترك ليصلك كل جديد وأقوى التخفيضات أولًا بأول.</p>
+          </div>
+          <form class="nl-form" onsubmit="return false">
+            <input type="email" placeholder="بريدك الإلكتروني" />
+            <button type="submit">اشترك</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <div>
+          <span class="brand">عبدو ستور</span>
+          <p style="margin:12px 0 0;font-size:12.5px;line-height:1.8;max-width:34ch">متجر تجريبي لعرض قالب Bold — كل المحتوى للعرض فقط.</p>
+        </div>
+        <div><h3>المتجر</h3><a href="#">جديد</a><a href="#">عروض</a><a href="#">الفئات</a></div>
+        <div><h3>المساعدة</h3><a href="#">تتبع الطلب</a><a href="#">الإرجاع</a><a href="#">اتصل بنا</a></div>
+        <div><h3>تابعنا</h3><a href="#">فيسبوك</a><a href="#">إنستغرام</a><a href="#">واتساب</a></div>
+      </div>
+      <div class="wrap footer-bottom">
+        <span>© 2026 عبدو ستور</span>
+        <span>كل الحقوق محفوظة</span>
+      </div>
+    </footer>
+  </body>
+</html>
