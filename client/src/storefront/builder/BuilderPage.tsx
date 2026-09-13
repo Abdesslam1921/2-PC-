@@ -165,6 +165,7 @@ export default function BuilderPage() {
   const [hierarchyOpen, setHierarchyOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const initialized = useRef(false);
+  const seededRef = useRef(false);
 
   const selectSection = (id: string) => {
     setSelectedId(id);
@@ -180,6 +181,30 @@ export default function BuilderPage() {
 
   const storeName = activeStore.data?.name ?? "المتجر";
 
+  // Paint instantly from the seed produced by `startEditing`, without waiting
+  // for the (possibly cached/slow) `managed` query.
+  useEffect(() => {
+    if (initialized.current) return;
+    try {
+      const raw = sessionStorage.getItem("sf-builder-seed");
+      if (!raw) return;
+      const seed = JSON.parse(raw) as {
+        config?: StorefrontConfig;
+        version?: number;
+      };
+      sessionStorage.removeItem("sf-builder-seed");
+      if (seed?.config) {
+        reset(seed.config);
+        setBaseVersion(seed.version ?? 0);
+        setSelectedId(sortSections(seed.config.sections)[0]?.id ?? null);
+        initialized.current = true;
+        seededRef.current = true;
+      }
+    } catch {
+      // ignore malformed seed
+    }
+  }, [reset]);
+
   useEffect(() => {
     if (!managed.data) return;
     const draft = managed.data.draft;
@@ -189,6 +214,8 @@ export default function BuilderPage() {
     if (initialized.current && config?.templateKey === draft.config.templateKey) {
       return;
     }
+    // A fresh seed is newer than any cached draft, so don't overwrite it.
+    if (seededRef.current) return;
     reset(draft.config);
     setBaseVersion(draft.version ?? 0);
     setSelectedId(sortSections(draft.config.sections)[0]?.id ?? null);
@@ -201,21 +228,9 @@ export default function BuilderPage() {
   );
   const selected = sections.find(s => s.id === selectedId) ?? null;
 
-  // Header toggles only apply to templates that render those elements; the
-  // content image is not rendered by Minimal's text-only hero.
-  const HEADER_TOGGLE_SUPPORT: Record<string, string[]> = {
-    modern: ["showSearch", "showCart", "showAccount"],
-    minimal: ["showCart"],
-    bold: ["showCart"],
-    boutique: ["showCart"],
-  };
   const visibleFields = (type: StorefrontSectionType) =>
     [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS].filter(f => {
-      if (["showSearch", "showCart", "showAccount"].includes(f.key)) {
-        const supported =
-          HEADER_TOGGLE_SUPPORT[config?.templateKey ?? "modern"] ?? [];
-        return supported.includes(f.key);
-      }
+      // Minimal's hero is text-only; its content image is not rendered.
       if (f.key === "imageUrl" && config?.templateKey === "minimal") return false;
       return true;
     });

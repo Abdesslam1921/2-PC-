@@ -320,10 +320,12 @@ export const storefrontRouter = router({
       const { storeId, isOverride, userId, role } = assertOwner(ctx);
       const existing = await getStorefrontDraft(storeId);
       let existingKey: string | null = null;
+      let existingConfig: unknown = null;
       if (existing) {
         try {
           const v = validateStorefrontConfig(JSON.parse(existing.configJson));
           existingKey = v.ok ? v.data?.templateKey ?? null : null;
+          existingConfig = v.ok ? v.data ?? null : null;
         } catch {
           existingKey = null;
         }
@@ -333,6 +335,7 @@ export const storefrontRouter = router({
           templateKey: input.templateKey,
           version: existing.concurrencyVersion,
           changed: false,
+          config: existingConfig,
         };
       }
       const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[input.templateKey]);
@@ -359,6 +362,7 @@ export const storefrontRouter = router({
         templateKey: input.templateKey,
         version: saved.version ?? 0,
         changed: true,
+        config: valid.data,
       };
     }),
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell } from "@/storefront/SectionShell";
@@ -156,6 +156,26 @@ export function MinimalStorefront({
                       عن العلامة
                     </a>
                   </nav>
+                  {section.settings.showSearch !== false ? (
+                    <label className="hidden items-center gap-2 border-b border-[#E7E9E8] py-1 text-[12px] text-[#576B66] sm:flex">
+                      <Search className="size-4" />
+                      <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="ابحث…"
+                        className="w-32 bg-transparent outline-none"
+                      />
+                    </label>
+                  ) : null}
+                  {section.settings.showAccount !== false ? (
+                    <button
+                      type="button"
+                      className="hidden text-[12px] uppercase tracking-[0.1em] text-[#6B5F52] hover:text-[#0C2A26] sm:block"
+                      aria-label="الحساب"
+                    >
+                      الحساب
+                    </button>
+                  ) : null}
                   {section.settings.showCart !== false ? (
                     <button
                       type="button"

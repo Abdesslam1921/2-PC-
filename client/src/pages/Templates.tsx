@@ -173,7 +173,17 @@ export default function Templates() {
     startEditing.mutate(
       { templateKey },
       {
-        onSuccess: () => setLocation("/store/builder"),
+        onSuccess: data => {
+          try {
+            sessionStorage.setItem(
+              "sf-builder-seed",
+              JSON.stringify({ config: data.config, version: data.version })
+            );
+          } catch {
+            // ignore storage failures
+          }
+          setLocation("/store/builder");
+        },
         onError: error => toast.error(error.message),
       }
     );

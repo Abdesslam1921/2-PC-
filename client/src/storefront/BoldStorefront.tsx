@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Loader2, ShoppingCart, ArrowLeft } from "lucide-react";
+import { Loader2, ShoppingCart, ArrowLeft, Search, UserRound } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell } from "@/storefront/SectionShell";
@@ -65,6 +65,7 @@ export function BoldStorefront({
   const { addItem, itemCount } = useCart();
   const productsQuery = trpc.products.publicList.useQuery();
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
   const collections = useMemo(() => {
@@ -73,13 +74,14 @@ export function BoldStorefront({
     return Array.from(set).slice(0, 4);
   }, [products]);
 
-  const visible = useMemo(
-    () =>
-      activeCollection
-        ? products.filter(p => p.collectionName === activeCollection)
-        : products,
-    [products, activeCollection]
-  );
+  const visible = useMemo(() => {
+    let list = activeCollection
+      ? products.filter(p => p.collectionName === activeCollection)
+      : products;
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter(p => p.title.toLowerCase().includes(q));
+    return list;
+  }, [products, activeCollection, search]);
 
   const add = (product: CatalogProduct) => {
     const { variant, price, compareAtPrice } = getPrice(product);
@@ -151,6 +153,26 @@ export function BoldStorefront({
                     ))}
                   </nav>
                   <div className="flex items-center gap-2.5">
+                    {section.settings.showSearch !== false ? (
+                      <label className="hidden items-center gap-2 rounded-full border-2 border-white/30 px-3 py-1.5 text-[12px] text-[#CFE6E1] sm:flex">
+                        <Search className="size-4" />
+                        <input
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          placeholder="ابحث…"
+                          className="w-24 bg-transparent text-white outline-none placeholder:text-[#9FC0BA]"
+                        />
+                      </label>
+                    ) : null}
+                    {section.settings.showAccount !== false ? (
+                      <button
+                        type="button"
+                        className="hidden size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-white sm:grid"
+                        aria-label="الحساب"
+                      >
+                        <UserRound className="size-5" />
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() =>

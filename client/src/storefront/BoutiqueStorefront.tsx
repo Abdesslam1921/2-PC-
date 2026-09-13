@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, UserRound } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell } from "@/storefront/SectionShell";
@@ -67,6 +67,7 @@ export function BoutiqueStorefront({
   const { addItem, itemCount } = useCart();
   const productsQuery = trpc.products.publicList.useQuery();
   const [activeCollection, setActiveCollection] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
   const collections = useMemo(() => {
@@ -75,13 +76,14 @@ export function BoutiqueStorefront({
     return Array.from(set).slice(0, 3);
   }, [products]);
 
-  const visible = useMemo(
-    () =>
-      activeCollection
-        ? products.filter(p => p.collectionName === activeCollection)
-        : products,
-    [products, activeCollection]
-  );
+  const visible = useMemo(() => {
+    let list = activeCollection
+      ? products.filter(p => p.collectionName === activeCollection)
+      : products;
+    const q = search.trim().toLowerCase();
+    if (q) list = list.filter(p => p.title.toLowerCase().includes(q));
+    return list;
+  }, [products, activeCollection, search]);
 
   const add = (product: CatalogProduct) => {
     const { variant, price, compareAtPrice } = getPrice(product);
@@ -135,15 +137,37 @@ export function BoutiqueStorefront({
                 className="sticky top-0 z-30 border-b border-[#EADFCE] bg-[rgba(251,246,238,0.92)] backdrop-blur-md"
               >
                 <div className={`${WRAP} flex items-center justify-between gap-3.5 py-3.5`}>
-                  {section.settings.showCart !== false ? (
-                    <button
-                      type="button"
-                      onClick={() => setLocation("/store/cart")}
-                      className="text-[12px] uppercase tracking-[0.12em] text-[#6B5F52] transition hover:text-[#B45309]"
-                    >
-                      السلة ({itemCount})
-                    </button>
-                  ) : null}
+                  <div className="flex items-center gap-3">
+                    {section.settings.showSearch !== false ? (
+                      <label className="hidden items-center gap-2 border-b border-[#EADFCE] py-1 text-[12px] text-[#6B5F52] sm:flex">
+                        <Search className="size-4" />
+                        <input
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          placeholder="ابحث…"
+                          className="w-24 bg-transparent outline-none"
+                        />
+                      </label>
+                    ) : null}
+                    {section.settings.showAccount !== false ? (
+                      <button
+                        type="button"
+                        className="hidden text-[#6B5F52] hover:text-[#B45309] sm:grid"
+                        aria-label="الحساب"
+                      >
+                        <UserRound className="size-[18px]" />
+                      </button>
+                    ) : null}
+                    {section.settings.showCart !== false ? (
+                      <button
+                        type="button"
+                        onClick={() => setLocation("/store/cart")}
+                        className="text-[12px] uppercase tracking-[0.12em] text-[#6B5F52] transition hover:text-[#B45309]"
+                      >
+                        السلة ({itemCount})
+                      </button>
+                    ) : null}
+                  </div>
                   <div className="flex flex-col items-center gap-0.5">
                     <b className="text-[21px] font-bold tracking-[0.01em]">
                       {storeName}
