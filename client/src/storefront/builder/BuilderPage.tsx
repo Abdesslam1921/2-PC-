@@ -47,6 +47,7 @@ import { MinimalStorefront } from "@/storefront/MinimalStorefront";
 import { BoldStorefront } from "@/storefront/BoldStorefront";
 import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { useDraftHistory } from "@/storefront/builder/useDraftHistory";
+import { BuilderSectionWrapper } from "@/storefront/builder/BuilderSectionWrapper";
 import {
   ADDABLE_SECTION_TYPES,
   COMMON_STYLE_FIELDS,
@@ -380,35 +381,50 @@ export default function BuilderPage() {
         device === "mobile" ? "mx-auto max-w-[390px]" : "w-full"
       }`}
     >
-      {config.templateKey === "minimal" ? (
-        <MinimalStorefront
-          config={config}
-          storeName={storeName}
-          highlightSectionId={selectedId}
-          onSelectSection={selectSection}
-        />
-      ) : config.templateKey === "bold" ? (
-        <BoldStorefront
-          config={config}
-          storeName={storeName}
-          highlightSectionId={selectedId}
-          onSelectSection={selectSection}
-        />
-      ) : config.templateKey === "boutique" ? (
-        <BoutiqueStorefront
-          config={config}
-          storeName={storeName}
-          highlightSectionId={selectedId}
-          onSelectSection={selectSection}
-        />
-      ) : (
-        <ModernStorefront
-          config={config}
-          storeName={storeName}
-          highlightSectionId={selectedId}
-          onSelectSection={selectSection}
-        />
-      )}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={sections.map(s => s.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {config.templateKey === "minimal" ? (
+            <MinimalStorefront
+              config={config}
+              storeName={storeName}
+              SectionWrapper={BuilderSectionWrapper}
+              highlightSectionId={selectedId}
+              onSelectSection={selectSection}
+            />
+          ) : config.templateKey === "bold" ? (
+            <BoldStorefront
+              config={config}
+              storeName={storeName}
+              SectionWrapper={BuilderSectionWrapper}
+              highlightSectionId={selectedId}
+              onSelectSection={selectSection}
+            />
+          ) : config.templateKey === "boutique" ? (
+            <BoutiqueStorefront
+              config={config}
+              storeName={storeName}
+              SectionWrapper={BuilderSectionWrapper}
+              highlightSectionId={selectedId}
+              onSelectSection={selectSection}
+            />
+          ) : (
+            <ModernStorefront
+              config={config}
+              storeName={storeName}
+              SectionWrapper={BuilderSectionWrapper}
+              highlightSectionId={selectedId}
+              onSelectSection={selectSection}
+            />
+          )}
+        </SortableContext>
+      </DndContext>
     </div>
   ) : null;
 

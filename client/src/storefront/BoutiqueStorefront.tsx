@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Loader2, Search, UserRound } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
-import { SectionShell } from "@/storefront/SectionShell";
+import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
@@ -55,11 +55,13 @@ const LABEL =
 export function BoutiqueStorefront({
   config,
   storeName,
+  SectionWrapper = SectionShell,
   highlightSectionId,
   onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  SectionWrapper?: SectionWrapperComponent;
   highlightSectionId?: string | null;
   onSelectSection?: (id: string) => void;
 }) {
@@ -362,6 +364,11 @@ export function BoutiqueStorefront({
                 id="about"
                 className={`${WRAP} py-11 sm:py-16`}
               >
+                {str(section.settings.title) ? (
+                  <h2 className="mb-6 text-center text-[22px] font-semibold sm:text-[26px]">
+                    {str(section.settings.title)}
+                  </h2>
+                ) : null}
                 <div className="grid border-y border-[#EADFCE] sm:grid-cols-2 sm:column-gap-10">
                   {[
                     ["توصيل فاخر", "تغليف أنيق لكل الولايات."],
@@ -452,7 +459,7 @@ export function BoutiqueStorefront({
         })();
         if (!content) return null;
         return (
-          <SectionShell
+          <SectionWrapper
             key={section.id}
             id={section.id}
             label={SECTION_LABELS[section.type]}
@@ -461,7 +468,7 @@ export function BoutiqueStorefront({
             onSelect={onSelectSection}
           >
             {content}
-          </SectionShell>
+          </SectionWrapper>
         );
       })}
     </div>

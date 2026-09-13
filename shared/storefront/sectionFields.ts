@@ -74,7 +74,7 @@ export const SECTION_FIELDS: Record<StorefrontSectionType, SectionField[]> = {
     { key: "body", label: "النص", type: "textarea" },
     { key: "ctaLabel", label: "نص الزر", type: "text" },
   ],
-  benefits: [],
+  benefits: [{ key: "title", label: "العنوان", type: "text" }],
   testimonials: [],
   newsletter: [
     { key: "title", label: "العنوان", type: "text" },
@@ -112,4 +112,5 @@ export const COMMON_STYLE_FIELDS: SectionField[] = [
   { key: "styleText", label: "لون النص", type: "color" },
   { key: "styleFont", label: "نوع الخط", type: "select", options: FONT_OPTIONS },
   { key: "stylePadY", label: "الحشوة الرأسية (px)", type: "number" },
+  { key: "styleRadius", label: "انحناء الحواف (px)", type: "number" },
 ];

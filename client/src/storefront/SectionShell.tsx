@@ -36,6 +36,10 @@ export function sectionStyleFromSettings(
     style.paddingTop = `${padY}px`;
     style.paddingBottom = `${padY}px`;
   }
+  const radius = settings.styleRadius;
+  if (typeof radius === "number" && Number.isFinite(radius)) {
+    style.borderRadius = `${radius}px`;
+  }
   if (typeof image === "string" && image.trim()) {
     style.backgroundImage = `url(${image.trim()})`;
     style.backgroundSize = "cover";
@@ -43,6 +47,18 @@ export function sectionStyleFromSettings(
   }
   return style;
 }
+
+export interface SectionShellProps {
+  id: string;
+  label: string;
+  settings: Record<string, string | number | boolean>;
+  highlight?: boolean;
+  onSelect?: (id: string) => void;
+  children: ReactNode;
+}
+
+/** Pluggable wrapper: the builder passes a drag-aware wrapper; storefront uses SectionShell. */
+export type SectionWrapperComponent = (props: SectionShellProps) => ReactElement;
 
 /**
  * Wraps a storefront section.
@@ -59,14 +75,7 @@ export function SectionShell({
   highlight,
   onSelect,
   children,
-}: {
-  id: string;
-  label: string;
-  settings: Record<string, string | number | boolean>;
-  highlight?: boolean;
-  onSelect?: (id: string) => void;
-  children: ReactNode;
-}) {
+}: SectionShellProps) {
   const applied = sectionStyleFromSettings(settings);
   const styled =
     isValidElement(children) && Object.keys(applied).length > 0

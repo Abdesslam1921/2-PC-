@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
-import { SectionShell } from "@/storefront/SectionShell";
+import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
@@ -61,11 +61,13 @@ const str = (value: unknown, fallback = "") =>
 export function ModernStorefront({
   config,
   storeName,
+  SectionWrapper = SectionShell,
   highlightSectionId,
   onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  SectionWrapper?: SectionWrapperComponent;
   highlightSectionId?: string | null;
   onSelectSection?: (id: string) => void;
 }) {
@@ -414,6 +416,11 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[1200px] px-4 py-8"
               >
+                {str(section.settings.title) ? (
+                  <h2 className="mb-5 text-center text-[22px] font-black sm:text-[26px]">
+                    {str(section.settings.title)}
+                  </h2>
+                ) : null}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
                     { icon: Truck, title: "توصيل سريع", text: "لجميع الولايات." },
@@ -517,7 +524,7 @@ export function ModernStorefront({
         })();
         if (!content) return null;
         return (
-          <SectionShell
+          <SectionWrapper
             key={section.id}
             id={section.id}
             label={SECTION_LABELS[section.type]}
@@ -526,7 +533,7 @@ export function ModernStorefront({
             onSelect={onSelectSection}
           >
             {content}
-          </SectionShell>
+          </SectionWrapper>
         );
       })}
     </div>

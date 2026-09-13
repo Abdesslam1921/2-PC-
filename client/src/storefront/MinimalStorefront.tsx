@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
-import { SectionShell } from "@/storefront/SectionShell";
+import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
@@ -54,11 +54,13 @@ const WRAP = "mx-auto w-full max-w-[1080px] px-5 sm:px-8";
 export function MinimalStorefront({
   config,
   storeName,
+  SectionWrapper = SectionShell,
   highlightSectionId,
   onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  SectionWrapper?: SectionWrapperComponent;
   highlightSectionId?: string | null;
   onSelectSection?: (id: string) => void;
 }) {
@@ -315,7 +317,7 @@ export function MinimalStorefront({
                 className={`${WRAP} mt-20 border-t border-[#E7E9E8] py-16`}
               >
                 <h2 className="mb-8 text-[22px] font-semibold sm:text-[26px]">
-                  لماذا نحن
+                  {str(section.settings.title, "لماذا نحن")}
                 </h2>
                 <div className="grid sm:grid-cols-2 sm:gap-x-12">
                   {[
@@ -398,7 +400,7 @@ export function MinimalStorefront({
         })();
         if (!content) return null;
         return (
-          <SectionShell
+          <SectionWrapper
             key={section.id}
             id={section.id}
             label={SECTION_LABELS[section.type]}
@@ -407,7 +409,7 @@ export function MinimalStorefront({
             onSelect={onSelectSection}
           >
             {content}
-          </SectionShell>
+          </SectionWrapper>
         );
       })}
     </div>

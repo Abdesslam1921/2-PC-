@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Loader2, ShoppingCart, ArrowLeft, Search, UserRound } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
-import { SectionShell } from "@/storefront/SectionShell";
+import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
@@ -53,11 +53,13 @@ const WRAP = "mx-auto w-full max-w-[1240px] px-4 sm:px-6";
 export function BoldStorefront({
   config,
   storeName,
+  SectionWrapper = SectionShell,
   highlightSectionId,
   onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  SectionWrapper?: SectionWrapperComponent;
   highlightSectionId?: string | null;
   onSelectSection?: (id: string) => void;
 }) {
@@ -381,7 +383,13 @@ export function BoldStorefront({
           case "benefits":
             return (
               <section key={section.id} className="bg-[#0C2A26] text-white">
-                <div className={`${WRAP} grid grid-cols-2 gap-3 py-7 sm:grid-cols-4`}>
+                <div className={`${WRAP} py-7`}>
+                  {str(section.settings.title) ? (
+                    <h2 className="mb-4 text-center text-[22px] font-black text-[#F5B13D] sm:text-[26px]">
+                      {str(section.settings.title)}
+                    </h2>
+                  ) : null}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
                     ["توصيل 58 ولاية", "خلال 48–72 ساعة"],
                     ["دفع عند الاستلام", "افحص قبل الدفع"],
@@ -398,6 +406,7 @@ export function BoldStorefront({
                       <span className="text-[12px] text-[#CFE6E1]">{text}</span>
                     </div>
                   ))}
+                  </div>
                 </div>
               </section>
             );
@@ -478,7 +487,7 @@ export function BoldStorefront({
         })();
         if (!content) return null;
         return (
-          <SectionShell
+          <SectionWrapper
             key={section.id}
             id={section.id}
             label={SECTION_LABELS[section.type]}
@@ -487,7 +496,7 @@ export function BoldStorefront({
             onSelect={onSelectSection}
           >
             {content}
-          </SectionShell>
+          </SectionWrapper>
         );
       })}
     </div>
