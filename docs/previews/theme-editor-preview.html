@@ -139,8 +139,8 @@
         <div class="field">
           <label>اللون الأساسي</label>
           <div class="row">
-            <input type="color" value="#0f766e" />
-            <input type="text" value="#0F766E" />
+            <input id="c-primary" type="color" value="#0f766e" />
+            <input id="t-primary" type="text" value="#0F766E" />
           </div>
           <div class="swatches" style="margin-top:8px">
             <span class="sw" style="background:#0f766e"></span>
@@ -152,15 +152,22 @@
         </div>
         <div class="field">
           <label>لون التمييز</label>
-          <div class="row"><input type="color" value="#b45309" /><input type="text" value="#B45309" /></div>
+          <div class="row"><input id="c-accent" type="color" value="#b45309" /><input id="t-accent" type="text" value="#B45309" /></div>
         </div>
         <div class="field">
           <label>لون الخلفية</label>
-          <div class="row"><input type="color" value="#fffcf6" /><input type="text" value="#FFFCF6" /></div>
+          <div class="row"><input id="c-bg" type="color" value="#fffcf6" /><input id="t-bg" type="text" value="#FFFCF6" /></div>
         </div>
         <div class="field">
           <label>لون النص</label>
-          <div class="row"><input type="color" value="#0c2a26" /><input type="text" value="#0C2A26" /></div>
+          <div class="row"><input id="c-text" type="color" value="#0c2a26" /><input id="t-text" type="text" value="#0C2A26" /></div>
+        </div>
+        <div class="field">
+          <label>نسبة التباين (WCAG AA)</label>
+          <div id="contrastBox" style="display:grid;gap:6px;font-size:12px"></div>
+          <p class="hint" style="padding:8px 0 0">
+            التحذير بصري فقط ولا يمنع الحفظ.
+          </p>
         </div>
         <div class="field">
           <label>نوع خط العناوين</label>
@@ -222,5 +229,86 @@
       <span>الإصدار المنشور v4 · مسودة محفوظة</span>
       <span>لا تأثير على لوحة التحكم</span>
     </div>
+
+    <script>
+      // PREVIEW ONLY: computes real WCAG contrast as colors change.
+      (function () {
+        const lin = c => {
+          c /= 255;
+          return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+        const L = hex => {
+          let h = String(hex).replace("#", "");
+          if (h.length === 3) h = h.split("").map(x => x + x).join("");
+          const r = parseInt(h.slice(0, 2), 16);
+          const g = parseInt(h.slice(2, 4), 16);
+          const b = parseInt(h.slice(4, 6), 16);
+          return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        };
+        const cr = (a, b) => {
+          const A = L(a), B = L(b);
+          return (Math.max(A, B) + 0.05) / (Math.min(A, B) + 0.05);
+        };
+        const root = document.documentElement;
+        const box = document.getElementById("contrastBox");
+        const colorIds = {
+          primary: "c-primary",
+          accent: "c-accent",
+          bg: "c-bg",
+          text: "c-text",
+        };
+        const val = k => document.getElementById(colorIds[k]).value;
+
+        function render() {
+          const primary = val("primary");
+          const accent = val("accent");
+          const bg = val("bg");
+          const text = val("text");
+          root.style.setProperty("--sf-color-primary", primary);
+          root.style.setProperty("--sf-color-accent", accent);
+          root.style.setProperty("--sf-color-background", bg);
+          root.style.setProperty("--sf-color-text", text);
+
+          const pairs = [
+            ["النص على الخلفية", text, bg],
+            ["نص الزر على الأساسي", "#ffffff", primary],
+            ["التمييز على الخلفية", accent, bg],
+            ["الأساسي على الخلفية", primary, bg],
+          ];
+          box.innerHTML = pairs
+            .map(([label, a, b]) => {
+              const r = cr(a, b);
+              const ok = r >= 4.5;
+              const badge = ok
+                ? "background:#e4f3ef;color:#0b5d57"
+                : "background:#fdeaea;color:#b03a2e";
+              return (
+                '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center">' +
+                "<span>" + label + "</span>" +
+                '<span style="display:flex;gap:6px;align-items:center">' +
+                "<b>" + r.toFixed(2) + ":1</b>" +
+                '<span style="border-radius:999px;padding:2px 8px;font-size:10.5px;font-weight:800;' +
+                badge + '">' + (ok ? "AA ✓" : "تحذير <4.5") + "</span>" +
+                "</span></div>"
+              );
+            })
+            .join("");
+        }
+
+        ["c-primary", "c-accent", "c-bg", "c-text"].forEach(id =>
+          document.getElementById(id).addEventListener("input", render)
+        );
+        ["t-primary", "t-accent", "t-bg", "t-text"].forEach(id => {
+          const el = document.getElementById(id);
+          el.addEventListener("input", () => {
+            if (/^#[0-9a-fA-F]{6}$/.test(el.value)) {
+              document.getElementById("c-" + id.slice(2)).value = el.value;
+              render();
+            }
+          });
+        });
+        render();
+      })();
+    </script>
   </body>
 </html>
