@@ -1387,3 +1387,85 @@ export type MessageOrderSettings = typeof messageOrderSettings.$inferSelect;
 export type MessageOrder = typeof messageOrders.$inferSelect;
 export type NegotiatorSettings = typeof negotiatorSettings.$inferSelect;
 export type NegotiatorProductRule = typeof negotiatorProductRules.$inferSelect;
+
+/* =============================================================================
+ * Storefront Template System (Phase 3) — additive tables only.
+ * Tenant isolation: every row is scoped by ownerId + storeId.
+ * No existing table is modified.
+ * ========================================================================== */
+
+/** Unpublished working configuration (one draft per store). */
+export const storefrontDrafts = mysqlTable("storefront_drafts", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull(),
+  storeId: int("storeId").notNull().unique(),
+  configJson: text("configJson").notNull(),
+  concurrencyVersion: int("concurrencyVersion").default(1).notNull(),
+  updatedBy: int("updatedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Immutable published snapshots (rollback creates a NEW row, never mutates). */
+export const storefrontVersions = mysqlTable(
+  "storefront_versions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    ownerId: int("ownerId").notNull(),
+    storeId: int("storeId").notNull(),
+    versionNumber: int("versionNumber").notNull(),
+    snapshotJson: text("snapshotJson").notNull(),
+    sourceDraftVersion: int("sourceDraftVersion"),
+    note: varchar("note", { length: 255 }),
+    publishedBy: int("publishedBy"),
+    publishedAt: timestamp("publishedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    storeVersionUnique: uniqueIndex(
+      "storefront_versions_store_version_unique"
+    ).on(table.storeId, table.versionNumber),
+    storeIdx: index("storefront_versions_store_idx").on(table.storeId),
+  })
+);
+
+/** Audit trail — admin override actions on non-owned stores are always logged. */
+export const storefrontAuditLogs = mysqlTable(
+  "storefront_audit_logs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    storeId: int("storeId").notNull(),
+    actorId: int("actorId").notNull(),
+    actorRole: varchar("actorRole", { length: 32 }).notNull(),
+    isOverride: boolean("isOverride").default(false).notNull(),
+    action: varchar("action", { length: 48 }).notNull(),
+    entityType: varchar("entityType", { length: 48 }),
+    entityId: int("entityId"),
+    fromVersion: int("fromVersion"),
+    toVersion: int("toVersion"),
+    ip: varchar("ip", { length: 64 }),
+    userAgent: varchar("userAgent", { length: 255 }),
+    metadataJson: text("metadataJson"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    storeIdx: index("storefront_audit_logs_store_idx").on(table.storeId),
+    actionIdx: index("storefront_audit_logs_action_idx").on(table.action),
+  })
+);
+
+/** Dashboard Color Customizer (color/accent only, per store). */
+export const dashboardColorSettings = mysqlTable("dashboard_color_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull(),
+  storeId: int("storeId").notNull().unique(),
+  primaryColor: varchar("primaryColor", { length: 32 }),
+  accentColor: varchar("accentColor", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type StorefrontDraft = typeof storefrontDrafts.$inferSelect;
+export type StorefrontVersion = typeof storefrontVersions.$inferSelect;
+export type StorefrontAuditLog = typeof storefrontAuditLogs.$inferSelect;
+export type DashboardColorSetting = typeof dashboardColorSettings.$inferSelect;

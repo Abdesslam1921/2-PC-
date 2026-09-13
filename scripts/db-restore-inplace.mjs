@@ -22,6 +22,8 @@ const ROOT = "C:/dev/abdou-store-main";
 const PREFIX = "rc_";
 const args = process.argv.slice(2);
 const cleanupOnly = args.includes("--cleanup");
+const listOnly = args.includes("--list");
+const verifyOnly = args.includes("--verify");
 const dumpPath = args.find(a => !a.startsWith("--"));
 
 const env = fs.readFileSync(`${ROOT}/.env`, "utf8");
@@ -86,6 +88,44 @@ process.on("uncaughtException", async err => {
 
 async function main() {
   const conn = await createConnection({ uri: url, multipleStatements: true });
+
+  if (listOnly) {
+    const [rows] = await conn.query("SHOW TABLES LIKE 'rc\\_%'");
+    console.log("SHOW TABLES LIKE 'rc\\_%' →", rows.length);
+    if (rows.length) console.log(rows.map(r => Object.values(r)[0]).join(", "));
+    await conn.end();
+    return;
+  }
+
+  if (verifyOnly) {
+    const [rows] = await conn.query("SHOW TABLES");
+    const names = rows.map(r => Object.values(r)[0]);
+    const expected = [
+      "storefront_drafts",
+      "storefront_versions",
+      "storefront_audit_logs",
+      "dashboard_color_settings",
+    ];
+    const missing = expected.filter(t => !names.includes(t));
+    let totalRows = 0;
+    for (const t of names) {
+      const [c] = await conn.query(`SELECT COUNT(*) AS n FROM \`${t}\``);
+      totalRows += Number(c[0].n);
+    }
+    for (const t of expected) {
+      const [c] = await conn.query(`SELECT COUNT(*) AS n FROM \`${t}\``);
+      const [cols] = await conn.query(
+        `SELECT COUNT(*) AS n FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '${t}'`
+      );
+      console.log(`${t}: exists cols=${cols[0].n} rows=${c[0].n}`);
+    }
+    console.log(
+      `\ntotal tables=${names.length} missing=${missing.length} totalRows=${totalRows}`
+    );
+    if (missing.length) console.log("MISSING:", missing.join(", "));
+    await conn.end();
+    return;
+  }
 
   if (cleanupOnly) {
     const names = await listPrefixed(conn);

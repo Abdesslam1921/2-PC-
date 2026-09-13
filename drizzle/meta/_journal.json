@@ -435,6 +435,13 @@
       "when": 1789206921898,
       "tag": "0061_adorable_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "5",
+      "when": 1789287393815,
+      "tag": "0062_storefront_customization",
+      "breakpoints": true
     }
   ]
 }
