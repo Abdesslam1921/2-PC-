@@ -9,7 +9,7 @@ import { z } from "zod";
 import { storefrontThemeConfigSchema } from "./themeSchema";
 
 /** Templates supported by the engine. Extend as new templates are approved. */
-export const STOREFRONT_TEMPLATE_KEYS = ["modern"] as const;
+export const STOREFRONT_TEMPLATE_KEYS = ["modern", "minimal"] as const;
 export type StorefrontTemplateKey = (typeof STOREFRONT_TEMPLATE_KEYS)[number];
 
 export const STOREFRONT_SECTION_TYPES = [
@@ -157,6 +157,90 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       type: "footer",
       enabled: true,
       order: 8,
+      settings: {},
+    },
+  ],
+};
+
+/**
+ * Default Minimal configuration — text-led hero, spacious rhythm, borderless
+ * product grid, thin header and single-line footer. Structurally distinct from
+ * Modern (not just a color change).
+ */
+export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
+  templateKey: "minimal",
+  theme: {},
+  sections: [
+    {
+      id: "announcement",
+      type: "announcement",
+      enabled: true,
+      order: 0,
+      settings: {
+        text: "توصيل لكل الولايات · الدفع عند الاستلام · إرجاع خلال 7 أيام",
+      },
+    },
+    {
+      id: "header",
+      type: "header",
+      enabled: true,
+      order: 1,
+      settings: { showSearch: false, showCart: true, showAccount: false },
+    },
+    {
+      id: "hero",
+      type: "hero",
+      enabled: true,
+      order: 2,
+      settings: {
+        eyebrow: "مجموعة 2026",
+        title: "أساسيات مدروسة، بلا ضجيج.",
+        subtitle:
+          "قطع تُصمَّم لتبقى: خامات متينة، خطوط هادئة، وأسعار واضحة. تجربة شراء بلا تعقيد — من التصفح إلى باب منزلك.",
+        ctaLabel: "تسوق المجموعة",
+      },
+    },
+    {
+      id: "product_grid",
+      type: "product_grid",
+      enabled: true,
+      order: 3,
+      settings: { title: "المجموعة", subtitle: "", limit: 12 },
+    },
+    {
+      id: "promo",
+      type: "promo",
+      enabled: true,
+      order: 4,
+      settings: {
+        title: "خصم حتى 30% على مختارات الموسم",
+        body: "تخفيضات هادئة على قطع مختارة — بلا فوضى، وبلا عدّاد ضغط.",
+        ctaLabel: "اكتشف العرض",
+      },
+    },
+    {
+      id: "benefits",
+      type: "benefits",
+      enabled: true,
+      order: 5,
+      settings: {},
+    },
+    {
+      id: "newsletter",
+      type: "newsletter",
+      enabled: true,
+      order: 6,
+      settings: {
+        title: "رسائل قليلة، بلا إزعاج.",
+        subtitle: "إشعار واحد عند إصدار مجموعة جديدة.",
+        ctaLabel: "اشترك",
+      },
+    },
+    {
+      id: "footer",
+      type: "footer",
+      enabled: true,
+      order: 7,
       settings: {},
     },
   ],

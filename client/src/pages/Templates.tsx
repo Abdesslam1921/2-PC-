@@ -160,9 +160,9 @@ export default function Templates() {
   });
   const [selected, setSelected] = useState("market-pro");
   const storefrontManaged = trpc.storefront.managed.useQuery();
-  const enableModern = trpc.storefront.enableModern.useMutation({
-    onSuccess: () => {
-      toast.success("تم تفعيل قالب Modern ونشره على واجهة المتجر.");
+  const enableTemplate = trpc.storefront.enableTemplate.useMutation({
+    onSuccess: data => {
+      toast.success(`تم تفعيل قالب ${data.templateKey} ونشره على واجهة المتجر.`);
       void storefrontManaged.refetch();
     },
     onError: error => toast.error(error.message),
@@ -229,13 +229,23 @@ export default function Templates() {
                 : "غير مُفعّل بعد — المتجر يعمل حالياً بالواجهة القديمة (Legacy)."}
             </p>
           </div>
-          <Button
-            onClick={() => enableModern.mutate()}
-            disabled={enableModern.isPending}
-            className="brand-shine cta-gradient h-10 rounded-xl px-5 font-extrabold"
-          >
-            {enableModern.isPending ? "جارٍ التفعيل…" : "تفعيل ونشر قالب Modern"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => enableTemplate.mutate({ templateKey: "modern" })}
+              disabled={enableTemplate.isPending}
+              className="brand-shine cta-gradient h-10 rounded-xl px-5 font-extrabold"
+            >
+              {enableTemplate.isPending ? "جارٍ التفعيل…" : "تفعيل Modern"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => enableTemplate.mutate({ templateKey: "minimal" })}
+              disabled={enableTemplate.isPending}
+              className="brand-shine h-10 rounded-xl border-[var(--brand)] px-5 font-extrabold text-[var(--brand)]"
+            >
+              تفعيل Minimal
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

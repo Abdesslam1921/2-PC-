@@ -17,9 +17,16 @@ import {
   saveStorefrontDraft,
 } from "../storefrontDb";
 import {
+  DEFAULT_MINIMAL_CONFIG,
   DEFAULT_MODERN_CONFIG,
+  STOREFRONT_TEMPLATE_KEYS,
   validateStorefrontConfig,
 } from "../../shared/storefront/storefrontConfig";
+
+const TEMPLATE_DEFAULTS = {
+  modern: DEFAULT_MODERN_CONFIG,
+  minimal: DEFAULT_MINIMAL_CONFIG,
+} as const;
 
 /** Owner-only guard (admin override is allowed but always audited). */
 function assertOwner(ctx: TrpcContext) {
@@ -33,6 +40,47 @@ function assertOwner(ctx: TrpcContext) {
     });
   }
   return { storeId, isOverride, userId: ctx.user.id, role: ctx.user.role };
+}
+
+/** Seed the template's default draft and publish it immediately. */
+async function seedAndPublishTemplate(input: {
+  templateKey: (typeof STOREFRONT_TEMPLATE_KEYS)[number];
+  storeId: number;
+  userId: number;
+  role: string;
+  isOverride: boolean;
+}) {
+  const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[input.templateKey]);
+  if (!valid.ok || !valid.data) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+  }
+  const existing = await getStorefrontDraft(input.storeId);
+  await saveStorefrontDraft({
+    ownerId: input.userId,
+    storeId: input.storeId,
+    configJson: JSON.stringify(valid.data),
+    expectedVersion: existing ? existing.concurrencyVersion : 0,
+    updatedBy: input.userId,
+  });
+  const { versionNumber } = await createStorefrontVersion({
+    ownerId: input.userId,
+    storeId: input.storeId,
+    snapshotJson: JSON.stringify(valid.data),
+    sourceDraftVersion: existing ? existing.concurrencyVersion + 1 : 1,
+    publishedBy: input.userId,
+    note: `enable ${input.templateKey}`,
+  });
+  await recordStorefrontAuditLog({
+    storeId: input.storeId,
+    actorId: input.userId,
+    actorRole: input.role,
+    isOverride: input.isOverride,
+    action: "template_select",
+    entityType: "template",
+    toVersion: versionNumber,
+    metadataJson: JSON.stringify({ templateKey: input.templateKey }),
+  });
+  return { versionNumber, templateKey: input.templateKey };
 }
 
 export const storefrontRouter = router({
@@ -207,42 +255,20 @@ export const storefrontRouter = router({
       return { versionNumber };
     }),
 
-  /**
-   * One-click opt-in: seed the Modern draft and publish it. Legacy stores are
-   * never migrated automatically — this runs only on an explicit owner action.
-   */
+  /** One-click opt-in for any approved template (publishes immediately). */
+  enableTemplate: protectedProcedure
+    .input(z.object({ templateKey: z.enum(STOREFRONT_TEMPLATE_KEYS) }))
+    .mutation(async ({ ctx, input }) => {
+      const guard = assertOwner(ctx);
+      return seedAndPublishTemplate({
+        templateKey: input.templateKey,
+        ...guard,
+      });
+    }),
+
+  /** Backward-compatible alias: enable Modern. */
   enableModern: protectedProcedure.mutation(async ({ ctx }) => {
-    const { storeId, isOverride, userId, role } = assertOwner(ctx);
-    const valid = validateStorefrontConfig(DEFAULT_MODERN_CONFIG);
-    if (!valid.ok || !valid.data) {
-      throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-    }
-    const existing = await getStorefrontDraft(storeId);
-    await saveStorefrontDraft({
-      ownerId: userId,
-      storeId,
-      configJson: JSON.stringify(valid.data),
-      expectedVersion: existing ? existing.concurrencyVersion : 0,
-      updatedBy: userId,
-    });
-    const { versionNumber } = await createStorefrontVersion({
-      ownerId: userId,
-      storeId,
-      snapshotJson: JSON.stringify(valid.data),
-      sourceDraftVersion: existing ? existing.concurrencyVersion + 1 : 1,
-      publishedBy: userId,
-      note: "enable modern",
-    });
-    await recordStorefrontAuditLog({
-      storeId,
-      actorId: userId,
-      actorRole: role,
-      isOverride,
-      action: "template_select",
-      entityType: "template",
-      toVersion: versionNumber,
-      metadataJson: JSON.stringify({ templateKey: "modern" }),
-    });
-    return { versionNumber };
+    const guard = assertOwner(ctx);
+    return seedAndPublishTemplate({ templateKey: "modern", ...guard });
   }),
 });
