@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>معاينة Visual Builder — غير مرتبطة ببيانات</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Rubik:ital,wght@0,300..800;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =====================================================================
+       * PREVIEW ONLY — Storefront Visual Builder (Phase 4).
+       * No DB/API/routing/persistence. Static mock only.
+       * RTL layout: hierarchy = RTL start (right), settings = RTL end (left),
+       * canvas center. Breakpoints mirror the app (1024 collapses side panels).
+       * ===================================================================== */
+      :root {
+        --bg: #f4f1ea;
+        --panel: #ffffff;
+        --ink: #0c2a26;
+        --muted: #576b66;
+        --line: #e7e9e8;
+        --brand: #0f766e;
+        --brand-dark: #0b5d57;
+        --gold: #b45309;
+        --select: #0f766e;
+        --radius: 16px;
+        --font: "Cairo", "Rubik", ui-sans-serif, system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; height: 100%; }
+      body { background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; }
+      button { font-family: inherit; cursor: pointer; }
+      :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+      .note { background: var(--ink); color: #d9ece8; text-align: center; font-size: 11px; padding: 6px 12px; }
+
+      /* ---------- Toolbar ---------- */
+      .toolbar {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        background: var(--panel); border-bottom: 1px solid var(--line);
+        padding: 10px 14px; flex-wrap: wrap;
+      }
+      .toolbar .group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .back { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 800; color: var(--muted); }
+      .title { font-size: 14px; font-weight: 900; }
+      .badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #e4f3ef; color: var(--brand-dark);
+        border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 800;
+      }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 10px; border: 1px solid var(--line); background: #fff;
+        padding: 8px 12px; font-size: 12.5px; font-weight: 800; color: var(--ink);
+      }
+      .btn:hover { border-color: #cfe0dc; }
+      .btn-primary { border-color: transparent; background: linear-gradient(135deg, #14b8a6, #0b5d57); color: #fff; }
+      .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+      .icon-btn:disabled { opacity: .4; }
+      .save-state { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--muted); font-weight: 700; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #d97706; }
+
+      /* ---------- Layout ---------- */
+      .app { display: grid; grid-template-columns: 1fr; height: calc(100vh - 96px); }
+      .panel { background: var(--panel); overflow-y: auto; }
+      .panel-head { position: sticky; top: 0; background: var(--panel); border-bottom: 1px solid var(--line); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .panel-head h2 { margin: 0; font-size: 13.5px; font-weight: 900; }
+      .canvas-wrap { padding: 18px; overflow: auto; display: grid; place-items: start center; }
+
+      /* Hierarchy (right) */
+      .hierarchy { border-inline-start: 1px solid var(--line); display: none; }
+      .section-row {
+        display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-bottom: 1px solid #f1f3f2;
+        font-size: 13px; font-weight: 700; color: #2f433f;
+      }
+      .section-row:hover { background: #f7faf9; }
+      .section-row.active { background: #e4f3ef; color: var(--brand-dark); box-shadow: inset 3px 0 0 var(--brand); }
+      .handle { color: #9fb0ac; cursor: grab; font-size: 14px; }
+      .section-row .grow { flex: 1; min-width: 0; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+      .row-actions { display: flex; gap: 4px; }
+      .row-actions button { width: 26px; height: 26px; border-radius: 7px; border: 1px solid transparent; background: transparent; color: #7b8a86; font-size: 12px; }
+      .row-actions button:hover { background: #fff; border-color: var(--line); color: var(--ink); }
+      .add-section { margin: 12px; width: calc(100% - 24px); border: 1px dashed #bfd3ce; background: #f7faf9; border-radius: 12px; padding: 11px; font-size: 12.5px; font-weight: 800; color: var(--brand-dark); }
+
+      /* Canvas */
+      .canvas-head { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 14px; }
+      .seg { display: inline-flex; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+      .seg button { border: 0; background: transparent; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 800; color: var(--muted); }
+      .seg button.active { background: var(--ink); color: #fff; }
+      .frame {
+        width: 100%; max-width: 900px; background: #fff; border: 1px solid var(--line);
+        border-radius: 18px; overflow: hidden; box-shadow: 0 24px 60px -40px rgba(12,42,38,.5);
+      }
+      .frame.mobile { max-width: 380px; }
+      .editable { position: relative; }
+      .editable.selected { outline: 2px dashed var(--select); outline-offset: 2px; }
+      .editable.selected::after {
+        content: attr(data-label);
+        position: absolute; top: -12px; inset-inline-start: 6px;
+        background: var(--select); color: #fff; font-size: 10.5px; font-weight: 800;
+        padding: 3px 8px; border-radius: 6px;
+      }
+      .section-tools {
+        position: absolute; top: -14px; inset-inline-end: 6px; display: flex; gap: 4px;
+      }
+      .section-tools button { width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--select); background: #fff; color: var(--select); font-size: 12px; }
+
+      /* Mock storefront inside the canvas */
+      .mock-announce { background: linear-gradient(90deg,#0b5d57,#0f766e); color: #fff; text-align: center; font-size: 11px; font-weight: 700; padding: 8px; }
+      .mock-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #e6eeeb; font-size: 13px; font-weight: 800; }
+      .mock-hero { background: linear-gradient(135deg,#0b5d57,#0f766e 60%,#12907f); color: #fff; padding: 34px 22px; }
+      .mock-hero h1 { margin: 10px 0 8px; font-size: 26px; font-weight: 900; }
+      .mock-hero p { margin: 0 0 14px; font-size: 12px; color: #dff0ec; }
+      .mock-hero button { border: 0; border-radius: 999px; background: #fff; color: #0b5d57; padding: 9px 18px; font-size: 12px; font-weight: 800; }
+      .mock-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; padding: 16px; }
+      .mock-card { border: 1px solid #e6eeeb; border-radius: 14px; overflow: hidden; }
+      .mock-card .ph { height: 74px; background: linear-gradient(135deg,#e7f4f1,#cfe9e3); }
+      .mock-card .bd { padding: 8px; }
+      .mock-card b { font-size: 11px; }
+      .mock-card span { display: block; margin-top: 4px; font-size: 10.5px; color: var(--brand-dark); font-weight: 800; }
+      .mock-promo { margin: 0 16px 16px; border-radius: 14px; background: #f3f7f6; border: 1px solid #e6eeeb; padding: 16px; font-size: 11.5px; color: var(--muted); }
+      .mock-footer { background: #0c2a26; color: #cfe0dc; padding: 14px; font-size: 11px; text-align: center; }
+
+      /* Settings (left) */
+      .settings { border-inline-end: 1px solid var(--line); display: none; }
+      .field { padding: 12px 14px; border-bottom: 1px solid #f1f3f2; }
+      .field label { display: block; font-size: 11.5px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+      .field input, .field textarea {
+        width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+        padding: 9px 11px; font-family: inherit; font-size: 13px; color: var(--ink); outline: none;
+      }
+      .field input:focus, .field textarea:focus { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(15,118,110,.12); }
+      .asset { display: flex; align-items: center; gap: 10px; }
+      .asset .thumb { width: 54px; height: 54px; border-radius: 10px; border: 1px solid var(--line); background: linear-gradient(135deg,#e7f4f1,#cfe9e3); }
+      .switch { display: flex; align-items: center; justify-content: space-between; }
+      .toggle { width: 40px; height: 22px; border-radius: 999px; background: var(--brand); position: relative; border: 0; }
+      .toggle::after { content: ""; position: absolute; top: 2px; inset-inline-end: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+      .hint { padding: 12px 14px; font-size: 11.5px; color: var(--muted); }
+
+      /* Status bar */
+      .status { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--panel); border-top: 1px solid var(--line); padding: 8px 14px; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+
+      /* Mobile controls (shown on small screens) */
+      .mobile-bar { display: flex; gap: 8px; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
+      .mobile-bar .btn { flex: 1; justify-content: center; }
+
+      @media (min-width: 1024px) {
+        .app { grid-template-columns: 320px 1fr 290px; }
+        .settings, .hierarchy { display: block; }
+        .mobile-bar { display: none; }
+        .canvas-head { justify-content: center; }
+      }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="note">معاينة شكل Visual Builder فقط — غير مرتبطة بقاعدة البيانات أو API أو التخزين (Rule 27)</div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="group">
+        <span class="back">← رجوع</span>
+        <span class="title">محرّر المتجر</span>
+        <span class="badge">قالب: Modern</span>
+      </div>
+      <div class="group">
+        <button class="icon-btn" title="تراجع">↺</button>
+        <button class="icon-btn" title="إعادة">↻</button>
+        <span class="save-state"><span class="dot"></span> تغييرات غير محفوظة</span>
+        <button class="btn">حفظ مسودة</button>
+        <button class="btn">معاينة</button>
+        <button class="btn btn-primary">نشر</button>
+        <span class="badge">منشور: v3</span>
+      </div>
+    </div>
+
+    <div class="app">
+      <!-- Settings (RTL end / left) -->
+      <aside class="panel settings">
+        <div class="panel-head">
+          <h2>إعدادات القسم</h2>
+          <span class="badge">Hero</span>
+        </div>
+        <div class="field"><label>العنوان الصغير</label><input value="وصل حديثًا" /></div>
+        <div class="field"><label>العنوان الرئيسي</label><input value="أناقة عملية لكل يوم" /></div>
+        <div class="field"><label>الوصف</label><textarea rows="3">تشكيلة مختارة بعناية، بأسعار مدروسة وتوصيل سريع.</textarea></div>
+        <div class="field"><label>نص الزر</label><input value="تسوق الآن" /></div>
+        <div class="field"><label>صورة القسم</label>
+          <div class="asset"><span class="thumb"></span><button class="btn">تغيير الصورة</button></div>
+        </div>
+        <div class="field switch"><label style="margin:0">القسم مفعّل</label><button class="toggle" aria-label="تفعيل"></button></div>
+        <p class="hint">القيم تُتحقَّق تلقائيًا قبل الحفظ. لا يُسمح بأي CSS/JS مخصّص.</p>
+      </aside>
+
+      <!-- Canvas (center) -->
+      <main class="canvas-wrap">
+        <div>
+          <div class="canvas-head">
+            <div class="seg">
+              <button class="active">سطح المكتب</button>
+              <button>الهاتف</button>
+            </div>
+          </div>
+
+          <div class="frame">
+            <div class="mock-announce">توصيل لكل الولايات · الدفع عند الاستلام</div>
+
+            <div class="mock-header"><span>عبدو ستور</span><span>السلة (0)</span></div>
+
+            <div class="editable selected" data-label="Hero">
+              <div class="section-tools">
+                <button title="أعلى">↑</button>
+                <button title="أسفل">↓</button>
+                <button title="تكرار">⧉</button>
+                <button title="حذف">🗑</button>
+              </div>
+              <div class="mock-hero">
+                <span style="font-size:10.5px;font-weight:800;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:5px 12px">✦ وصل حديثًا</span>
+                <h1>أناقة عملية لكل يوم</h1>
+                <p>تشكيلة مختارة بعناية، بأسعار مدروسة وتوصيل سريع إلى باب منزلك.</p>
+                <button>تسوق الآن ←</button>
+              </div>
+            </div>
+
+            <div class="editable" data-label="Featured Products">
+              <div class="mock-grid">
+                <div class="mock-card"><div class="ph"></div><div class="bd"><b>تيشيرت قطني</b><span>2,560 دج</span></div></div>
+                <div class="mock-card"><div class="ph"></div><div class="bd"><b>حذاء رياضي</b><span>4,900 دج</span></div></div>
+                <div class="mock-card"><div class="ph"></div><div class="bd"><b>حقيبة يومية</b><span>3,450 دج</span></div></div>
+              </div>
+            </div>
+
+            <div class="editable" data-label="Promo">
+              <div class="mock-promo"><b style="color:#0c2a26">عرض الأسبوع — حتى 30%</b><br />لفترة محدودة على المختارات.</div>
+            </div>
+
+            <div class="mock-footer">© 2026 عبدو ستور</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Hierarchy (RTL start / right) -->
+      <aside class="panel hierarchy">
+        <div class="panel-head">
+          <h2>الأقسام</h2>
+          <span class="badge">9</span>
+        </div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">الإعلان</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">الترويسة</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row active"><span class="handle">⠿</span><span class="grow">Hero</span><span class="row-actions"><button title="تكرار">⧉</button><button title="حذف">🗑</button><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">الفئات</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">منتجات مميزة</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">بانر عرض</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">المزايا</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">النشرة</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <div class="section-row"><span class="handle">⠿</span><span class="grow">التذييل</span><span class="row-actions"><button title="إخفاء">👁</button></span></div>
+        <button class="add-section">+ إضافة قسم</button>
+      </aside>
+    </div>
+
+    <!-- Mobile controls -->
+    <div class="mobile-bar">
+      <button class="btn">☰ الأقسام</button>
+      <button class="btn">⚙ الإعدادات</button>
+    </div>
+
+    <div class="status">
+      <span>حفظ تلقائي · آخر حفظ قبل 12 ثانية</span>
+      <span>الإصدار المنشور v3 · مسودة محفوظة</span>
+      <span>حالة الاستعادة: سليمة</span>
+    </div>
+  </body>
+</html>
