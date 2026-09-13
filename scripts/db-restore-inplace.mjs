@@ -24,6 +24,7 @@ const args = process.argv.slice(2);
 const cleanupOnly = args.includes("--cleanup");
 const listOnly = args.includes("--list");
 const verifyOnly = args.includes("--verify");
+const storesOnly = args.includes("--stores");
 const dumpPath = args.find(a => !a.startsWith("--"));
 
 const env = fs.readFileSync(`${ROOT}/.env`, "utf8");
@@ -123,6 +124,23 @@ async function main() {
       `\ntotal tables=${names.length} missing=${missing.length} totalRows=${totalRows}`
     );
     if (missing.length) console.log("MISSING:", missing.join(", "));
+    await conn.end();
+    return;
+  }
+
+  if (storesOnly) {
+    const [rows] = await conn.query(
+      "SELECT id, slug, name, isActive FROM stores ORDER BY id"
+    );
+    for (const s of rows) {
+      const [pub] = await conn.query(
+        "SELECT MAX(versionNumber) AS v FROM storefront_versions WHERE storeId = ?",
+        [s.id]
+      );
+      console.log(
+        `store id=${s.id} slug=${s.slug} name=${s.name} active=${s.isActive} publishedModern=${pub[0]?.v ?? 0}`
+      );
+    }
     await conn.end();
     return;
   }
