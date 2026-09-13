@@ -26,7 +26,7 @@ export const TEMPLATE_DEFAULT_TOKENS: Record<string, Record<string, string>> = {
     "--sf-color-text": "#0C2A26",
     "--sf-color-text-muted": "#576B66",
     "--sf-color-accent": "#0F766E",
-    "--sf-radius-lg": "6px",
+    "--sf-radius-lg": "3px",
   },
   bold: {
     "--sf-color-primary": "#F5B13D",

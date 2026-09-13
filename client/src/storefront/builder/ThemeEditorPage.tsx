@@ -233,6 +233,12 @@ export default function ThemeEditorPage() {
           المسودة تغيّرت من مكان آخر (نسخة {conflict}). أوقفنا الحفظ التلقائي.
         </div>
       ) : null}
+      {templateKey === "bold" ? (
+        <div className="bg-[#f7faf9] px-3.5 py-2 text-[11.5px] text-[#576B66]">
+          ملاحظة: خلفيات Bold الداكنة (الهيرو/الترويسة/التذييل) جزء ثابت من هوية
+          القالب ولا تتغيّر مع توكن «الخلفية».
+        </div>
+      ) : null}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[340px_1fr]">
         {/* Controls */}
@@ -300,25 +306,10 @@ export default function ThemeEditorPage() {
                 className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
               />
             </div>
-            <div>
-              <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                الكثافة
-              </label>
-              <div className="inline-flex rounded-[10px] bg-[#f1f3f2] p-1">
-                {DENSITIES.map(d => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => patchTheme({ density: d })}
-                    className={`rounded-lg px-3 py-1.5 text-[12px] font-bold ${
-                      density === d ? "bg-white text-[#0C2A26]" : "text-[#576B66]"
-                    }`}
-                  >
-                    {d === "compact" ? "مدمجة" : d === "spacious" ? "واسعة" : "مريحة"}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <p className="rounded-xl bg-[#f7faf9] p-3 text-[11.5px] leading-6 text-[#576B66]">
+              «الكثافة» غير مربوطة بأثر بصري بعد، ولن نُظهرها كخيار فعّال حتى نُوصّلها
+              بتوكنات المسافات (بند متبقٍّ). الحواف والألوان تعمل الآن.
+            </p>
           </div>
 
           {/* Contrast (non-blocking) */}

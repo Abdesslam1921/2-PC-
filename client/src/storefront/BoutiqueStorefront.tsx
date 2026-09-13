@@ -225,7 +225,7 @@ export function BoutiqueStorefront({
                     </button>
                   </div>
                   <div className="relative">
-                    <div className="relative rounded-[26px] border border-[#E9C77B] bg-white p-3">
+                    <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-white p-3">
                       <div
                         className="h-[240px] rounded-[20px] bg-cover bg-center bg-[radial-gradient(90%_80%_at_25%_20%,rgba(233,199,123,0.55),transparent_60%),linear-gradient(150deg,#EFE2CB,#DCCFAE_55%,#C9B78D)] sm:h-[400px]"
                         style={
@@ -281,7 +281,7 @@ export function BoutiqueStorefront({
                           <button
                             type="button"
                             onClick={() => setLocation(`/p/${product.id}`)}
-                            className="relative block aspect-[4/5] w-full overflow-hidden rounded-[26px] border border-[#EADFCE] bg-[linear-gradient(145deg,#F6EFE2,#E8DCC6)] transition duration-300 group-hover:-translate-y-1.5 group-hover:border-[#E9C77B] group-hover:shadow-[0_20px_40px_-26px_rgba(43,33,26,0.45)]"
+                            className="relative block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,26px)] border border-[#EADFCE] bg-[linear-gradient(145deg,#F6EFE2,#E8DCC6)] transition duration-300 group-hover:-translate-y-1.5 group-hover:border-[#E9C77B] group-hover:shadow-[0_20px_40px_-26px_rgba(43,33,26,0.45)]"
                           >
                             {product.images[0]?.url ? (
                               <img
@@ -329,7 +329,7 @@ export function BoutiqueStorefront({
           case "promo":
             return (
               <section key={section.id} className={`${WRAP} py-6`}>
-                <div className="relative rounded-[26px] border border-[#E9C77B] bg-white px-8 py-14 text-center sm:px-16">
+                <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-white px-8 py-14 text-center sm:px-16">
                   <span className="absolute right-4 top-3.5 text-[14px] text-[#E9C77B]">
                     ✦
                   </span>
@@ -397,7 +397,7 @@ export function BoutiqueStorefront({
           case "newsletter":
             return (
               <section key={section.id} className={`${WRAP} py-10 sm:py-14`}>
-                <div className="rounded-[26px] border border-[#EADFCE] bg-white px-7 py-12 text-center sm:px-14">
+                <div className="rounded-[var(--sf-radius-lg,26px)] border border-[#EADFCE] bg-white px-7 py-12 text-center sm:px-14">
                   <span className={LABEL}>✦ النشرة ✦</span>
                   <h2 className="mt-3.5 text-[22px] font-semibold sm:text-[32px]">
                     {str(section.settings.title, "رسائل راقية فقط")}

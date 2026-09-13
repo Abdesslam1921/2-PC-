@@ -247,7 +247,7 @@ export function MinimalStorefront({
                           <button
                             type="button"
                             onClick={() => setLocation(`/p/${product.id}`)}
-                            className="block aspect-[4/5] w-full overflow-hidden rounded-[3px] bg-[#F4F5F4] transition group-hover:opacity-80"
+                            className="block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,3px)] bg-[#F4F5F4] transition group-hover:opacity-80"
                           >
                             {product.images[0]?.url ? (
                               <img

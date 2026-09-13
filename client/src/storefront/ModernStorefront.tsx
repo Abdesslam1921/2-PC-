@@ -139,7 +139,7 @@ export function ModernStorefront({
         return (
           <article
             key={product.id}
-            className="overflow-hidden rounded-[22px] border border-[#E6EEEB] bg-white shadow-[0_14px_34px_-22px_rgba(12,42,38,0.4)] transition hover:-translate-y-1"
+            className="overflow-hidden rounded-[var(--sf-radius-lg,22px)] border border-[#E6EEEB] bg-white shadow-[0_14px_34px_-22px_rgba(12,42,38,0.4)] transition hover:-translate-y-1"
           >
             <button
               type="button"
@@ -335,7 +335,7 @@ export function ModernStorefront({
                       onClick={() =>
                         setSearch(name === "ملابس" && !collections.length ? "" : name)
                       }
-                      className="flex min-h-[120px] items-end rounded-[22px] p-4 text-right font-black text-white"
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,22px)] p-4 text-right font-black text-white"
                       style={{
                         background:
                           [
@@ -387,7 +387,7 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[1200px] px-4 py-6"
               >
-                <div className="grid items-center gap-5 rounded-[22px] bg-[linear-gradient(120deg,#0B5D57,#0F766E_60%,#12907F)] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
+                <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[linear-gradient(120deg,#0B5D57,#0F766E_60%,#12907F)] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
                   <div>
                     <h2 className="text-[24px] font-black sm:text-[32px]">
                       {str(section.settings.title)}
@@ -450,7 +450,7 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[1200px] px-4 py-8"
               >
-                <div className="grid items-center gap-4 rounded-[22px] border border-[#E6EEEB] bg-[#F3F7F6] p-7 sm:grid-cols-[1fr_auto] sm:p-9">
+                <div className="grid items-center gap-4 rounded-[var(--sf-radius-lg,22px)] border border-[#E6EEEB] bg-[#F3F7F6] p-7 sm:grid-cols-[1fr_auto] sm:p-9">
                   <div>
                     <h2 className="text-[22px] font-black">
                       {str(section.settings.title, "انضم إلى نشرتنا")}
