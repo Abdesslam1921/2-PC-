@@ -407,7 +407,7 @@ export default function BuilderPage() {
           {sections.length}
         </span>
       </div>
-      <div className="max-h-[70vh] overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
             {sections.map(section => (
@@ -452,7 +452,7 @@ export default function BuilderPage() {
           {SECTION_LABELS[selected.type]}
         </span>
       </div>
-      <div className="space-y-3 p-3.5">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3.5">
         <div className="flex items-center justify-between rounded-xl bg-[#f7faf9] p-3">
           <span className="text-[12.5px] font-bold">القسم مفعّل</span>
           <button
@@ -717,7 +717,7 @@ export default function BuilderPage() {
   }
 
   return (
-    <div dir="rtl" className="flex min-h-screen flex-col bg-[#f4f1ea] text-[#0C2A26]">
+    <div dir="rtl" className="flex h-screen flex-col bg-[#f4f1ea] text-[#0C2A26]">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7e9e8] bg-white px-3.5 py-2.5">
         <div className="flex items-center gap-2.5">
@@ -801,12 +801,12 @@ export default function BuilderPage() {
       )}
 
       {/* Body */}
-      <div className="grid flex-1 grid-cols-1 lg:grid-cols-[300px_1fr_320px]">
-        <aside className="hidden border-inline-end border-[#e7e9e8] bg-white lg:block">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[300px_1fr_320px]">
+        <aside className="hidden h-full min-h-0 flex-col overflow-hidden border-inline-end border-[#e7e9e8] bg-white lg:flex">
           {hierarchy}
         </aside>
 
-        <main className="overflow-auto p-4">
+        <main className="min-h-0 overflow-auto p-4">
           <div className="mb-3 flex justify-center">
             <div className="inline-flex rounded-xl border border-[#e7e9e8] bg-white p-1">
               <button
@@ -832,7 +832,7 @@ export default function BuilderPage() {
           {canvas}
         </main>
 
-        <aside className="hidden border-inline-start border-[#e7e9e8] bg-white lg:block">
+        <aside className="hidden h-full min-h-0 flex-col overflow-hidden border-inline-start border-[#e7e9e8] bg-white lg:flex">
           {settings}
         </aside>
       </div>
