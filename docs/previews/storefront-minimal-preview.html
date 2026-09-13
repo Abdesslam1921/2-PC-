@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>معاينة قالب Minimal — متجر تجريبي (غير مرتبطة ببيانات)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&family=Rubik:ital,wght@0,300..700;1,400&family=Tajawal:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =====================================================================
+       * PREVIEW ONLY — Minimal storefront template.
+       * No DB/API/routing/persistence. Placeholder images are flat CSS blocks.
+       * Structural identity: spacious · sharp corners · text-led hero ·
+       * borderless grid · light editorial typography · one accent color.
+       * AA-verified values only.
+       * ===================================================================== */
+      :root {
+        --sf-color-background: #ffffff;
+        --sf-color-surface: #ffffff;
+        --sf-color-surface-muted: #f4f5f4;
+        --sf-color-text: #0c2a26;
+        --sf-color-text-muted: #576b66;
+        --sf-color-border: #e7e9e8;
+        --sf-color-primary: #0f766e;
+        --sf-color-primary-foreground: #ffffff;
+
+        --sf-radius-sm: 3px;
+        --sf-radius-md: 5px;
+        --sf-radius-lg: 6px;
+
+        --sf-gutter: 20px;
+        --sf-section: 88px;
+        --sf-container: 1080px;
+
+        --sf-font-heading: "Cairo", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+        --sf-font-body: "Rubik", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--sf-color-background);
+        color: var(--sf-color-text);
+        font-family: var(--sf-font-body);
+        font-weight: 400;
+        line-height: 1.9;
+        -webkit-font-smoothing: antialiased;
+      }
+      h1, h2, h3 { font-family: var(--sf-font-heading); margin: 0; font-weight: 600; }
+      a { color: inherit; text-decoration: none; }
+      button { font-family: inherit; cursor: pointer; }
+      :focus-visible { outline: 1.5px solid var(--sf-color-primary); outline-offset: 3px; }
+
+      .wrap { max-width: var(--sf-container); margin: 0 auto; padding-inline: var(--sf-gutter); }
+      .note { border-bottom: 1px solid var(--sf-color-border); padding: 8px 12px; text-align: center; font-size: 11px; letter-spacing: .04em; color: var(--sf-color-text-muted); }
+      .label { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--sf-color-text-muted); }
+
+      /* Announcement — plain line, no gradient */
+      .announce {
+        border-bottom: 1px solid var(--sf-color-border);
+        padding: 14px 0;
+        text-align: center;
+        font-size: 11.5px;
+        letter-spacing: .18em;
+        text-transform: uppercase;
+        color: var(--sf-color-text-muted);
+      }
+
+      /* Thin header */
+      .header { border-bottom: 1px solid var(--sf-color-border); }
+      .header-inner { display: flex; align-items: center; justify-content: space-between; height: 66px; gap: 16px; }
+      .brand { font-family: var(--sf-font-heading); font-size: 16px; font-weight: 700; letter-spacing: .02em; }
+      .nav { display: none; gap: 30px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--sf-color-text-muted); }
+      .nav a:hover { color: var(--sf-color-text); }
+      .header-actions { display: flex; align-items: center; gap: 22px; font-size: 12px; letter-spacing: .1em; }
+      .cart-link { color: var(--sf-color-text); border-bottom: 1px solid transparent; }
+      .cart-link:hover { border-color: var(--sf-color-primary); color: var(--sf-color-primary); }
+
+      /* Text-led hero — no image, maximum whitespace */
+      .hero { padding: clamp(64px, 12vw, 132px) 0 clamp(48px, 8vw, 88px); }
+      .hero .eyebrow { display: block; margin-bottom: 26px; }
+      .hero h1 {
+        font-size: clamp(30px, 6.4vw, 58px);
+        line-height: 1.3;
+        letter-spacing: -0.015em;
+        font-weight: 600;
+        max-width: 20ch;
+      }
+      .hero p {
+        margin: 26px 0 0;
+        max-width: 52ch;
+        font-size: clamp(14px, 3vw, 16px);
+        color: var(--sf-color-text-muted);
+        font-weight: 300;
+      }
+      .hero-actions { margin-top: 40px; display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+      .link-cta {
+        font-size: 13px;
+        letter-spacing: .12em;
+        text-transform: uppercase;
+        color: var(--sf-color-text);
+        border-bottom: 1px solid var(--sf-color-text);
+        padding-bottom: 4px;
+      }
+      .link-cta:hover { color: var(--sf-color-primary); border-color: var(--sf-color-primary); }
+
+      /* Sections */
+      .section { padding: var(--sf-section) 0; }
+      .section-rule { border-top: 1px solid var(--sf-color-border); }
+      .section-head { margin-bottom: 46px; display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .section-head h2 { font-size: clamp(20px, 4vw, 26px); font-weight: 600; letter-spacing: -0.01em; }
+
+      /* Borderless product grid */
+      .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 34px 22px; }
+      .product { display: block; }
+      .product-media {
+        aspect-ratio: 4 / 5;
+        background: var(--sf-color-surface-muted);
+        border-radius: var(--sf-radius-sm);
+        transition: opacity .3s ease;
+      }
+      .product:hover .product-media { opacity: .82; }
+      .product h3 { margin: 16px 0 4px; font-size: 14px; font-weight: 500; letter-spacing: 0; }
+      .product .price { font-size: 13px; color: var(--sf-color-text-muted); }
+      .product .price b { color: var(--sf-color-text); font-weight: 600; }
+      .product .old { text-decoration: line-through; margin-inline-start: 8px; }
+
+      /* Promo — text block with a thin frame, no color fill */
+      .promo {
+        border: 1px solid var(--sf-color-border);
+        border-radius: var(--sf-radius-md);
+        padding: clamp(32px, 6vw, 64px);
+        text-align: center;
+      }
+      .promo h2 { font-size: clamp(20px, 4vw, 28px); font-weight: 600; }
+      .promo p { margin: 16px auto 28px; max-width: 48ch; font-size: 14px; font-weight: 300; color: var(--sf-color-text-muted); }
+
+      /* Benefits — thin separated list, no cards */
+      .benefits { display: grid; grid-template-columns: 1fr; gap: 0; }
+      .benefit { display: flex; align-items: baseline; gap: 14px; padding: 20px 0; border-bottom: 1px solid var(--sf-color-border); }
+      .benefit:first-child { border-top: 1px solid var(--sf-color-border); }
+      .benefit .num { font-size: 11px; letter-spacing: .16em; color: var(--sf-color-text-muted); }
+      .benefit b { font-size: 13.5px; font-weight: 600; }
+      .benefit span { font-size: 12.5px; font-weight: 300; color: var(--sf-color-text-muted); }
+
+      /* Newsletter — underline input only */
+      .newsletter { text-align: center; }
+      .newsletter h2 { font-size: clamp(20px, 4vw, 26px); font-weight: 600; }
+      .newsletter p { margin: 12px 0 30px; font-size: 13.5px; font-weight: 300; color: var(--sf-color-text-muted); }
+      .nl-form { display: flex; justify-content: center; gap: 0; max-width: 440px; margin: 0 auto; border-bottom: 1px solid var(--sf-color-text); }
+      .nl-form input { flex: 1; border: 0; background: transparent; padding: 12px 4px; font-family: inherit; font-size: 13.5px; outline: none; }
+      .nl-form button { border: 0; background: transparent; padding: 12px 6px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sf-color-primary); }
+
+      /* Single-line footer */
+      .footer { border-top: 1px solid var(--sf-color-border); padding: 30px 0; }
+      .footer-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; font-size: 12px; color: var(--sf-color-text-muted); }
+      .footer-links { display: flex; flex-wrap: wrap; gap: 10px 22px; letter-spacing: .06em; }
+      .footer-links a:hover { color: var(--sf-color-text); }
+
+      @media (min-width: 640px) {
+        :root { --sf-gutter: 32px; }
+        .grid { grid-template-columns: repeat(3, 1fr); }
+        .benefits { grid-template-columns: repeat(2, 1fr); column-gap: 48px; }
+        .benefit:nth-child(2) { border-top: 1px solid var(--sf-color-border); }
+      }
+      @media (min-width: 900px) {
+        .nav { display: flex; }
+        .grid { grid-template-columns: repeat(4, 1fr); }
+      }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="note">معاينة قالب Minimal فقط — غير مرتبطة بقاعدة البيانات أو API أو التوجيه أو التخزين</div>
+
+    <div class="announce">توصيل لكل الولايات · الدفع عند الاستلام · إرجاع خلال 7 أيام</div>
+
+    <header class="header">
+      <div class="wrap header-inner">
+        <div class="brand">عبدو ستور</div>
+        <nav class="nav">
+          <a href="#">المتجر</a>
+          <a href="#">المجموعات</a>
+          <a href="#">عن العلامة</a>
+        </nav>
+        <div class="header-actions">
+          <a class="cart-link" href="#">السلة (3)</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="hero wrap">
+      <span class="label eyebrow">مجموعة 2026</span>
+      <h1>أساسيات مدروسة، بلا ضجيج.</h1>
+      <p>
+        قطع تُصمَّم لتبقى: خامات متينة، خطوط هادئة، وأسعار واضحة. تجربة شراء
+        بلا تعقيد — من التصفح إلى باب منزلك.
+      </p>
+      <div class="hero-actions">
+        <a class="link-cta" href="#">تسوق المجموعة</a>
+        <a href="#" style="font-size:13px;color:var(--sf-color-text-muted)">اطّلع على الدليل ←</a>
+      </div>
+    </section>
+
+    <section class="section section-rule">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>المجموعة</h2>
+          <a class="label" href="#">كل المنتجات</a>
+        </div>
+        <div class="grid">
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>قميص قطني</h3>
+            <div class="price"><b>2,560 دج</b><span class="old">3,200 دج</span></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>بنطال مستقيم</h3>
+            <div class="price"><b>4,100 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>حقيبة كتف</h3>
+            <div class="price"><b>3,450 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>ساعة بسيطة</h3>
+            <div class="price"><b>6,200 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>وشاح صوف</h3>
+            <div class="price"><b>1,900 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>محفظة جلدية</h3>
+            <div class="price"><b>2,300 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>حزام كلاسيكي</h3>
+            <div class="price"><b>1,450 دج</b></div>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>قبعة قطن</h3>
+            <div class="price"><b>1,200 دج</b></div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-rule">
+      <div class="wrap">
+        <div class="promo">
+          <span class="label">لفترة محدودة</span>
+          <h2 style="margin-top:18px">خصم حتى 30% على مختارات الموسم</h2>
+          <p>تخفيضات هادئة على قطع مختارة — بلا فوضى، وبلا عدّاد ضغط.</p>
+          <a class="link-cta" href="#">اكتشف العرض</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-rule">
+      <div class="wrap">
+        <div class="section-head"><h2>لماذا نحن</h2></div>
+        <div class="benefits">
+          <div class="benefit"><span class="num">01</span><span><b>توصيل سريع</b><br /><span>لجميع الولايات خلال 48–72 ساعة.</span></span></div>
+          <div class="benefit"><span class="num">02</span><span><b>دفع عند الاستلام</b><br /><span>افحص طلبك قبل الدفع.</span></span></div>
+          <div class="benefit"><span class="num">03</span><span><b>إرجاع خلال 7 أيام</b><br /><span>استرجاع بسيط بلا تعقيد.</span></span></div>
+          <div class="benefit"><span class="num">04</span><span><b>دفع آمن</b><br /><span>بياناتك محمية دائمًا.</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-rule">
+      <div class="wrap newsletter">
+        <h2>رسائل قليلة، بلا إزعاج.</h2>
+        <p>إشعار واحد عند إصدار مجموعة جديدة.</p>
+        <form class="nl-form" onsubmit="return false">
+          <input type="email" placeholder="بريدك الإلكتروني" />
+          <button type="submit">اشترك</button>
+        </form>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <span>© 2026 عبدو ستور</span>
+        <div class="footer-links">
+          <a href="#">المنتجات</a>
+          <a href="#">الإرجاع</a>
+          <a href="#">اتصل بنا</a>
+          <a href="#">إنستغرام</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>
