@@ -33,6 +33,7 @@ import TemplateAi from "@/pages/TemplateAi";
 import Storefront from "@/pages/Storefront";
 import StorePublic from "@/pages/StorePublic";
 import BuilderPage from "@/storefront/builder/BuilderPage";
+import ThemeEditorPage from "@/storefront/builder/ThemeEditorPage";
 import { Route, Switch, useLocation } from "wouter";
 import DashboardLayout from "./components/DashboardLayout";
 import { IdentityShell } from "./components/IdentityShell";
@@ -275,6 +276,7 @@ function Router() {
       />
       <Route path="/store">{() => <StorePublic />}</Route>
       <Route path="/store/builder" component={BuilderPage} />
+      <Route path="/store/theme" component={ThemeEditorPage} />
       <Route path="/store/cart">{() => <Storefront view="cart" />}</Route>
       <Route path="/store/checkout" component={Checkout} />
       <Route path="/404" component={NotFound} />

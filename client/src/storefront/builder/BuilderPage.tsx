@@ -801,6 +801,13 @@ export default function BuilderPage() {
           </span>
           <Button
             variant="outline"
+            onClick={() => setLocation("/store/theme")}
+            className="h-9 rounded-lg px-3 text-xs font-extrabold"
+          >
+            الثيم
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setHistoryOpen(true)}
             className="h-9 rounded-lg px-3 text-xs font-extrabold"
           >
