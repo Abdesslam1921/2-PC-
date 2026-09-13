@@ -253,7 +253,7 @@ export function BoldStorefront({
                       return (
                         <article
                           key={product.id}
-                          className="grid grid-cols-[44%_56%] overflow-hidden rounded-[28px] border-[3px] border-[#0C2A26] bg-white shadow-[8px_8px_0_0_#0C2A26]"
+                          className="grid grid-cols-[44%_56%] overflow-hidden rounded-[28px] border-[3px] border-[#0C2A26] bg-white shadow-[8px_8px_0_0_#0C2A26] transition duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[12px_12px_0_0_#0C2A26]"
                         >
                           <button
                             type="button"
