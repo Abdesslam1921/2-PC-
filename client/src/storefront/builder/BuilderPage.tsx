@@ -49,6 +49,7 @@ import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { useDraftHistory } from "@/storefront/builder/useDraftHistory";
 import { BuilderSectionWrapper } from "@/storefront/builder/BuilderSectionWrapper";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
+import { TEMPLATE_DEFAULT_TOKENS } from "@/storefront/themeDefaults";
 import {
   ADDABLE_SECTION_TYPES,
   COMMON_STYLE_FIELDS,
@@ -379,7 +380,12 @@ export default function BuilderPage() {
   const canvas = config ? (
     <div
       data-sf-root
-      style={buildStorefrontTokenOverrides(config.theme ?? {}) as CSSProperties}
+      style={
+        {
+          ...TEMPLATE_DEFAULT_TOKENS,
+          ...buildStorefrontTokenOverrides(config.theme ?? {}),
+        } as CSSProperties
+      }
       className={`overflow-hidden rounded-[18px] border border-[#e7e9e8] bg-white shadow-[0_24px_60px_-40px_rgba(12,42,38,0.5)] ${
         device === "mobile" ? "mx-auto max-w-[390px]" : "w-full"
       }`}
