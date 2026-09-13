@@ -4,7 +4,9 @@ import { MinimalStorefront } from "@/storefront/MinimalStorefront";
 import { BoldStorefront } from "@/storefront/BoldStorefront";
 import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { trpc } from "@/lib/trpc";
+import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
 import { Loader2 } from "lucide-react";
+import type { CSSProperties } from "react";
 
 /**
  * Public storefront entry.
@@ -29,17 +31,27 @@ export default function StorePublic() {
 
   if (query.data) {
     const name = query.data.storeName || "المتجر";
+    const themeStyle = buildStorefrontTokenOverrides(
+      query.data.config.theme ?? {}
+    ) as CSSProperties;
+
+    let template = null;
     if (query.data.templateKey === "minimal") {
-      return <MinimalStorefront config={query.data.config} storeName={name} />;
+      template = <MinimalStorefront config={query.data.config} storeName={name} />;
+    } else if (query.data.templateKey === "bold") {
+      template = <BoldStorefront config={query.data.config} storeName={name} />;
+    } else if (query.data.templateKey === "boutique") {
+      template = <BoutiqueStorefront config={query.data.config} storeName={name} />;
+    } else if (query.data.templateKey === "modern") {
+      template = <ModernStorefront config={query.data.config} storeName={name} />;
     }
-    if (query.data.templateKey === "bold") {
-      return <BoldStorefront config={query.data.config} storeName={name} />;
-    }
-    if (query.data.templateKey === "boutique") {
-      return <BoutiqueStorefront config={query.data.config} storeName={name} />;
-    }
-    if (query.data.templateKey === "modern") {
-      return <ModernStorefront config={query.data.config} storeName={name} />;
+
+    if (template) {
+      return (
+        <div data-sf-root style={themeStyle}>
+          {template}
+        </div>
+      );
     }
   }
 
