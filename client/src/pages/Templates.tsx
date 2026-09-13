@@ -261,6 +261,11 @@ export default function Templates() {
             >
               تفعيل Boutique
             </Button>
+            <Link href="/store/builder">
+              <Button className="h-10 rounded-xl bg-[#0C2A26] px-5 font-extrabold text-white">
+                فتح المحرّر
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
