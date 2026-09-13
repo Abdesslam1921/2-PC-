@@ -194,7 +194,25 @@ export default function ThemeEditorPage() {
   }, [theme, dirty, conflict, baseVersion, baseConfig, saveDraft]);
 
   const doPublish = async () => {
+    if (!baseConfig) return;
     try {
+      // Flush the current draft first, otherwise Publish would publish an older
+      // saved draft (e.g. when clicked before the 1s autosave completes).
+      const valid = validateStorefrontThemeConfig(theme);
+      const payload = { ...baseConfig, theme: valid.ok ? valid.data : {} };
+      const saved = await saveDraft.mutateAsync({
+        config: payload,
+        expectedVersion: baseVersion,
+      });
+      if (saved.conflict) {
+        setConflict(saved.currentVersion ?? 0);
+        toast.error("المسودة تغيّرت من مكان آخر — لم يُنشر.");
+        return;
+      }
+      if (saved.version) {
+        setBaseVersion(saved.version);
+        setDirty(false);
+      }
       const res = await publish.mutateAsync({});
       toast.success(`تم نشر الثيم — الإصدار ${res.versionNumber}`);
       await utils.storefront.managed.invalidate();
@@ -206,6 +224,12 @@ export default function ThemeEditorPage() {
     try {
       const res = await rollback.mutateAsync({ versionNumber });
       toast.success(`تم التراجع — الإصدار ${res.versionNumber}`);
+      if (res.config) {
+        setBaseConfig(res.config);
+        setTheme((res.config.theme ?? {}) as Record<string, unknown>);
+        setDirty(false);
+      }
+      setBaseVersion(res.draftVersion ?? baseVersion);
       await utils.storefront.managed.invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذّر التراجع.");

@@ -357,7 +357,22 @@ export default function BuilderPage() {
   };
 
   const doPublish = async () => {
+    if (!config) return;
     try {
+      // Flush the draft first so Publish never publishes stale content.
+      const saved = await saveDraft.mutateAsync({
+        config,
+        expectedVersion: baseVersion,
+      });
+      if (saved.conflict) {
+        setConflict(saved.currentVersion ?? 0);
+        toast.error("المسودة تغيّرت من مكان آخر — لم يُنشر.");
+        return;
+      }
+      if (saved.version) {
+        setBaseVersion(saved.version);
+        markSaved();
+      }
       const res = await publish.mutateAsync({});
       toast.success(`تم النشر — الإصدار ${res.versionNumber}`);
       await utils.storefront.managed.invalidate();
@@ -370,6 +385,11 @@ export default function BuilderPage() {
     try {
       const res = await rollback.mutateAsync({ versionNumber });
       toast.success(`تم التراجع — أُنشئ الإصدار ${res.versionNumber}`);
+      if (res.config) {
+        reset(res.config);
+        setSelectedId(sortSections(res.config.sections)[0]?.id ?? null);
+      }
+      setBaseVersion(res.draftVersion ?? baseVersion);
       await utils.storefront.managed.invalidate();
       setHistoryOpen(false);
     } catch (error) {
