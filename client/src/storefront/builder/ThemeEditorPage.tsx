@@ -13,6 +13,18 @@ import { validateStorefrontThemeConfig } from "@shared/storefront/themeSchema";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
+type Category = "colors" | "typography" | "radius" | "spacing" | "layout" | "borders" | "effects";
+
+const CATEGORIES: Array<{ id: Category; label: string; icon: string }> = [
+  { id: "colors", label: "الألوان", icon: "◐" },
+  { id: "typography", label: "الطباعة", icon: "Aa" },
+  { id: "radius", label: "الحواف", icon: "◜" },
+  { id: "spacing", label: "المسافات", icon: "↔" },
+  { id: "layout", label: "التخطيط", icon: "▭" },
+  { id: "borders", label: "الحدود", icon: "▤" },
+  { id: "effects", label: "الظلال والتأثيرات", icon: "✷" },
+];
+
 const COLOR_FIELDS: Array<{ token: string; label: string }> = [
   { token: "--sf-color-primary", label: "اللون الأساسي" },
   { token: "--sf-color-primary-hover", label: "الأساسي (عند المرور)" },
@@ -25,14 +37,14 @@ const COLOR_FIELDS: Array<{ token: string; label: string }> = [
 const FONT_OPTIONS = ["Cairo", "Tajawal", "Rubik"];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const lin = (c: number) =>
-  c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const luminance = (hex: string) => {
   const h = hex.replace("#", "");
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return (
+    0.2126 * lin(parseInt(h.slice(0, 2), 16)) +
+    0.7152 * lin(parseInt(h.slice(2, 4), 16)) +
+    0.0722 * lin(parseInt(h.slice(4, 6), 16))
+  );
 };
 const contrast = (a: string, b: string) => {
   const A = luminance(a);
@@ -42,7 +54,7 @@ const contrast = (a: string, b: string) => {
 
 export default function ThemeEditorPage() {
   const managed = trpc.storefront.managed.useQuery();
-  const products = trpc.products.publicList.useQuery();
+  trpc.products.publicList.useQuery();
   const saveDraft = trpc.storefront.saveDraft.useMutation();
   const publish = trpc.storefront.publish.useMutation();
   const rollback = trpc.storefront.rollback.useMutation();
@@ -54,6 +66,7 @@ export default function ThemeEditorPage() {
   const [conflict, setConflict] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [category, setCategory] = useState<Category>("colors");
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -69,15 +82,10 @@ export default function ThemeEditorPage() {
   const colors = (theme.colors ?? {}) as Record<string, string>;
   const radius = (theme.radius ?? {}) as Record<string, string>;
   const fontFamilies = (theme.fontFamilies ?? {}) as Record<string, string>;
-
   const effective = (token: string) => colors[token] ?? defaults[token] ?? "#000000";
 
   const previewStyle = useMemo(
-    () =>
-      ({
-        ...defaults,
-        ...buildStorefrontTokenOverrides(theme),
-      }) as CSSProperties,
+    () => ({ ...defaults, ...buildStorefrontTokenOverrides(theme) }) as CSSProperties,
     [defaults, theme]
   );
 
@@ -92,7 +100,6 @@ export default function ThemeEditorPage() {
   const setFont = (value: string) =>
     patchTheme({ fontFamilies: { ...fontFamilies, "--sf-font-heading": value } });
 
-  // Autosave (same draft + concurrency as the builder).
   useEffect(() => {
     if (!baseConfig || !dirty || conflict !== null) return;
     const handle = setTimeout(async () => {
@@ -109,7 +116,7 @@ export default function ThemeEditorPage() {
           setDirty(false);
         }
       } catch {
-        /* retry on next change */
+        /* retry */
       } finally {
         setSaving(false);
       }
@@ -147,9 +154,7 @@ export default function ThemeEditorPage() {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f4f1ea] px-6 text-center">
         <div>
-          <p className="text-[15px] font-black">
-            لا توجد مسودة قالب بعد. اختر قالبًا وفعّله أولًا.
-          </p>
+          <p className="text-[15px] font-black">لا توجد مسودة قالب بعد. اختر قالبًا وفعّله أولًا.</p>
           <Link href="/templates">
             <Button className="mt-4">فتح القوالب</Button>
           </Link>
@@ -180,6 +185,13 @@ export default function ThemeEditorPage() {
     ["الأساسي على الخلفية", effective("--sf-color-primary"), effective("--sf-color-background")],
   ];
 
+  const unimplemented = (
+    <p className="rounded-xl bg-[#f7faf9] p-3 text-[11.5px] leading-6 text-[#576B66]">
+      هذه الفئة معرّفة في عقد الثيم، لكن واجهة تحريرها لم تُبنَ بعد. المتاح الآن:
+      الألوان، الطباعة (خط العناوين)، والحواف.
+    </p>
+  );
+
   return (
     <div dir="rtl" className="flex h-screen flex-col bg-[#f4f1ea] text-[#0C2A26]">
       {/* Toolbar */}
@@ -207,14 +219,14 @@ export default function ThemeEditorPage() {
               setTheme({});
               setDirty(true);
             }}
-            className="h-9 rounded-lg gap-1.5 px-3 text-xs font-extrabold"
+            className="h-9 gap-1.5 rounded-lg px-3 text-xs font-extrabold"
           >
             <RotateCcw className="size-4" /> إعادة تعيين
           </Button>
           <Button
             onClick={doPublish}
             disabled={publish.isPending || conflict !== null}
-            className="h-9 rounded-lg gap-1.5 px-3 text-xs font-extrabold"
+            className="h-9 gap-1.5 rounded-lg px-3 text-xs font-extrabold"
           >
             <Rocket className="size-4" /> نشر
           </Button>
@@ -238,45 +250,107 @@ export default function ThemeEditorPage() {
         </div>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[340px_1fr]">
-        {/* Controls */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[280px_1fr_340px]">
+        {/* Categories (RTL start / right) */}
+        <aside className="hidden min-h-0 flex-col overflow-hidden border-inline-start border-[#e7e9e8] bg-white lg:flex">
+          <div className="border-b border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">
+            فئات الثيم
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {CATEGORIES.map(c => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setCategory(c.id)}
+                className={`flex w-full items-center gap-2.5 border-b border-[#f1f3f2] px-3.5 py-3 text-right text-[13px] font-bold ${
+                  category === c.id ? "bg-[#e4f3ef] text-[#0B5D57]" : "text-[#2F433F]"
+                }`}
+              >
+                <span className="grid size-6 place-items-center rounded-lg bg-[#f1f3f2] text-[12px]">
+                  {c.icon}
+                </span>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        {/* Live preview (center) */}
+        <main className="min-h-0 overflow-auto p-4">
+          <p className="mb-3 text-center text-[11.5px] font-bold text-[#576B66]">
+            معاينة حيّة (المسودة)
+          </p>
+          <div className="mx-auto max-w-[900px] overflow-hidden rounded-[18px] border border-[#e7e9e8] shadow-[0_24px_60px_-40px_rgba(12,42,38,0.5)]">
+            {preview}
+          </div>
+        </main>
+
+        {/* Controls (RTL end / left) */}
         <aside className="min-h-0 overflow-y-auto border-inline-end border-[#e7e9e8] bg-white">
           <div className="border-b border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">
-            الألوان
-          </div>
-          <div className="space-y-3 p-3.5">
-            {COLOR_FIELDS.map(field => {
-              const value = effective(field.token);
-              const safe = HEX.test(value) ? value : "#000000";
-              return (
-                <div key={field.token}>
-                  <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                    {field.label}
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={safe}
-                      onChange={e => setColor(field.token, e.target.value)}
-                      className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
-                    />
-                    <input
-                      type="text"
-                      value={value}
-                      onChange={e => setColor(field.token, e.target.value)}
-                      className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
-                    />
-                  </div>
-                </div>
-              );
-            })}
+            {CATEGORIES.find(c => c.id === category)?.label}
           </div>
 
-          <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">
-            الطباعة والحواف والكثافة
-          </div>
-          <div className="space-y-3 p-3.5">
-            <div>
+          {category === "colors" ? (
+            <>
+              <div className="space-y-3 p-3.5">
+                {COLOR_FIELDS.map(field => {
+                  const value = effective(field.token);
+                  const safe = HEX.test(value) ? value : "#000000";
+                  return (
+                    <div key={field.token}>
+                      <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                        {field.label}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={safe}
+                          onChange={e => setColor(field.token, e.target.value)}
+                          className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
+                        />
+                        <input
+                          type="text"
+                          value={value}
+                          onChange={e => setColor(field.token, e.target.value)}
+                          className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[12.5px] font-black">
+                نسبة التباين (WCAG AA)
+              </div>
+              <div className="space-y-2 p-3.5">
+                {pairs.map(([label, a, b]) => {
+                  if (!HEX.test(a) || !HEX.test(b)) return null;
+                  const ratio = contrast(a, b);
+                  const ok = ratio >= 4.5;
+                  return (
+                    <div key={label} className="flex items-center justify-between gap-2 text-[12px]">
+                      <span>{label}</span>
+                      <span className="flex items-center gap-2">
+                        <b>{ratio.toFixed(2)}:1</b>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold ${
+                            ok ? "bg-[#e4f3ef] text-[#0B5D57]" : "bg-[#fdeaea] text-[#B03A2E]"
+                          }`}
+                        >
+                          {ok ? "AA ✓" : "تحذير <4.5"}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+                <p className="pt-1 text-[11px] text-[#576B66]">التحذير بصري فقط ولا يمنع الحفظ.</p>
+              </div>
+            </>
+          ) : null}
+
+          {category === "typography" ? (
+            <div className="space-y-3 p-3.5">
               <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
                 خط العناوين
               </label>
@@ -293,7 +367,10 @@ export default function ThemeEditorPage() {
                 ))}
               </select>
             </div>
-            <div>
+          ) : null}
+
+          {category === "radius" ? (
+            <div className="space-y-3 p-3.5">
               <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
                 انحناء حواف البطاقات (px)
               </label>
@@ -303,56 +380,32 @@ export default function ThemeEditorPage() {
                 onChange={e => setRadius("--sf-radius-lg", `${Number(e.target.value) || 0}px`)}
                 className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
               />
+              <p className="text-[11px] text-[#576B66]">
+                الحواف مصدرها الوحيد توكن الثيم (لا يوجد إعداد حواف لكل قسم).
+              </p>
             </div>
-            <p className="rounded-xl bg-[#f7faf9] p-3 text-[11.5px] leading-6 text-[#576B66]">
-              «الكثافة» لم تُعد جزءًا من عقد الثيم ولا من هذه الواجهة. إن احتجناها
-              لاحقًا فستُربط بتوكنات المسافات كمشروع منفصل.
-            </p>
-          </div>
+          ) : null}
 
-          {/* Contrast (non-blocking) */}
-          <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">
-            نسبة التباين (WCAG AA)
-          </div>
-          <div className="space-y-2 p-3.5">
-            {pairs.map(([label, a, b]) => {
-              if (!HEX.test(a) || !HEX.test(b)) return null;
-              const ratio = contrast(a, b);
-              const ok = ratio >= 4.5;
-              return (
-                <div key={label} className="flex items-center justify-between gap-2 text-[12px]">
-                  <span>{label}</span>
-                  <span className="flex items-center gap-2">
-                    <b>{ratio.toFixed(2)}:1</b>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10.5px] font-extrabold ${
-                        ok ? "bg-[#e4f3ef] text-[#0B5D57]" : "bg-[#fdeaea] text-[#B03A2E]"
-                      }`}
-                    >
-                      {ok ? "AA ✓" : "تحذير <4.5"}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
-            <p className="pt-1 text-[11px] text-[#576B66]">
-              التحذير بصري فقط ولا يمنع الحفظ.
-            </p>
-          </div>
+          {category !== "colors" && category !== "typography" && category !== "radius" ? (
+            <div className="p-3.5">{unimplemented}</div>
+          ) : null}
 
           {/* Version history + rollback */}
-          <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">
+          <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[12.5px] font-black">
             سجل الإصدارات
           </div>
           <div className="space-y-2 p-3.5">
             {(managed.data?.versions ?? []).slice(0, 8).map(v => (
-              <div key={v.id} className="flex items-center justify-between gap-2 rounded-xl border border-[#e7e9e8] p-2.5">
+              <div
+                key={v.id}
+                className="flex items-center justify-between gap-2 rounded-xl border border-[#e7e9e8] p-2.5"
+              >
                 <span className="text-[12px] font-bold">v{v.versionNumber}</span>
                 <Button
                   variant="outline"
                   onClick={() => doRollback(v.versionNumber)}
                   disabled={rollback.isPending}
-                  className="h-8 rounded-lg gap-1 px-2.5 text-[11px] font-extrabold"
+                  className="h-8 gap-1 rounded-lg px-2.5 text-[11px] font-extrabold"
                 >
                   <Undo2 className="size-3.5" /> تراجع
                 </Button>
@@ -363,16 +416,6 @@ export default function ThemeEditorPage() {
             ) : null}
           </div>
         </aside>
-
-        {/* Live preview */}
-        <main className="min-h-0 overflow-auto p-4">
-          <p className="mb-3 text-center text-[11.5px] font-bold text-[#576B66]">
-            معاينة حيّة (المسودة)
-          </p>
-          <div className="mx-auto max-w-[900px] overflow-hidden rounded-[18px] border border-[#e7e9e8] shadow-[0_24px_60px_-40px_rgba(12,42,38,0.5)]">
-            {preview}
-          </div>
-        </main>
       </div>
     </div>
   );
