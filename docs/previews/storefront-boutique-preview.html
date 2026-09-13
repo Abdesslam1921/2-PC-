@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>معاينة قالب Boutique — متجر تجريبي (غير مرتبطة ببيانات)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Rubik:ital,wght@0,300..700;1,400&family=Tajawal:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* =====================================================================
+       * PREVIEW ONLY — Boutique storefront template.
+       * Structural identity: warm cream + gold · soft large radius · split
+       * (text + framed image) hero · 3-column framed cards with ornament ·
+       * elegant editorial typography with wide tracking. AA-verified values.
+       * ===================================================================== */
+      :root {
+        --sf-bg: #fbf6ee;
+        --sf-surface: #ffffff;
+        --sf-ink: #2b211a;
+        --sf-muted: #6b5f52;
+        --sf-gold: #b45309;      /* text-safe gold */
+        --sf-gold-soft: #e9c77b; /* decorative */
+        --sf-ornament: #8a6a3b;  /* decorative lines */
+        --sf-line: #eadfce;
+        --sf-radius: 26px;
+        --sf-radius-pill: 999px;
+        --sf-gutter: 18px;
+        --sf-section: 72px;
+        --sf-container: 1140px;
+        --sf-heading: "Cairo", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+        --sf-body: "Rubik", "Tajawal", ui-sans-serif, system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        background: var(--sf-bg);
+        color: var(--sf-ink);
+        font-family: var(--sf-body);
+        line-height: 1.9;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      h1, h2, h3 { font-family: var(--sf-heading); margin: 0; font-weight: 600; }
+      a { color: inherit; text-decoration: none; }
+      button { font-family: inherit; cursor: pointer; }
+      :focus-visible { outline: 2px solid var(--sf-gold); outline-offset: 3px; }
+      .wrap { max-width: var(--sf-container); margin: 0 auto; padding-inline: var(--sf-gutter); }
+      .note { background: #2b211a; color: #e9c77b; text-align: center; font-size: 11px; letter-spacing: .06em; padding: 7px 12px; }
+      .serif-label { font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--sf-ornament); }
+      .ornament { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--sf-ornament); }
+      .ornament::before, .ornament::after { content: ""; width: 42px; height: 1px; background: var(--sf-gold-soft); }
+
+      /* Announcement */
+      .announce { background: var(--sf-bg); border-bottom: 1px solid var(--sf-line); text-align: center; padding: 13px 12px; font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--sf-muted); }
+
+      /* Elegant header */
+      .header { position: sticky; top: 0; z-index: 30; background: rgba(251,246,238,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--sf-line); }
+      .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; }
+      .brand { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .brand b { font-family: var(--sf-heading); font-size: 21px; font-weight: 700; letter-spacing: .01em; }
+      .brand span { font-size: 9.5px; letter-spacing: .32em; text-transform: uppercase; color: var(--sf-ornament); }
+      .nav { display: none; gap: 26px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--sf-muted); }
+      .nav a:hover { color: var(--sf-gold); }
+      .cart-link { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--sf-muted); }
+      .cart-link:hover { color: var(--sf-gold); }
+
+      /* Split hero — text + framed image */
+      .hero { padding-block: clamp(44px, 8vw, 84px); }
+      .hero-grid { display: grid; gap: 30px; align-items: center; }
+      .hero .kicker { display: inline-flex; align-items: center; gap: 10px; }
+      .hero h1 { font-size: clamp(30px, 6vw, 52px); font-weight: 600; line-height: 1.3; letter-spacing: -.01em; margin: 18px 0 14px; max-width: 22ch; }
+      .hero h1 em { font-style: normal; color: var(--sf-gold); }
+      .hero p { margin: 0 0 26px; max-width: 48ch; font-size: 14.5px; font-weight: 300; color: var(--sf-muted); }
+      .btn { display: inline-flex; align-items: center; gap: 10px; border-radius: var(--sf-radius-pill); padding: 14px 28px; font-size: 14px; font-weight: 700; }
+      .btn-dark { background: var(--sf-ink); color: #fff; border: 1px solid var(--sf-ink); }
+      .btn-ghost { background: transparent; color: var(--sf-ink); border: 1px solid var(--sf-ink); }
+      .hero-frame {
+        position: relative; border: 1px solid var(--sf-gold-soft); border-radius: var(--sf-radius);
+        padding: 12px; background: var(--sf-surface);
+      }
+      .hero-frame::after {
+        content: ""; position: absolute; inset: 12px -10px -10px 12px;
+        border: 1px solid var(--sf-gold-soft); border-radius: var(--sf-radius); z-index: -1;
+      }
+      .hero-art {
+        height: clamp(240px, 42vw, 420px); border-radius: 20px;
+        background:
+          radial-gradient(90% 80% at 25% 20%, rgba(233,199,123,.55), transparent 60%),
+          linear-gradient(150deg, #efe2cb, #dccfae 55%, #c9b78d);
+      }
+
+      /* Sections */
+      .section { padding: var(--sf-section) 0; }
+      .section-head { text-align: center; margin-bottom: 40px; }
+      .section-head h2 { font-size: clamp(22px, 4.6vw, 34px); font-weight: 600; letter-spacing: -.01em; margin-top: 12px; }
+
+      /* Framed product cards, 2 → 3 columns */
+      .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px 18px; }
+      .product { text-align: center; }
+      .product-media {
+        position: relative; aspect-ratio: 4 / 5; border-radius: var(--sf-radius);
+        border: 1px solid var(--sf-line); background: linear-gradient(145deg, #f6efe2, #e8dcc6);
+        overflow: hidden; transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s ease, border-color .35s ease;
+      }
+      .product:hover .product-media { transform: translateY(-6px) scale(1.015); border-color: var(--sf-gold-soft); box-shadow: 0 20px 40px -26px rgba(43,33,26,.45); }
+      .product .tag { position: absolute; top: 12px; right: 12px; background: var(--sf-surface); border: 1px solid var(--sf-gold-soft); border-radius: var(--sf-radius-pill); padding: 5px 12px; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--sf-gold); }
+      .product h3 { margin: 16px 0 4px; font-size: 15px; font-weight: 600; }
+      .product .sub { font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--sf-ornament); }
+      .product .price { margin-top: 8px; font-size: 14px; color: var(--sf-muted); }
+      .product .price b { color: var(--sf-gold); font-weight: 700; }
+      .product .old { margin-inline-start: 8px; text-decoration: line-through; }
+      .product .add { margin-top: 12px; background: transparent; border: 1px solid var(--sf-gold-soft); border-radius: var(--sf-radius-pill); padding: 9px 22px; font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--sf-ink); }
+      .product .add:hover { background: var(--sf-ink); color: #fff; border-color: var(--sf-ink); }
+
+      /* Promo — framed elegant block */
+      .promo { border: 1px solid var(--sf-gold-soft); border-radius: var(--sf-radius); background: var(--sf-surface); padding: clamp(30px, 6vw, 58px); text-align: center; position: relative; }
+      .promo::before, .promo::after { content: "✦"; position: absolute; color: var(--sf-gold-soft); font-size: 14px; }
+      .promo::before { top: 14px; right: 18px; }
+      .promo::after { bottom: 14px; left: 18px; }
+      .promo h2 { font-size: clamp(22px, 4.6vw, 34px); font-weight: 600; margin-top: 14px; }
+      .promo p { margin: 14px auto 26px; max-width: 50ch; font-size: 14px; font-weight: 300; color: var(--sf-muted); }
+
+      /* Benefits — elegant inline list */
+      .benefits { display: grid; grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--sf-line); border-bottom: 1px solid var(--sf-line); }
+      .benefit { display: flex; align-items: center; gap: 14px; padding: 22px 6px; border-bottom: 1px solid var(--sf-line); }
+      .benefit:last-child { border-bottom: 0; }
+      .benefit .dot { width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1px solid var(--sf-gold-soft); display: grid; place-items: center; color: var(--sf-gold); font-size: 13px; }
+      .benefit b { display: block; font-size: 14px; font-weight: 600; }
+      .benefit span { font-size: 12.5px; font-weight: 300; color: var(--sf-muted); }
+
+      /* Newsletter — elegant framed */
+      .newsletter { border: 1px solid var(--sf-line); border-radius: var(--sf-radius); background: var(--sf-surface); padding: clamp(28px, 6vw, 52px); text-align: center; }
+      .newsletter h2 { font-size: clamp(22px, 4.6vw, 32px); font-weight: 600; margin-top: 14px; }
+      .newsletter p { margin: 12px 0 26px; font-size: 13.5px; font-weight: 300; color: var(--sf-muted); }
+      .nl-form { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+      .nl-form input { flex: 1; min-width: 220px; max-width: 340px; height: 50px; border-radius: var(--sf-radius-pill); border: 1px solid var(--sf-line); background: var(--sf-bg); padding: 0 20px; font-family: inherit; font-size: 14px; outline: none; }
+      .nl-form input:focus { border-color: var(--sf-gold-soft); }
+      .nl-form button { height: 50px; border-radius: var(--sf-radius-pill); border: 1px solid var(--sf-ink); background: var(--sf-ink); color: #fff; padding: 0 28px; font-size: 13px; font-weight: 700; letter-spacing: .08em; }
+
+      /* Footer — elegant, with flourish */
+      .footer { border-top: 1px solid var(--sf-line); margin-top: var(--sf-section); padding: 46px 0 30px; }
+      .footer-inner { display: grid; gap: 26px; text-align: center; }
+      .footer .links { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 26px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--sf-muted); }
+      .footer .links a:hover { color: var(--sf-gold); }
+      .footer .copy { font-size: 11.5px; color: var(--sf-ornament); }
+
+      @media (min-width: 640px) {
+        :root { --sf-gutter: 28px; }
+        .grid { grid-template-columns: repeat(3, 1fr); gap: 26px 22px; }
+        .benefits { grid-template-columns: repeat(2, 1fr); column-gap: 40px; border-bottom: 1px solid var(--sf-line); }
+        .benefit:nth-child(odd) { border-bottom: 1px solid var(--sf-line); }
+      }
+      @media (min-width: 900px) {
+        .nav { display: flex; }
+        .hero-grid { grid-template-columns: 1fr 1fr; gap: 54px; }
+        .hero-grid .copy { order: 1; }
+        .hero-grid .visual { order: 2; }
+      }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="note">معاينة قالب Boutique فقط — غير مرتبطة بقاعدة البيانات أو API أو التوجيه أو التخزين</div>
+
+    <div class="announce">توصيل لكل الولايات ✦ الدفع عند الاستلام ✦ إرجاع خلال 7 أيام</div>
+
+    <header class="header">
+      <div class="wrap header-inner">
+        <button class="cart-link">السلة (3)</button>
+        <div class="brand"><b>عبدو ستور</b><span>Boutique</span></div>
+        <nav class="nav">
+          <a href="#">المجموعة</a>
+          <a href="#">عن العلامة</a>
+          <a href="#">تواصل</a>
+        </nav>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="copy">
+          <span class="kicker serif-label">✦ مجموعة الفخامة</span>
+          <h1>تفاصيل <em>تُروى</em> بصمت.</h1>
+          <p>
+            قطع مختارة بعناية لمن يقدّر الهدوء والأناقة. خامات راقية، تشطيبات
+            دقيقة، وتغليف يصنع اللحظة.
+          </p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <button class="btn btn-dark">اكتشف المجموعة</button>
+            <button class="btn btn-ghost">قصة العلامة</button>
+          </div>
+        </div>
+        <div class="visual">
+          <div class="hero-frame"><div class="hero-art"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="serif-label ornament">المجموعة</span>
+          <h2>قطع مختارة بعناية</h2>
+        </div>
+        <div class="grid">
+          <a class="product" href="#">
+            <div class="product-media"><span class="tag">حصري</span></div>
+            <h3>عطر العنبر</h3>
+            <div class="sub">Eau de Parfum</div>
+            <div class="price"><b>8,900 دج</b></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>وشاح حريري</h3>
+            <div class="sub">Soie naturelle</div>
+            <div class="price"><b>4,200 دج</b><span class="old">5,300 دج</span></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"><span class="tag">جديد</span></div>
+            <h3>حقيبة جلدية</h3>
+            <div class="sub">Cuir véritable</div>
+            <div class="price"><b>12,500 دج</b></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>ساعة كلاسيكية</h3>
+            <div class="sub">Montre élégante</div>
+            <div class="price"><b>9,700 دج</b></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"></div>
+            <h3>قلادة ذهبية</h3>
+            <div class="sub">Plaqué or</div>
+            <div class="price"><b>6,300 دج</b></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+          <a class="product" href="#">
+            <div class="product-media"><span class="tag">-20%</span></div>
+            <h3>شمعة معطّرة</h3>
+            <div class="sub">Bougie parfumée</div>
+            <div class="price"><b>2,600 دج</b><span class="old">3,250 دج</span></div>
+            <button class="add">أضف إلى السلة</button>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="promo">
+          <span class="serif-label">هدية الموسم</span>
+          <h2>تغليف فاخر مجانًا لكل طلب</h2>
+          <p>نُرفق بطاقة مكتوبة بخط اليد مع كل قطعة مختارة — لأن الهدية تبدأ من التفاصيل.</p>
+          <button class="btn btn-dark">اطلب الآن</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="section-head"><span class="serif-label ornament">لماذا نحن</span></div>
+        <div class="benefits">
+          <div class="benefit"><span class="dot">✦</span><span><b>توصيل فاخر</b><span>تغليف أنيق لكل الولايات.</span></span></div>
+          <div class="benefit"><span class="dot">✦</span><span><b>دفع عند الاستلام</b><span>افحص طلبك قبل الدفع.</span></span></div>
+          <div class="benefit"><span class="dot">✦</span><span><b>إرجاع خلال 7 أيام</b><span>استرجاع هادئ بلا تعقيد.</span></span></div>
+          <div class="benefit"><span class="dot">✦</span><span><b>خامات أصلية</b><span>مصادر موثوقة وضمان جودة.</span></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+      <div class="wrap">
+        <div class="newsletter">
+          <span class="serif-label ornament">النشرة</span>
+          <h2>رسائل راقية فقط</h2>
+          <p>إشعار واحد عند إصدار مجموعة جديدة.</p>
+          <form class="nl-form" onsubmit="return false">
+            <input type="email" placeholder="بريدك الإلكتروني" />
+            <button type="submit">اشترك</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <div class="brand" style="align-items:center"><b>عبدو ستور</b><span>Boutique</span></div>
+        <div class="links">
+          <a href="#">المجموعة</a>
+          <a href="#">عن العلامة</a>
+          <a href="#">الإرجاع</a>
+          <a href="#">اتصل بنا</a>
+          <a href="#">إنستغرام</a>
+        </div>
+        <div class="copy">© 2026 عبدو ستور — جميع الحقوق محفوظة</div>
+      </div>
+    </footer>
+  </body>
+</html>
