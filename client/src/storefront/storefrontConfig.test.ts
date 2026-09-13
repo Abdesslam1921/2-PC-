@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_BOLD_CONFIG,
   DEFAULT_MINIMAL_CONFIG,
   DEFAULT_MODERN_CONFIG,
   storefrontConfigSchema,
@@ -19,6 +20,13 @@ describe("storefront config schema", () => {
     expect(result.ok).toBe(true);
     expect(result.data?.templateKey).toBe("minimal");
     expect(result.data?.sections.some(s => s.type === "product_grid")).toBe(true);
+  });
+
+  it("accepts the default Bold config", () => {
+    const result = validateStorefrontConfig(DEFAULT_BOLD_CONFIG);
+    expect(result.ok).toBe(true);
+    expect(result.data?.templateKey).toBe("bold");
+    expect(result.data?.sections.length).toBeGreaterThan(0);
   });
 
   it("rejects an unknown section type", () => {

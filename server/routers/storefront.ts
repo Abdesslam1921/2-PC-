@@ -17,6 +17,7 @@ import {
   saveStorefrontDraft,
 } from "../storefrontDb";
 import {
+  DEFAULT_BOLD_CONFIG,
   DEFAULT_MINIMAL_CONFIG,
   DEFAULT_MODERN_CONFIG,
   STOREFRONT_TEMPLATE_KEYS,
@@ -26,6 +27,7 @@ import {
 const TEMPLATE_DEFAULTS = {
   modern: DEFAULT_MODERN_CONFIG,
   minimal: DEFAULT_MINIMAL_CONFIG,
+  bold: DEFAULT_BOLD_CONFIG,
 } as const;
 
 /** Owner-only guard (admin override is allowed but always audited). */

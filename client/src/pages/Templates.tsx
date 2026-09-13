@@ -245,6 +245,14 @@ export default function Templates() {
             >
               تفعيل Minimal
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => enableTemplate.mutate({ templateKey: "bold" })}
+              disabled={enableTemplate.isPending}
+              className="brand-shine h-10 rounded-xl border-[var(--brand)] px-5 font-extrabold text-[var(--brand)]"
+            >
+              تفعيل Bold
+            </Button>
           </div>
         </CardContent>
       </Card>

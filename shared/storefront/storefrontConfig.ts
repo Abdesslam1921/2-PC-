@@ -9,7 +9,7 @@ import { z } from "zod";
 import { storefrontThemeConfigSchema } from "./themeSchema";
 
 /** Templates supported by the engine. Extend as new templates are approved. */
-export const STOREFRONT_TEMPLATE_KEYS = ["modern", "minimal"] as const;
+export const STOREFRONT_TEMPLATE_KEYS = ["modern", "minimal", "bold"] as const;
 export type StorefrontTemplateKey = (typeof STOREFRONT_TEMPLATE_KEYS)[number];
 
 export const STOREFRONT_SECTION_TYPES = [
@@ -233,6 +233,87 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       settings: {
         title: "رسائل قليلة، بلا إزعاج.",
         subtitle: "إشعار واحد عند إصدار مجموعة جديدة.",
+        ctaLabel: "اشترك",
+      },
+    },
+    {
+      id: "footer",
+      type: "footer",
+      enabled: true,
+      order: 7,
+      settings: {},
+    },
+  ],
+};
+
+/**
+ * Default Bold configuration — compact rhythm, thick borders, dark full-bleed
+ * hero with oversized type, high-density two-column product cards.
+ */
+export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
+  templateKey: "bold",
+  theme: {},
+  sections: [
+    {
+      id: "announcement",
+      type: "announcement",
+      enabled: true,
+      order: 0,
+      settings: { text: "خصم يصل إلى 40% · توصيل 58 ولاية · الدفع عند الاستلام" },
+    },
+    {
+      id: "header",
+      type: "header",
+      enabled: true,
+      order: 1,
+      settings: { showSearch: false, showCart: true, showAccount: false },
+    },
+    {
+      id: "hero",
+      type: "hero",
+      enabled: true,
+      order: 2,
+      settings: {
+        eyebrow: "عرض الأسبوع",
+        title: "قوّتك في التفاصيل. تسوّق بجرأة.",
+        subtitle:
+          "قطع عالية الجودة بأسعار تنافسية — تصاميم جسورة، خامات متينة، وتوصيل سريع لكل الولايات.",
+        ctaLabel: "تسوق المجموعة",
+      },
+    },
+    {
+      id: "product_grid",
+      type: "product_grid",
+      enabled: true,
+      order: 3,
+      settings: { title: "الأكثر مبيعًا", subtitle: "", limit: 8 },
+    },
+    {
+      id: "promo",
+      type: "promo",
+      enabled: true,
+      order: 4,
+      settings: {
+        title: "يبدأ العرض الآن.",
+        body: "حتى 40% على مختارات كاملة — الكمية محدودة، والطلب أسرع من الأمس.",
+        ctaLabel: "اكتشف العروض",
+      },
+    },
+    {
+      id: "benefits",
+      type: "benefits",
+      enabled: true,
+      order: 5,
+      settings: {},
+    },
+    {
+      id: "newsletter",
+      type: "newsletter",
+      enabled: true,
+      order: 6,
+      settings: {
+        title: "لا تفوّت العروض.",
+        subtitle: "اشترك ليصلك كل جديد وأقوى التخفيضات أولًا بأول.",
         ctaLabel: "اشترك",
       },
     },
