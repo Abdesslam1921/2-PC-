@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
+import { SectionShell } from "@/storefront/SectionShell";
+import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -59,9 +61,13 @@ const str = (value: unknown, fallback = "") =>
 export function ModernStorefront({
   config,
   storeName,
+  highlightSectionId,
+  onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  highlightSectionId?: string | null;
+  onSelectSection?: (id: string) => void;
 }) {
   const [, setLocation] = useLocation();
   const { addItem, itemCount } = useCart();
@@ -191,7 +197,8 @@ export function ModernStorefront({
   return (
     <div dir="rtl" className="min-h-screen bg-[#FFFCF6] text-[#0C2A26]">
       {sections.map(section => {
-        switch (section.type) {
+        const content = (() => {
+          switch (section.type) {
           case "announcement":
             return (
               <div
@@ -254,6 +261,15 @@ export function ModernStorefront({
                 key={section.id}
                 className="relative grid min-h-[440px] items-end overflow-hidden bg-[radial-gradient(120%_100%_at_80%_0%,rgba(94,234,212,0.55),transparent_60%),linear-gradient(135deg,#0B5D57,#0F766E_55%,#12907F)]"
               >
+                {typeof section.settings.imageUrl === "string" &&
+                section.settings.imageUrl ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{
+                      backgroundImage: `url(${section.settings.imageUrl})`,
+                    }}
+                  />
+                ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(6,23,26,0.55),transparent_55%)]" />
                 <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 py-12 text-white">
                   {str(section.settings.eyebrow) ? (
@@ -491,7 +507,20 @@ export function ModernStorefront({
             return null;
           default:
             return null;
-        }
+          }
+        })();
+        if (!content) return null;
+        return (
+          <SectionShell
+            key={section.id}
+            id={section.id}
+            label={SECTION_LABELS[section.type]}
+            highlight={highlightSectionId === section.id}
+            onSelect={onSelectSection}
+          >
+            {content}
+          </SectionShell>
+        );
       })}
     </div>
   );

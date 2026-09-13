@@ -139,6 +139,7 @@ export default function BuilderPage() {
   const activeStore = trpc.stores.active.useQuery(undefined, { retry: false });
   const saveDraft = trpc.storefront.saveDraft.useMutation();
   const publish = trpc.storefront.publish.useMutation();
+  const uploadAsset = trpc.storefront.uploadAsset.useMutation();
   const utils = trpc.useUtils();
 
   const {
@@ -180,6 +181,12 @@ export default function BuilderPage() {
     [config]
   );
   const selected = sections.find(s => s.id === selectedId) ?? null;
+
+  // Minimal's hero is intentionally text-only, so hide the image field there.
+  const visibleFields = (type: StorefrontSectionType) =>
+    SECTION_FIELDS[type].filter(
+      f => !(f.type === "image" && config?.templateKey === "minimal")
+    );
 
   const patchSection = (id: string, patch: Partial<StorefrontSection>) => {
     if (!config) return;
@@ -309,18 +316,38 @@ export default function BuilderPage() {
 
   const canvas = config ? (
     <div
-      className={`pointer-events-none overflow-hidden rounded-[18px] border border-[#e7e9e8] bg-white shadow-[0_24px_60px_-40px_rgba(12,42,38,0.5)] ${
+      className={`overflow-hidden rounded-[18px] border border-[#e7e9e8] bg-white shadow-[0_24px_60px_-40px_rgba(12,42,38,0.5)] ${
         device === "mobile" ? "mx-auto max-w-[390px]" : "w-full"
       }`}
     >
       {config.templateKey === "minimal" ? (
-        <MinimalStorefront config={config} storeName={storeName} />
+        <MinimalStorefront
+          config={config}
+          storeName={storeName}
+          highlightSectionId={selectedId}
+          onSelectSection={setSelectedId}
+        />
       ) : config.templateKey === "bold" ? (
-        <BoldStorefront config={config} storeName={storeName} />
+        <BoldStorefront
+          config={config}
+          storeName={storeName}
+          highlightSectionId={selectedId}
+          onSelectSection={setSelectedId}
+        />
       ) : config.templateKey === "boutique" ? (
-        <BoutiqueStorefront config={config} storeName={storeName} />
+        <BoutiqueStorefront
+          config={config}
+          storeName={storeName}
+          highlightSectionId={selectedId}
+          onSelectSection={setSelectedId}
+        />
       ) : (
-        <ModernStorefront config={config} storeName={storeName} />
+        <ModernStorefront
+          config={config}
+          storeName={storeName}
+          highlightSectionId={selectedId}
+          onSelectSection={setSelectedId}
+        />
       )}
     </div>
   ) : null;
@@ -392,13 +419,97 @@ export default function BuilderPage() {
             />
           </button>
         </div>
-        {SECTION_FIELDS[selected.type].length === 0 ? (
+        {visibleFields(selected.type).length === 0 ? (
           <p className="text-[12px] text-[#576B66]">
             لا توجد إعدادات نصية لهذا القسم — يظهر تلقائيًا من بيانات المتجر.
           </p>
         ) : (
-          SECTION_FIELDS[selected.type].map(field => {
+          visibleFields(selected.type).map(field => {
             const value = selected.settings[field.key];
+            if (field.type === "image") {
+              const url = typeof value === "string" ? value : "";
+              return (
+                <div key={field.key}>
+                  <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
+                    {field.label}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="size-14 shrink-0 rounded-lg border border-[#e7e9e8] bg-[#f3f7f6] bg-cover bg-center"
+                      style={url ? { backgroundImage: `url(${url})` } : undefined}
+                    />
+                    <label className="cursor-pointer rounded-lg border border-[#e7e9e8] px-3 py-2 text-xs font-bold hover:border-[#0F766E]">
+                      {uploadAsset.isPending ? "جارٍ الرفع…" : "تغيير الصورة"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async event => {
+                          const file = event.target.files?.[0];
+                          event.target.value = "";
+                          if (!file) return;
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast.error("حجم الصورة يتجاوز 5MB.");
+                            return;
+                          }
+                          const dataUrl = await new Promise<string>(
+                            (resolve, reject) => {
+                              const reader = new FileReader();
+                              reader.onload = () => resolve(String(reader.result));
+                              reader.onerror = reject;
+                              reader.readAsDataURL(file);
+                            }
+                          );
+                          try {
+                            const out = await uploadAsset.mutateAsync({
+                              fileName: file.name,
+                              dataUrl,
+                            });
+                            patchSection(selected.id, {
+                              settings: {
+                                ...selected.settings,
+                                [field.key]: out.url,
+                              },
+                            });
+                            toast.success("تم رفع الصورة.");
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "تعذّر رفع الصورة."
+                            );
+                          }
+                        }}
+                      />
+                    </label>
+                    {url ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchSection(selected.id, {
+                            settings: { ...selected.settings, [field.key]: "" },
+                          })
+                        }
+                        className="text-xs font-bold text-[#b03a2e]"
+                      >
+                        إزالة
+                      </button>
+                    ) : null}
+                  </div>
+                  <input
+                    type="text"
+                    value={url}
+                    placeholder="أو الصق رابط صورة (https://…)"
+                    onChange={e =>
+                      patchSection(selected.id, {
+                        settings: { ...selected.settings, [field.key]: e.target.value },
+                      })
+                    }
+                    className="mt-2 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
+                  />
+                </div>
+              );
+            }
             if (field.type === "boolean") {
               return (
                 <label

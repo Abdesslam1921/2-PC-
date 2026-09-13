@@ -5,7 +5,12 @@
  */
 import type { StorefrontSectionType } from "./storefrontConfig";
 
-export type SectionFieldType = "text" | "textarea" | "number" | "boolean";
+export type SectionFieldType =
+  | "text"
+  | "textarea"
+  | "number"
+  | "boolean"
+  | "image";
 
 export interface SectionField {
   key: string;
@@ -40,6 +45,7 @@ export const SECTION_FIELDS: Record<StorefrontSectionType, SectionField[]> = {
     { key: "title", label: "العنوان الرئيسي", type: "text" },
     { key: "subtitle", label: "الوصف", type: "textarea" },
     { key: "ctaLabel", label: "نص الزر", type: "text" },
+    { key: "imageUrl", label: "صورة القسم", type: "image" },
   ],
   categories: [
     { key: "title", label: "العنوان", type: "text" },

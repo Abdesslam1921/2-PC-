@@ -16,6 +16,7 @@ import {
   recordStorefrontAuditLog,
   saveStorefrontDraft,
 } from "../storefrontDb";
+import { storagePut } from "../storage";
 import {
   DEFAULT_BOLD_CONFIG,
   DEFAULT_BOUTIQUE_CONFIG,
@@ -257,6 +258,46 @@ export const storefrontRouter = router({
         toVersion: versionNumber,
       });
       return { versionNumber };
+    }),
+
+  /** Upload a storefront asset (image) through the existing storage pipeline. */
+  uploadAsset: protectedProcedure
+    .input(
+      z.object({
+        fileName: z.string().trim().max(160),
+        dataUrl: z.string().max(8_000_000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { storeId } = assertOwner(ctx);
+      const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(
+        input.dataUrl
+      );
+      if (!match) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "صيغة الصورة غير صالحة.",
+        });
+      }
+      const contentType = match[1].toLowerCase();
+      if (!/^image\/(png|jpe?g|webp|gif|avif)$/.test(contentType)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "نوع الصورة غير مدعوم.",
+        });
+      }
+      const buffer = Buffer.from(match[2], "base64");
+      if (buffer.length > 5 * 1024 * 1024) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "حجم الصورة يتجاوز 5MB.",
+        });
+      }
+      const safe =
+        input.fileName.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 60) || "image";
+      const key = `storefront/${storeId}/${Date.now()}-${safe}`;
+      const { url } = await storagePut(key, buffer, contentType);
+      return { url };
     }),
 
   /** One-click opt-in for any approved template (publishes immediately). */

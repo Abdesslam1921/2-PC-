@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
+import { SectionShell } from "@/storefront/SectionShell";
+import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -53,9 +55,13 @@ const LABEL =
 export function BoutiqueStorefront({
   config,
   storeName,
+  highlightSectionId,
+  onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  highlightSectionId?: string | null;
+  onSelectSection?: (id: string) => void;
 }) {
   const [, setLocation] = useLocation();
   const { addItem, itemCount } = useCart();
@@ -111,7 +117,8 @@ export function BoutiqueStorefront({
   return (
     <div dir="rtl" className="min-h-screen bg-[#FBF6EE] text-[#2B211A]">
       {sections.map(section => {
-        switch (section.type) {
+        const content = (() => {
+          switch (section.type) {
           case "announcement":
             return (
               <div
@@ -191,7 +198,17 @@ export function BoutiqueStorefront({
                   </div>
                   <div className="relative">
                     <div className="relative rounded-[26px] border border-[#E9C77B] bg-white p-3">
-                      <div className="h-[240px] rounded-[20px] bg-[radial-gradient(90%_80%_at_25%_20%,rgba(233,199,123,0.55),transparent_60%),linear-gradient(150deg,#EFE2CB,#DCCFAE_55%,#C9B78D)] sm:h-[400px]" />
+                      <div
+                        className="h-[240px] rounded-[20px] bg-cover bg-center bg-[radial-gradient(90%_80%_at_25%_20%,rgba(233,199,123,0.55),transparent_60%),linear-gradient(150deg,#EFE2CB,#DCCFAE_55%,#C9B78D)] sm:h-[400px]"
+                        style={
+                          typeof section.settings.imageUrl === "string" &&
+                          section.settings.imageUrl
+                            ? {
+                                backgroundImage: `url(${section.settings.imageUrl})`,
+                              }
+                            : undefined
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -405,7 +422,20 @@ export function BoutiqueStorefront({
             );
           default:
             return null;
-        }
+          }
+        })();
+        if (!content) return null;
+        return (
+          <SectionShell
+            key={section.id}
+            id={section.id}
+            label={SECTION_LABELS[section.type]}
+            highlight={highlightSectionId === section.id}
+            onSelect={onSelectSection}
+          >
+            {content}
+          </SectionShell>
+        );
       })}
     </div>
   );

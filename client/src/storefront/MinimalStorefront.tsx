@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
+import { SectionShell } from "@/storefront/SectionShell";
+import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -52,9 +54,13 @@ const WRAP = "mx-auto w-full max-w-[1080px] px-5 sm:px-8";
 export function MinimalStorefront({
   config,
   storeName,
+  highlightSectionId,
+  onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  highlightSectionId?: string | null;
+  onSelectSection?: (id: string) => void;
 }) {
   const [, setLocation] = useLocation();
   const { addItem, itemCount } = useCart();
@@ -112,7 +118,8 @@ export function MinimalStorefront({
   return (
     <div dir="rtl" className="min-h-screen bg-white text-[#0C2A26]">
       {sections.map(section => {
-        switch (section.type) {
+        const content = (() => {
+          switch (section.type) {
           case "announcement":
             return (
               <div
@@ -365,7 +372,20 @@ export function MinimalStorefront({
             );
           default:
             return null;
-        }
+          }
+        })();
+        if (!content) return null;
+        return (
+          <SectionShell
+            key={section.id}
+            id={section.id}
+            label={SECTION_LABELS[section.type]}
+            highlight={highlightSectionId === section.id}
+            onSelect={onSelectSection}
+          >
+            {content}
+          </SectionShell>
+        );
       })}
     </div>
   );

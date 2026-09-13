@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { Loader2, ShoppingCart, ArrowLeft } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
+import { SectionShell } from "@/storefront/SectionShell";
+import { SECTION_LABELS } from "@shared/storefront/sectionFields";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -51,9 +53,13 @@ const WRAP = "mx-auto w-full max-w-[1240px] px-4 sm:px-6";
 export function BoldStorefront({
   config,
   storeName,
+  highlightSectionId,
+  onSelectSection,
 }: {
   config: StorefrontConfig;
   storeName: string;
+  highlightSectionId?: string | null;
+  onSelectSection?: (id: string) => void;
 }) {
   const [, setLocation] = useLocation();
   const { addItem, itemCount } = useCart();
@@ -109,7 +115,8 @@ export function BoldStorefront({
   return (
     <div dir="rtl" className="min-h-screen bg-white text-[#0C2A26]">
       {sections.map(section => {
-        switch (section.type) {
+        const content = (() => {
+          switch (section.type) {
           case "announcement":
             return (
               <div
@@ -178,7 +185,16 @@ export function BoldStorefront({
                 key={section.id}
                 className="relative overflow-hidden bg-[radial-gradient(120%_120%_at_82%_0%,rgba(94,234,212,0.22),transparent_55%),linear-gradient(150deg,#0C2A26,#0B1C19_60%,#050D0C)] text-white"
               >
-                <div className={`${WRAP} py-16 sm:py-28`}>
+                {typeof section.settings.imageUrl === "string" &&
+                section.settings.imageUrl ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center opacity-40"
+                    style={{
+                      backgroundImage: `url(${section.settings.imageUrl})`,
+                    }}
+                  />
+                ) : null}
+                <div className={`relative ${WRAP} py-16 sm:py-28`}>
                   <span className="inline-flex items-center gap-2 rounded-full bg-[#F5B13D] px-4 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[#0C2A26]">
                     🔥 {str(section.settings.eyebrow, "عرض الأسبوع")}
                   </span>
@@ -434,7 +450,20 @@ export function BoldStorefront({
             );
           default:
             return null;
-        }
+          }
+        })();
+        if (!content) return null;
+        return (
+          <SectionShell
+            key={section.id}
+            id={section.id}
+            label={SECTION_LABELS[section.type]}
+            highlight={highlightSectionId === section.id}
+            onSelect={onSelectSection}
+          >
+            {content}
+          </SectionShell>
+        );
       })}
     </div>
   );
