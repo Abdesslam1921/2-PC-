@@ -162,19 +162,21 @@ export function BoldStorefront({
                     >
                       تسوق الآن
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setLocation("/store/cart")}
-                      className="relative grid size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-white"
-                      aria-label="السلة"
-                    >
-                      <ShoppingCart className="size-5" />
-                      {itemCount > 0 && (
-                        <span className="absolute -left-2 -top-2 grid min-w-[22px] place-items-center rounded-full bg-[#5EEAD4] px-1.5 text-[11px] font-black text-[#0C2A26]">
-                          {itemCount}
-                        </span>
-                      )}
-                    </button>
+                    {section.settings.showCart !== false ? (
+                      <button
+                        type="button"
+                        onClick={() => setLocation("/store/cart")}
+                        className="relative grid size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-white"
+                        aria-label="السلة"
+                      >
+                        <ShoppingCart className="size-5" />
+                        {itemCount > 0 && (
+                          <span className="absolute -left-2 -top-2 grid min-w-[22px] place-items-center rounded-full bg-[#5EEAD4] px-1.5 text-[11px] font-black text-[#0C2A26]">
+                            {itemCount}
+                          </span>
+                        )}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </header>

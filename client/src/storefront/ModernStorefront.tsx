@@ -221,36 +221,42 @@ export function ModernStorefront({
                     </span>
                     {storeName}
                   </div>
-                  <label className="hidden min-w-[220px] items-center gap-2 rounded-full border border-[#E6EEEB] bg-white px-3.5 py-2.5 text-[13px] text-[#576B66] sm:flex">
-                    <Search className="size-4" />
-                    <input
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="ابحث عن منتج…"
-                      className="w-full bg-transparent outline-none"
-                    />
-                  </label>
+                  {section.settings.showSearch !== false ? (
+                    <label className="hidden min-w-[220px] items-center gap-2 rounded-full border border-[#E6EEEB] bg-white px-3.5 py-2.5 text-[13px] text-[#576B66] sm:flex">
+                      <Search className="size-4" />
+                      <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="ابحث عن منتج…"
+                        className="w-full bg-transparent outline-none"
+                      />
+                    </label>
+                  ) : null}
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setLocation("/store/checkout")}
-                      className="relative grid size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F]"
-                      aria-label="السلة"
-                    >
-                      <ShoppingCart className="size-[18px]" />
-                      {itemCount > 0 && (
-                        <span className="absolute -left-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[#0F766E] px-1 text-[10px] font-extrabold text-white">
-                          {itemCount}
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      className="hidden size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F] sm:grid"
-                      aria-label="الحساب"
-                    >
-                      <UserRound className="size-[18px]" />
-                    </button>
+                    {section.settings.showCart !== false ? (
+                      <button
+                        type="button"
+                        onClick={() => setLocation("/store/checkout")}
+                        className="relative grid size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F]"
+                        aria-label="السلة"
+                      >
+                        <ShoppingCart className="size-[18px]" />
+                        {itemCount > 0 && (
+                          <span className="absolute -left-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[#0F766E] px-1 text-[10px] font-extrabold text-white">
+                            {itemCount}
+                          </span>
+                        )}
+                      </button>
+                    ) : null}
+                    {section.settings.showAccount !== false ? (
+                      <button
+                        type="button"
+                        className="hidden size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F] sm:grid"
+                        aria-label="الحساب"
+                      >
+                        <UserRound className="size-[18px]" />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </header>

@@ -135,13 +135,15 @@ export function BoutiqueStorefront({
                 className="sticky top-0 z-30 border-b border-[#EADFCE] bg-[rgba(251,246,238,0.92)] backdrop-blur-md"
               >
                 <div className={`${WRAP} flex items-center justify-between gap-3.5 py-3.5`}>
-                  <button
-                    type="button"
-                    onClick={() => setLocation("/store/cart")}
-                    className="text-[12px] uppercase tracking-[0.12em] text-[#6B5F52] transition hover:text-[#B45309]"
-                  >
-                    السلة ({itemCount})
-                  </button>
+                  {section.settings.showCart !== false ? (
+                    <button
+                      type="button"
+                      onClick={() => setLocation("/store/cart")}
+                      className="text-[12px] uppercase tracking-[0.12em] text-[#6B5F52] transition hover:text-[#B45309]"
+                    >
+                      السلة ({itemCount})
+                    </button>
+                  ) : null}
                   <div className="flex flex-col items-center gap-0.5">
                     <b className="text-[21px] font-bold tracking-[0.01em]">
                       {storeName}

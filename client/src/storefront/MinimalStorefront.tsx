@@ -156,13 +156,15 @@ export function MinimalStorefront({
                       عن العلامة
                     </a>
                   </nav>
-                  <button
-                    type="button"
-                    onClick={() => setLocation("/store/cart")}
-                    className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[#0F766E] hover:text-[#0F766E]"
-                  >
-                    السلة ({itemCount})
-                  </button>
+                  {section.settings.showCart !== false ? (
+                    <button
+                      type="button"
+                      onClick={() => setLocation("/store/cart")}
+                      className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[#0F766E] hover:text-[#0F766E]"
+                    >
+                      السلة ({itemCount})
+                    </button>
+                  ) : null}
                 </div>
               </header>
             );
