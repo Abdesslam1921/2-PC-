@@ -108,8 +108,8 @@ export function BoutiqueStorefront({
 
   if (productsQuery.isLoading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#FBF6EE]">
-        <Loader2 className="size-8 animate-spin text-[#B45309]" />
+      <div className="grid min-h-screen place-items-center bg-[var(--sf-color-background,#FBF6EE)]">
+        <Loader2 className="size-8 animate-spin text-[var(--sf-color-accent,#B45309)]" />
       </div>
     );
   }
@@ -119,7 +119,7 @@ export function BoutiqueStorefront({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-[#FBF6EE] text-[#2B211A]">
+    <div dir="rtl" className="min-h-screen bg-[var(--sf-color-background,#FBF6EE)] text-[var(--sf-color-text,#2B211A)]">
       {sections.map(section => {
         const content = (() => {
           switch (section.type) {
@@ -127,7 +127,7 @@ export function BoutiqueStorefront({
             return (
               <div
                 key={section.id}
-                className="border-b border-[#EADFCE] py-3.5 text-center text-[11.5px] uppercase tracking-[0.16em] text-[#6B5F52]"
+                className="border-b border-[#EADFCE] py-3.5 text-center text-[11.5px] uppercase tracking-[0.16em] text-[var(--sf-color-text-muted,#6B5F52)]"
               >
                 {str(section.settings.text)}
               </div>
@@ -141,7 +141,7 @@ export function BoutiqueStorefront({
                 <div className={`${WRAP} flex items-center justify-between gap-3.5 py-3.5`}>
                   <div className="flex items-center gap-3">
                     {section.settings.showSearch !== false ? (
-                      <label className="hidden items-center gap-2 border-b border-[#EADFCE] py-1 text-[12px] text-[#6B5F52] sm:flex">
+                      <label className="hidden items-center gap-2 border-b border-[#EADFCE] py-1 text-[12px] text-[var(--sf-color-text-muted,#6B5F52)] sm:flex">
                         <Search className="size-4" />
                         <input
                           value={search}
@@ -154,7 +154,7 @@ export function BoutiqueStorefront({
                     {section.settings.showAccount !== false ? (
                       <button
                         type="button"
-                        className="hidden text-[#6B5F52] hover:text-[#B45309] sm:grid"
+                        className="hidden text-[var(--sf-color-text-muted,#6B5F52)] hover:text-[var(--sf-color-accent,#B45309)] sm:grid"
                         aria-label="الحساب"
                       >
                         <UserRound className="size-[18px]" />
@@ -164,7 +164,7 @@ export function BoutiqueStorefront({
                       <button
                         type="button"
                         onClick={() => setLocation("/store/cart")}
-                        className="text-[12px] uppercase tracking-[0.12em] text-[#6B5F52] transition hover:text-[#B45309]"
+                        className="text-[12px] uppercase tracking-[0.12em] text-[var(--sf-color-text-muted,#6B5F52)] transition hover:text-[var(--sf-color-accent,#B45309)]"
                       >
                         السلة ({itemCount})
                       </button>
@@ -178,7 +178,7 @@ export function BoutiqueStorefront({
                       Boutique
                     </span>
                   </div>
-                  <nav className="hidden gap-[26px] text-[12px] uppercase tracking-[0.14em] text-[#6B5F52] sm:flex">
+                  <nav className="hidden gap-[26px] text-[12px] uppercase tracking-[0.14em] text-[var(--sf-color-text-muted,#6B5F52)] sm:flex">
                     {collections.map(name => (
                       <button
                         key={name}
@@ -186,12 +186,12 @@ export function BoutiqueStorefront({
                         onClick={() =>
                           setActiveCollection(c => (c === name ? null : name))
                         }
-                        className="hover:text-[#B45309]"
+                        className="hover:text-[var(--sf-color-accent,#B45309)]"
                       >
                         {name}
                       </button>
                     ))}
-                    <a href="#about" className="hover:text-[#B45309]">
+                    <a href="#about" className="hover:text-[var(--sf-color-accent,#B45309)]">
                       عن العلامة
                     </a>
                   </nav>
@@ -209,7 +209,7 @@ export function BoutiqueStorefront({
                     <h1 className="mt-4 mb-3.5 max-w-[22ch] text-[30px] font-semibold leading-[1.3] tracking-[-0.01em] sm:text-[52px]">
                       {str(section.settings.title, storeName)}
                     </h1>
-                    <p className="mb-6 max-w-[48ch] text-[14.5px] font-light leading-9 text-[#6B5F52]">
+                    <p className="mb-6 max-w-[48ch] text-[14.5px] font-light leading-9 text-[var(--sf-color-text-muted,#6B5F52)]">
                       {str(section.settings.subtitle)}
                     </p>
                     <button
@@ -219,7 +219,7 @@ export function BoutiqueStorefront({
                           .getElementById("boutique-grid")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      className="inline-flex items-center gap-2.5 rounded-full border border-[#2B211A] bg-[#2B211A] px-7 py-3.5 text-[14px] font-bold text-white"
+                      className="inline-flex items-center gap-2.5 rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-white"
                     >
                       {str(section.settings.ctaLabel, "اكتشف المجموعة")}
                     </button>
@@ -292,7 +292,7 @@ export function BoutiqueStorefront({
                               />
                             ) : null}
                             {discount ? (
-                              <span className="absolute right-3 top-3 rounded-full border border-[#E9C77B] bg-white px-3 py-1 text-[10.5px] uppercase tracking-[0.12em] text-[#B45309]">
+                              <span className="absolute right-3 top-3 rounded-full border border-[#E9C77B] bg-white px-3 py-1 text-[10.5px] uppercase tracking-[0.12em] text-[var(--sf-color-accent,#B45309)]">
                                 -{discount}%
                               </span>
                             ) : null}
@@ -303,8 +303,8 @@ export function BoutiqueStorefront({
                           <div className="text-[11.5px] uppercase tracking-[0.12em] text-[#8A6A3B]">
                             {product.collectionName ?? "قطعة مختارة"}
                           </div>
-                          <div className="mt-2 text-[14px] text-[#6B5F52]">
-                            <b className="font-bold text-[#B45309]">
+                          <div className="mt-2 text-[14px] text-[var(--sf-color-text-muted,#6B5F52)]">
+                            <b className="font-bold text-[var(--sf-color-accent,#B45309)]">
                               {money(price)}
                             </b>
                             {compareAtPrice ? (
@@ -316,7 +316,7 @@ export function BoutiqueStorefront({
                           <button
                             type="button"
                             onClick={() => add(product)}
-                            className="mt-3 rounded-full border border-[#E9C77B] px-[22px] py-2.5 text-[11.5px] uppercase tracking-[0.14em] text-[#2B211A] transition hover:border-[#2B211A] hover:bg-[#2B211A] hover:text-white"
+                            className="mt-3 rounded-full border border-[#E9C77B] px-[22px] py-2.5 text-[11.5px] uppercase tracking-[0.14em] text-[var(--sf-color-text,#2B211A)] transition hover:border-[var(--sf-color-text,#2B211A)] hover:bg-[var(--sf-color-text,#2B211A)] hover:text-white"
                           >
                             أضف إلى السلة
                           </button>
@@ -340,7 +340,7 @@ export function BoutiqueStorefront({
                   <h2 className="mt-3.5 text-[22px] font-semibold sm:text-[34px]">
                     {str(section.settings.title)}
                   </h2>
-                  <p className="mx-auto mt-3.5 mb-6 max-w-[50ch] text-[14px] font-light text-[#6B5F52]">
+                  <p className="mx-auto mt-3.5 mb-6 max-w-[50ch] text-[14px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
                     {str(section.settings.body)}
                   </p>
                   <button
@@ -350,7 +350,7 @@ export function BoutiqueStorefront({
                         .getElementById("boutique-grid")
                         ?.scrollIntoView({ behavior: "smooth" })
                     }
-                    className="rounded-full border border-[#2B211A] bg-[#2B211A] px-7 py-3.5 text-[14px] font-bold text-white"
+                    className="rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-white"
                   >
                     {str(section.settings.ctaLabel, "اطلب الآن")}
                   </button>
@@ -380,12 +380,12 @@ export function BoutiqueStorefront({
                       key={title}
                       className="flex items-center gap-3.5 border-b border-[#EADFCE] px-1.5 py-5 last:border-b-0 sm:[&:nth-child(odd)]:border-b"
                     >
-                      <span className="grid size-[34px] shrink-0 place-items-center rounded-full border border-[#E9C77B] text-[13px] text-[#B45309]">
+                      <span className="grid size-[34px] shrink-0 place-items-center rounded-full border border-[#E9C77B] text-[13px] text-[var(--sf-color-accent,#B45309)]">
                         ✦
                       </span>
                       <span>
                         <b className="block text-[14px] font-semibold">{title}</b>
-                        <span className="text-[12.5px] font-light text-[#6B5F52]">
+                        <span className="text-[12.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
                           {text}
                         </span>
                       </span>
@@ -402,7 +402,7 @@ export function BoutiqueStorefront({
                   <h2 className="mt-3.5 text-[22px] font-semibold sm:text-[32px]">
                     {str(section.settings.title, "رسائل راقية فقط")}
                   </h2>
-                  <p className="mt-3 mb-6 text-[13.5px] font-light text-[#6B5F52]">
+                  <p className="mt-3 mb-6 text-[13.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
                     {str(section.settings.subtitle)}
                   </p>
                   <form
@@ -412,11 +412,11 @@ export function BoutiqueStorefront({
                     <input
                       type="email"
                       placeholder="بريدك الإلكتروني"
-                      className="h-[50px] min-w-[220px] max-w-[340px] flex-1 rounded-full border border-[#EADFCE] bg-[#FBF6EE] px-5 text-[14px] outline-none focus:border-[#E9C77B]"
+                      className="h-[50px] min-w-[220px] max-w-[340px] flex-1 rounded-full border border-[#EADFCE] bg-[var(--sf-color-background,#FBF6EE)] px-5 text-[14px] outline-none focus:border-[#E9C77B]"
                     />
                     <button
                       type="submit"
-                      className="h-[50px] rounded-full border border-[#2B211A] bg-[#2B211A] px-7 text-[13px] font-bold tracking-[0.08em] text-white"
+                      className="h-[50px] rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 text-[13px] font-bold tracking-[0.08em] text-white"
                     >
                       {str(section.settings.ctaLabel, "اشترك")}
                     </button>
@@ -437,11 +437,11 @@ export function BoutiqueStorefront({
                       Boutique
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-x-6 gap-y-2.5 text-[12px] uppercase tracking-[0.1em] text-[#6B5F52]">
-                    <a href="#boutique-grid" className="hover:text-[#B45309]">
+                  <div className="flex flex-wrap justify-center gap-x-6 gap-y-2.5 text-[12px] uppercase tracking-[0.1em] text-[var(--sf-color-text-muted,#6B5F52)]">
+                    <a href="#boutique-grid" className="hover:text-[var(--sf-color-accent,#B45309)]">
                       المجموعة
                     </a>
-                    <a href="#about" className="hover:text-[#B45309]">
+                    <a href="#about" className="hover:text-[var(--sf-color-accent,#B45309)]">
                       عن العلامة
                     </a>
                     <span>الإرجاع</span>

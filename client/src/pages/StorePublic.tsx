@@ -5,7 +5,7 @@ import { BoldStorefront } from "@/storefront/BoldStorefront";
 import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { trpc } from "@/lib/trpc";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
-import { TEMPLATE_DEFAULT_TOKENS } from "@/storefront/themeDefaults";
+import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import { Loader2 } from "lucide-react";
 import type { CSSProperties } from "react";
 
@@ -33,7 +33,7 @@ export default function StorePublic() {
   if (query.data) {
     const name = query.data.storeName || "المتجر";
     const themeStyle = {
-      ...TEMPLATE_DEFAULT_TOKENS,
+      ...templateDefaultTokens(query.data.config.templateKey),
       ...buildStorefrontTokenOverrides(query.data.config.theme ?? {}),
     } as CSSProperties;
 

@@ -49,7 +49,7 @@ import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { useDraftHistory } from "@/storefront/builder/useDraftHistory";
 import { BuilderSectionWrapper } from "@/storefront/builder/BuilderSectionWrapper";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
-import { TEMPLATE_DEFAULT_TOKENS } from "@/storefront/themeDefaults";
+import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import {
   ADDABLE_SECTION_TYPES,
   COMMON_STYLE_FIELDS,
@@ -382,7 +382,7 @@ export default function BuilderPage() {
       data-sf-root
       style={
         {
-          ...TEMPLATE_DEFAULT_TOKENS,
+          ...templateDefaultTokens(config.templateKey),
           ...buildStorefrontTokenOverrides(config.theme ?? {}),
         } as CSSProperties
       }

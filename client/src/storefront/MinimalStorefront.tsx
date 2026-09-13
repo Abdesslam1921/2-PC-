@@ -48,7 +48,7 @@ function getPrice(product: CatalogProduct) {
 const str = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
-const LABEL = "text-[11px] uppercase tracking-[0.22em] text-[#576B66]";
+const LABEL = "text-[11px] uppercase tracking-[0.22em] text-[var(--sf-color-text-muted,#576B66)]";
 const WRAP = "mx-auto w-full max-w-[1080px] px-5 sm:px-8";
 
 export function MinimalStorefront({
@@ -108,7 +108,7 @@ export function MinimalStorefront({
   if (productsQuery.isLoading) {
     return (
       <div className="grid min-h-screen place-items-center bg-white">
-        <Loader2 className="size-8 animate-spin text-[#0F766E]" />
+        <Loader2 className="size-8 animate-spin text-[var(--sf-color-primary,#0F766E)]" />
       </div>
     );
   }
@@ -118,7 +118,7 @@ export function MinimalStorefront({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-white text-[#0C2A26]">
+    <div dir="rtl" className="min-h-screen bg-white text-[var(--sf-color-text,#0C2A26)]">
       {sections.map(section => {
         const content = (() => {
           switch (section.type) {
@@ -126,7 +126,7 @@ export function MinimalStorefront({
             return (
               <div
                 key={section.id}
-                className="border-b border-[#E7E9E8] py-3.5 text-center text-[11.5px] uppercase tracking-[0.18em] text-[#576B66]"
+                className="border-b border-[#E7E9E8] py-3.5 text-center text-[11.5px] uppercase tracking-[0.18em] text-[var(--sf-color-text-muted,#576B66)]"
               >
                 {str(section.settings.text)}
               </div>
@@ -141,25 +141,25 @@ export function MinimalStorefront({
                   <span className="text-[16px] font-bold tracking-[0.02em]">
                     {storeName}
                   </span>
-                  <nav className="hidden gap-[30px] text-[12px] uppercase tracking-[0.16em] text-[#576B66] sm:flex">
-                    <a href="#grid" className="hover:text-[#0C2A26]">
+                  <nav className="hidden gap-[30px] text-[12px] uppercase tracking-[0.16em] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
+                    <a href="#grid" className="hover:text-[var(--sf-color-text,#0C2A26)]">
                       المتجر
                     </a>
                     {collections[0] ? (
                       <button
                         type="button"
                         onClick={() => setSearch(collections[0])}
-                        className="hover:text-[#0C2A26]"
+                        className="hover:text-[var(--sf-color-text,#0C2A26)]"
                       >
                         {collections[0]}
                       </button>
                     ) : null}
-                    <a href="#about" className="hover:text-[#0C2A26]">
+                    <a href="#about" className="hover:text-[var(--sf-color-text,#0C2A26)]">
                       عن العلامة
                     </a>
                   </nav>
                   {section.settings.showSearch !== false ? (
-                    <label className="hidden items-center gap-2 border-b border-[#E7E9E8] py-1 text-[12px] text-[#576B66] sm:flex">
+                    <label className="hidden items-center gap-2 border-b border-[#E7E9E8] py-1 text-[12px] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
                       <Search className="size-4" />
                       <input
                         value={search}
@@ -172,7 +172,7 @@ export function MinimalStorefront({
                   {section.settings.showAccount !== false ? (
                     <button
                       type="button"
-                      className="hidden text-[12px] uppercase tracking-[0.1em] text-[#6B5F52] hover:text-[#0C2A26] sm:block"
+                      className="hidden text-[12px] uppercase tracking-[0.1em] text-[#6B5F52] hover:text-[var(--sf-color-text,#0C2A26)] sm:block"
                       aria-label="الحساب"
                     >
                       الحساب
@@ -182,7 +182,7 @@ export function MinimalStorefront({
                     <button
                       type="button"
                       onClick={() => setLocation("/store/cart")}
-                      className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[#0F766E] hover:text-[#0F766E]"
+                      className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[#0F766E] hover:text-[var(--sf-color-primary,#0F766E)]"
                     >
                       السلة ({itemCount})
                     </button>
@@ -200,13 +200,13 @@ export function MinimalStorefront({
                   <h1 className="max-w-[20ch] text-[30px] font-semibold leading-[1.3] tracking-[-0.015em] sm:text-[52px]">
                     {str(section.settings.title, storeName)}
                   </h1>
-                  <p className="mt-6 max-w-[52ch] text-[14px] font-light leading-9 text-[#576B66] sm:text-[16px]">
+                  <p className="mt-6 max-w-[52ch] text-[14px] font-light leading-9 text-[var(--sf-color-text-muted,#576B66)] sm:text-[16px]">
                     {str(section.settings.subtitle)}
                   </p>
                   <div className="mt-10 flex flex-wrap items-center gap-7">
                     <a
                       href="#grid"
-                      className="border-b border-[#0C2A26] pb-1 text-[13px] uppercase tracking-[0.12em]"
+                      className="border-b border-[var(--sf-color-text,#0C2A26)] pb-1 text-[13px] uppercase tracking-[0.12em]"
                     >
                       {str(section.settings.ctaLabel, "تسوق")}
                     </a>
@@ -261,8 +261,8 @@ export function MinimalStorefront({
                           <h3 className="mt-4 text-[14px] font-medium">
                             {product.title}
                           </h3>
-                          <div className="text-[13px] text-[#576B66]">
-                            <b className="font-semibold text-[#0C2A26]">
+                          <div className="text-[13px] text-[var(--sf-color-text-muted,#576B66)]">
+                            <b className="font-semibold text-[var(--sf-color-text,#0C2A26)]">
                               {money(price)}
                             </b>
                             {compareAtPrice ? (
@@ -274,7 +274,7 @@ export function MinimalStorefront({
                           <button
                             type="button"
                             onClick={() => add(product)}
-                            className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[#0F766E]"
+                            className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)]"
                           >
                             أضف إلى السلة
                           </button>
@@ -282,7 +282,7 @@ export function MinimalStorefront({
                       );
                     })}
                   {!visible.length && (
-                    <p className="col-span-full text-sm text-[#576B66]">
+                    <p className="col-span-full text-sm text-[var(--sf-color-text-muted,#576B66)]">
                       لا توجد منتجات منشورة بعد.
                     </p>
                   )}
@@ -297,12 +297,12 @@ export function MinimalStorefront({
                   <h2 className="mt-4 text-[22px] font-semibold sm:text-[28px]">
                     {str(section.settings.title)}
                   </h2>
-                  <p className="mx-auto mt-4 mb-7 max-w-[48ch] text-[14px] font-light text-[#576B66]">
+                  <p className="mx-auto mt-4 mb-7 max-w-[48ch] text-[14px] font-light text-[var(--sf-color-text-muted,#576B66)]">
                     {str(section.settings.body)}
                   </p>
                   <a
                     href="#grid"
-                    className="border-b border-[#0C2A26] pb-1 text-[13px] uppercase tracking-[0.12em]"
+                    className="border-b border-[var(--sf-color-text,#0C2A26)] pb-1 text-[13px] uppercase tracking-[0.12em]"
                   >
                     {str(section.settings.ctaLabel, "اكتشف")}
                   </a>
@@ -330,12 +330,12 @@ export function MinimalStorefront({
                       key={num}
                       className="flex items-baseline gap-3.5 border-b border-[#E7E9E8] py-5"
                     >
-                      <span className="text-[11px] tracking-[0.16em] text-[#576B66]">
+                      <span className="text-[11px] tracking-[0.16em] text-[var(--sf-color-text-muted,#576B66)]">
                         {num}
                       </span>
                       <span>
                         <b className="block text-[13.5px] font-semibold">{title}</b>
-                        <span className="text-[12.5px] font-light text-[#576B66]">
+                        <span className="text-[12.5px] font-light text-[var(--sf-color-text-muted,#576B66)]">
                           {text}
                         </span>
                       </span>
@@ -353,11 +353,11 @@ export function MinimalStorefront({
                 <h2 className="text-[22px] font-semibold sm:text-[26px]">
                   {str(section.settings.title, "انضم إلى نشرتنا")}
                 </h2>
-                <p className="mt-3 mb-8 text-[13.5px] font-light text-[#576B66]">
+                <p className="mt-3 mb-8 text-[13.5px] font-light text-[var(--sf-color-text-muted,#576B66)]">
                   {str(section.settings.subtitle)}
                 </p>
                 <form
-                  className="mx-auto flex max-w-[440px] border-b border-[#0C2A26]"
+                  className="mx-auto flex max-w-[440px] border-b border-[var(--sf-color-text,#0C2A26)]"
                   onSubmit={e => e.preventDefault()}
                 >
                   <input
@@ -367,7 +367,7 @@ export function MinimalStorefront({
                   />
                   <button
                     type="submit"
-                    className="px-2 py-3 text-[12px] uppercase tracking-[0.14em] text-[#0F766E]"
+                    className="px-2 py-3 text-[12px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)]"
                   >
                     {str(section.settings.ctaLabel, "اشترك")}
                   </button>
@@ -381,11 +381,11 @@ export function MinimalStorefront({
                 className="border-t border-[#E7E9E8] py-8"
               >
                 <div
-                  className={`${WRAP} flex flex-wrap items-center justify-between gap-3.5 text-[12px] text-[#576B66]`}
+                  className={`${WRAP} flex flex-wrap items-center justify-between gap-3.5 text-[12px] text-[var(--sf-color-text-muted,#576B66)]`}
                 >
                   <span>© {new Date().getFullYear()} {storeName}</span>
                   <div className="flex flex-wrap gap-x-6 gap-y-2.5 tracking-[0.06em]">
-                    <a href="#grid" className="hover:text-[#0C2A26]">
+                    <a href="#grid" className="hover:text-[var(--sf-color-text,#0C2A26)]">
                       المنتجات
                     </a>
                     <span>الإرجاع</span>
