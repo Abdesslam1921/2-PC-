@@ -23,7 +23,6 @@ const COLOR_FIELDS: Array<{ token: string; label: string }> = [
   { token: "--sf-color-accent", label: "التمييز" },
 ];
 const FONT_OPTIONS = ["Cairo", "Tajawal", "Rubik"];
-const DENSITIES = ["compact", "comfortable", "spacious"] as const;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lin = (c: number) =>
@@ -70,7 +69,6 @@ export default function ThemeEditorPage() {
   const colors = (theme.colors ?? {}) as Record<string, string>;
   const radius = (theme.radius ?? {}) as Record<string, string>;
   const fontFamilies = (theme.fontFamilies ?? {}) as Record<string, string>;
-  const density = (theme.density as string | undefined) ?? "comfortable";
 
   const effective = (token: string) => colors[token] ?? defaults[token] ?? "#000000";
 
@@ -307,8 +305,8 @@ export default function ThemeEditorPage() {
               />
             </div>
             <p className="rounded-xl bg-[#f7faf9] p-3 text-[11.5px] leading-6 text-[#576B66]">
-              «الكثافة» غير مربوطة بأثر بصري بعد، ولن نُظهرها كخيار فعّال حتى نُوصّلها
-              بتوكنات المسافات (بند متبقٍّ). الحواف والألوان تعمل الآن.
+              «الكثافة» لم تُعد جزءًا من عقد الثيم ولا من هذه الواجهة. إن احتجناها
+              لاحقًا فستُربط بتوكنات المسافات كمشروع منفصل.
             </p>
           </div>
 

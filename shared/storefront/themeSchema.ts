@@ -16,7 +16,6 @@
 
 import { z } from "zod";
 import {
-  STOREFRONT_DENSITIES,
   STOREFRONT_GRID_STYLES,
   STOREFRONT_HERO_STRUCTURES,
   STOREFRONT_RADIUS_PHILOSOPHIES,
@@ -75,7 +74,6 @@ const fontFamilyValueSchema = safeCssValue(160);
 const fontSizeValueSchema = safeCssValue(60);
 
 const fontWeightValueSchema = z.number().int().min(100).max(900);
-const densitySchema = z.enum(STOREFRONT_DENSITIES);
 
 function enumOf<T extends string>(values: readonly T[]) {
   return z.enum(values as unknown as [T, ...T[]]);
@@ -137,7 +135,6 @@ export const storefrontThemeConfigSchema = z
     radius: tokenRecord(radiusNames, lengthValueSchema).optional(),
     shadows: tokenRecord(shadowNames, shadowValueSchema).optional(),
     effects: tokenRecord(effectNames, effectValueSchema).optional(),
-    density: densitySchema.optional(),
   })
   .strict();
 
@@ -146,7 +143,6 @@ export type StorefrontThemeConfig = z.infer<typeof storefrontThemeConfigSchema>;
 /** Structural profile of a template (named choices only, no visual values). */
 export const storefrontTemplateProfileSchema = z
   .strictObject({
-    density: densitySchema,
     radiusPhilosophy: enumOf(STOREFRONT_RADIUS_PHILOSOPHIES),
     heroStructure: enumOf(STOREFRONT_HERO_STRUCTURES),
     gridStyle: enumOf(STOREFRONT_GRID_STYLES),

@@ -36,10 +36,6 @@ export function sectionStyleFromSettings(
     style.paddingTop = `${padY}px`;
     style.paddingBottom = `${padY}px`;
   }
-  const radius = settings.styleRadius;
-  if (typeof radius === "number" && Number.isFinite(radius)) {
-    style.borderRadius = `${radius}px`;
-  }
   if (typeof image === "string" && image.trim()) {
     style.backgroundImage = `url(${image.trim()})`;
     style.backgroundSize = "cover";

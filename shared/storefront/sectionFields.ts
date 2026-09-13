@@ -112,5 +112,4 @@ export const COMMON_STYLE_FIELDS: SectionField[] = [
   { key: "styleText", label: "لون النص", type: "color" },
   { key: "styleFont", label: "نوع الخط", type: "select", options: FONT_OPTIONS },
   { key: "stylePadY", label: "الحشوة الرأسية (px)", type: "number" },
-  { key: "styleRadius", label: "انحناء الحواف (px)", type: "number" },
 ];

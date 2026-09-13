@@ -177,12 +177,6 @@ export const storefrontEffectTokens = {
  * Density / structural philosophy — enum NAMES, not visual values.
  * ------------------------------------------------------------------------- */
 
-export const STOREFRONT_DENSITIES = [
-  "compact",
-  "comfortable",
-  "spacious",
-] as const;
-
 export const STOREFRONT_RADIUS_PHILOSOPHIES = [
   "sharp",
   "soft",
@@ -269,7 +263,6 @@ export function isStorefrontTokenName(value: string): value is StorefrontTokenNa
  * visual values; Phase 3 maps each profile to concrete token values.
  */
 export interface StorefrontTemplateProfile {
-  density: (typeof STOREFRONT_DENSITIES)[number];
   radiusPhilosophy: (typeof STOREFRONT_RADIUS_PHILOSOPHIES)[number];
   heroStructure: (typeof STOREFRONT_HERO_STRUCTURES)[number];
   gridStyle: (typeof STOREFRONT_GRID_STYLES)[number];

@@ -50,7 +50,6 @@ describe("storefront theme schema — safety", () => {
       },
       radius: { "--sf-radius-lg": "1.25rem" },
       fontWeights: { "--sf-font-weight-bold": 700 },
-      density: "comfortable",
     });
     expect(result.success).toBe(true);
   });
