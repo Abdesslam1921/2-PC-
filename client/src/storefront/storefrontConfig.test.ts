@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_BOLD_CONFIG,
+  DEFAULT_BOUTIQUE_CONFIG,
   DEFAULT_MINIMAL_CONFIG,
   DEFAULT_MODERN_CONFIG,
   storefrontConfigSchema,
@@ -26,6 +27,13 @@ describe("storefront config schema", () => {
     const result = validateStorefrontConfig(DEFAULT_BOLD_CONFIG);
     expect(result.ok).toBe(true);
     expect(result.data?.templateKey).toBe("bold");
+    expect(result.data?.sections.length).toBeGreaterThan(0);
+  });
+
+  it("accepts the default Boutique config", () => {
+    const result = validateStorefrontConfig(DEFAULT_BOUTIQUE_CONFIG);
+    expect(result.ok).toBe(true);
+    expect(result.data?.templateKey).toBe("boutique");
     expect(result.data?.sections.length).toBeGreaterThan(0);
   });
 

@@ -9,7 +9,12 @@ import { z } from "zod";
 import { storefrontThemeConfigSchema } from "./themeSchema";
 
 /** Templates supported by the engine. Extend as new templates are approved. */
-export const STOREFRONT_TEMPLATE_KEYS = ["modern", "minimal", "bold"] as const;
+export const STOREFRONT_TEMPLATE_KEYS = [
+  "modern",
+  "minimal",
+  "bold",
+  "boutique",
+] as const;
 export type StorefrontTemplateKey = (typeof STOREFRONT_TEMPLATE_KEYS)[number];
 
 export const STOREFRONT_SECTION_TYPES = [
@@ -314,6 +319,89 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       settings: {
         title: "لا تفوّت العروض.",
         subtitle: "اشترك ليصلك كل جديد وأقوى التخفيضات أولًا بأول.",
+        ctaLabel: "اشترك",
+      },
+    },
+    {
+      id: "footer",
+      type: "footer",
+      enabled: true,
+      order: 7,
+      settings: {},
+    },
+  ],
+};
+
+/**
+ * Default Boutique configuration — warm cream + gold, split (text + framed
+ * image) hero, elegant three-column framed cards.
+ */
+export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
+  templateKey: "boutique",
+  theme: {},
+  sections: [
+    {
+      id: "announcement",
+      type: "announcement",
+      enabled: true,
+      order: 0,
+      settings: {
+        text: "توصيل لكل الولايات ✦ الدفع عند الاستلام ✦ إرجاع خلال 7 أيام",
+      },
+    },
+    {
+      id: "header",
+      type: "header",
+      enabled: true,
+      order: 1,
+      settings: { showSearch: false, showCart: true, showAccount: false },
+    },
+    {
+      id: "hero",
+      type: "hero",
+      enabled: true,
+      order: 2,
+      settings: {
+        eyebrow: "مجموعة الفخامة",
+        title: "تفاصيل تُروى بصمت.",
+        subtitle:
+          "قطع مختارة بعناية لمن يقدّر الهدوء والأناقة. خامات راقية، تشطيبات دقيقة، وتغليف يصنع اللحظة.",
+        ctaLabel: "اكتشف المجموعة",
+      },
+    },
+    {
+      id: "product_grid",
+      type: "product_grid",
+      enabled: true,
+      order: 3,
+      settings: { title: "قطع مختارة بعناية", subtitle: "المجموعة", limit: 9 },
+    },
+    {
+      id: "promo",
+      type: "promo",
+      enabled: true,
+      order: 4,
+      settings: {
+        title: "تغليف فاخر مجانًا لكل طلب",
+        body: "نُرفق بطاقة مكتوبة بخط اليد مع كل قطعة مختارة — لأن الهدية تبدأ من التفاصيل.",
+        ctaLabel: "اطلب الآن",
+      },
+    },
+    {
+      id: "benefits",
+      type: "benefits",
+      enabled: true,
+      order: 5,
+      settings: {},
+    },
+    {
+      id: "newsletter",
+      type: "newsletter",
+      enabled: true,
+      order: 6,
+      settings: {
+        title: "رسائل راقية فقط",
+        subtitle: "إشعار واحد عند إصدار مجموعة جديدة.",
         ctaLabel: "اشترك",
       },
     },

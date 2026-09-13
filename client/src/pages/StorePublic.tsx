@@ -2,6 +2,7 @@ import Storefront from "@/pages/Storefront";
 import { ModernStorefront } from "@/storefront/ModernStorefront";
 import { MinimalStorefront } from "@/storefront/MinimalStorefront";
 import { BoldStorefront } from "@/storefront/BoldStorefront";
+import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { trpc } from "@/lib/trpc";
 import { Loader2 } from "lucide-react";
 
@@ -33,6 +34,9 @@ export default function StorePublic() {
     }
     if (query.data.templateKey === "bold") {
       return <BoldStorefront config={query.data.config} storeName={name} />;
+    }
+    if (query.data.templateKey === "boutique") {
+      return <BoutiqueStorefront config={query.data.config} storeName={name} />;
     }
     if (query.data.templateKey === "modern") {
       return <ModernStorefront config={query.data.config} storeName={name} />;
