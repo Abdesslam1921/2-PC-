@@ -260,7 +260,10 @@ export default function Templates() {
                     <Button
                       onClick={() => enableTemplate.mutate({ templateKey: key })}
                       disabled={enableTemplate.isPending}
-                      className="h-9 flex-1 rounded-lg text-xs font-extrabold"
+                      variant={isPublished ? "default" : "outline"}
+                      className={`h-9 flex-1 rounded-lg text-xs font-extrabold ${
+                        isPublished ? "brand-shine cta-gradient" : ""
+                      }`}
                     >
                       تفعيل
                     </Button>

@@ -84,6 +84,7 @@ export function SectionShell({
 
   return (
     <div
+      id={`sf-sec-${id}`}
       className="relative"
       onClickCapture={
         onSelect

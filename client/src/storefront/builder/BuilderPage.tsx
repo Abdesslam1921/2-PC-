@@ -162,20 +162,38 @@ export default function BuilderPage() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [addType, setAddType] = useState<StorefrontSectionType>("hero");
+  const [hierarchyOpen, setHierarchyOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const initialized = useRef(false);
+
+  const selectSection = (id: string) => {
+    setSelectedId(id);
+    setHierarchyOpen(false);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(`sf-sec-${id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  };
 
   const storeName = activeStore.data?.name ?? "المتجر";
 
   useEffect(() => {
-    if (initialized.current || !managed.data) return;
+    if (!managed.data) return;
     const draft = managed.data.draft;
-    if (draft?.config) {
-      reset(draft.config);
-      setBaseVersion(draft.version ?? 0);
-      setSelectedId(sortSections(draft.config.sections)[0]?.id ?? null);
-      initialized.current = true;
+    if (!draft?.config) return;
+    // Re-initialize when the server draft is for a different template, so
+    // switching templates ("تعديل") never shows the previous template's draft.
+    if (initialized.current && config?.templateKey === draft.config.templateKey) {
+      return;
     }
-  }, [managed.data, reset]);
+    reset(draft.config);
+    setBaseVersion(draft.version ?? 0);
+    setSelectedId(sortSections(draft.config.sections)[0]?.id ?? null);
+    initialized.current = true;
+  }, [managed.data, reset, config?.templateKey]);
 
   const sections = useMemo(
     () => (config ? sortSections(config.sections) : []),
@@ -183,11 +201,24 @@ export default function BuilderPage() {
   );
   const selected = sections.find(s => s.id === selectedId) ?? null;
 
-  // Minimal's hero is intentionally text-only, so hide the image field there.
+  // Header toggles only apply to templates that render those elements; the
+  // content image is not rendered by Minimal's text-only hero.
+  const HEADER_TOGGLE_SUPPORT: Record<string, string[]> = {
+    modern: ["showSearch", "showCart", "showAccount"],
+    minimal: ["showCart"],
+    bold: ["showCart"],
+    boutique: ["showCart"],
+  };
   const visibleFields = (type: StorefrontSectionType) =>
-    [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS].filter(
-      f => !(f.type === "image" && config?.templateKey === "minimal")
-    );
+    [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS].filter(f => {
+      if (["showSearch", "showCart", "showAccount"].includes(f.key)) {
+        const supported =
+          HEADER_TOGGLE_SUPPORT[config?.templateKey ?? "modern"] ?? [];
+        return supported.includes(f.key);
+      }
+      if (f.key === "imageUrl" && config?.templateKey === "minimal") return false;
+      return true;
+    });
 
   const patchSection = (id: string, patch: Partial<StorefrontSection>) => {
     if (!config) return;
@@ -326,28 +357,28 @@ export default function BuilderPage() {
           config={config}
           storeName={storeName}
           highlightSectionId={selectedId}
-          onSelectSection={setSelectedId}
+          onSelectSection={selectSection}
         />
       ) : config.templateKey === "bold" ? (
         <BoldStorefront
           config={config}
           storeName={storeName}
           highlightSectionId={selectedId}
-          onSelectSection={setSelectedId}
+          onSelectSection={selectSection}
         />
       ) : config.templateKey === "boutique" ? (
         <BoutiqueStorefront
           config={config}
           storeName={storeName}
           highlightSectionId={selectedId}
-          onSelectSection={setSelectedId}
+          onSelectSection={selectSection}
         />
       ) : (
         <ModernStorefront
           config={config}
           storeName={storeName}
           highlightSectionId={selectedId}
-          onSelectSection={setSelectedId}
+          onSelectSection={selectSection}
         />
       )}
     </div>
@@ -369,7 +400,7 @@ export default function BuilderPage() {
                 key={section.id}
                 section={section}
                 active={section.id === selectedId}
-                onSelect={() => setSelectedId(section.id)}
+                onSelect={() => selectSection(section.id)}
                 onToggle={() => patchSection(section.id, { enabled: !section.enabled })}
                 onDuplicate={() => duplicateSection(section.id)}
                 onDelete={() => deleteSection(section.id)}
@@ -793,7 +824,7 @@ export default function BuilderPage() {
 
       {/* Mobile drawers */}
       <div className="flex gap-2 border-t border-[#e7e9e8] bg-white p-3 lg:hidden">
-        <Sheet>
+        <Sheet open={hierarchyOpen} onOpenChange={setHierarchyOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" className="flex-1 rounded-lg text-xs font-extrabold">
               الأقسام
@@ -806,7 +837,7 @@ export default function BuilderPage() {
             {hierarchy}
           </SheetContent>
         </Sheet>
-        <Sheet>
+        <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" className="flex-1 rounded-lg text-xs font-extrabold">
               <Settings2 className="ml-1 size-4" /> الإعدادات
