@@ -31,6 +31,7 @@ import StoreCreate from "@/pages/StoreCreate";
 import Templates from "@/pages/Templates";
 import TemplateAi from "@/pages/TemplateAi";
 import Storefront from "@/pages/Storefront";
+import StorePublic from "@/pages/StorePublic";
 import { Route, Switch, useLocation } from "wouter";
 import DashboardLayout from "./components/DashboardLayout";
 import { IdentityShell } from "./components/IdentityShell";
@@ -44,7 +45,7 @@ function DashboardPage({ children }: { children: React.ReactNode }) {
 function Router() {
   return (
     <Switch>
-      <Route path="/">{() => <Storefront />}</Route>
+      <Route path="/">{() => <StorePublic />}</Route>
       <Route
         path="/dashboard"
         component={() => (
@@ -271,7 +272,7 @@ function Router() {
           </DashboardPage>
         )}
       />
-      <Route path="/store">{() => <Storefront />}</Route>
+      <Route path="/store">{() => <StorePublic />}</Route>
       <Route path="/store/cart">{() => <Storefront view="cart" />}</Route>
       <Route path="/store/checkout" component={Checkout} />
       <Route path="/404" component={NotFound} />

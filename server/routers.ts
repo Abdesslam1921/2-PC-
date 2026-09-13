@@ -19,6 +19,7 @@ import { digitalRouter } from "./routers/digital";
 import { profitabilityRouter } from "./routers/profitability";
 import { mediaBuyingRouter } from "./routers/mediaBuying";
 import { templatesRouter } from "./routers/templates";
+import { storefrontRouter } from "./routers/storefront";
 import { chatbotRouter } from "./routers/chatbot";
 import { forshipRouter } from "./routers/forship";
 import { abTestingRouter } from "./routers/abTesting";
@@ -45,6 +46,7 @@ export const appRouter = router({
   profitability: profitabilityRouter,
   mediaBuying: mediaBuyingRouter,
   templates: templatesRouter,
+  storefront: storefrontRouter,
   chatbot: chatbotRouter,
   landings: landingsRouter,
   abTesting: abTestingRouter,

@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 const FALLBACK_CUSTOMIZATION = {
   primaryColor: "var(--brand)",
@@ -158,6 +159,14 @@ export default function Templates() {
     onSuccess: () => settings.refetch(),
   });
   const [selected, setSelected] = useState("market-pro");
+  const storefrontManaged = trpc.storefront.managed.useQuery();
+  const enableModern = trpc.storefront.enableModern.useMutation({
+    onSuccess: () => {
+      toast.success("تم تفعيل قالب Modern ونشره على واجهة المتجر.");
+      void storefrontManaged.refetch();
+    },
+    onError: error => toast.error(error.message),
+  });
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
     "mobile"
   );
@@ -207,6 +216,28 @@ export default function Templates() {
           </Button>
         </Link>
       </div>
+
+      <Card className="rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-black text-[var(--brand)]">
+              <Sparkles className="size-4" /> نظام القوالب الجديد (Modern)
+            </div>
+            <p className="mt-1 text-xs text-[#576B66]">
+              {storefrontManaged.data?.published
+                ? `منشور على الواجهة الحقيقية — الإصدار ${storefrontManaged.data.published.versionNumber}`
+                : "غير مُفعّل بعد — المتجر يعمل حالياً بالواجهة القديمة (Legacy)."}
+            </p>
+          </div>
+          <Button
+            onClick={() => enableModern.mutate()}
+            disabled={enableModern.isPending}
+            className="brand-shine cta-gradient h-10 rounded-xl px-5 font-extrabold"
+          >
+            {enableModern.isPending ? "جارٍ التفعيل…" : "تفعيل ونشر قالب Modern"}
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <section className="space-y-4">
