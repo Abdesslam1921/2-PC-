@@ -13,7 +13,15 @@ import { validateStorefrontThemeConfig } from "@shared/storefront/themeSchema";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
-type Category = "colors" | "typography" | "radius" | "spacing" | "layout" | "borders" | "effects";
+type Category =
+  | "colors"
+  | "typography"
+  | "radius"
+  | "spacing"
+  | "layout"
+  | "borders"
+  | "effects"
+  | "density";
 
 const CATEGORIES: Array<{ id: Category; label: string; icon: string }> = [
   { id: "colors", label: "الألوان", icon: "◐" },
@@ -23,6 +31,7 @@ const CATEGORIES: Array<{ id: Category; label: string; icon: string }> = [
   { id: "layout", label: "التخطيط", icon: "▭" },
   { id: "borders", label: "الحدود", icon: "▤" },
   { id: "effects", label: "الظلال والتأثيرات", icon: "✷" },
+  { id: "density", label: "الكثافة", icon: "≣" },
 ];
 
 const COLOR_FIELDS: Array<{ token: string; label: string }> = [
@@ -187,8 +196,8 @@ export default function ThemeEditorPage() {
 
   const unimplemented = (
     <p className="rounded-xl bg-[#f7faf9] p-3 text-[11.5px] leading-6 text-[#576B66]">
-      هذه الفئة معرّفة في عقد الثيم، لكن واجهة تحريرها لم تُبنَ بعد. المتاح الآن:
-      الألوان، الطباعة (خط العناوين)، والحواف.
+      واجهة تحرير هذه الفئة لم تُبنَ بعد. المتاح الآن: الألوان، الطباعة (خط
+      العناوين)، والحواف.
     </p>
   );
 
