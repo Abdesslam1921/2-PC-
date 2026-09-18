@@ -121,3 +121,6 @@ file_storage/
 
 # Accidental nested duplicate of the project root
 abdou-store-main/
+
+# Editor/agent runtime helper (environment-generated, not source)
+.kilo/run-script.ps1
