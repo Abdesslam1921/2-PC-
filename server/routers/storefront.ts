@@ -257,6 +257,15 @@ export const storefrontRouter = router({
         publishedBy: userId,
         note: `rollback to v${input.versionNumber}`,
       });
+      // Also restore the DRAFT to the rolled-back config so the editor reflects it.
+      const draft = await getStorefrontDraft(storeId);
+      const saved = await saveStorefrontDraft({
+        ownerId: userId,
+        storeId,
+        configJson: JSON.stringify(valid.data),
+        expectedVersion: draft ? draft.concurrencyVersion : 0,
+        updatedBy: userId,
+      });
       await recordStorefrontAuditLog({
         storeId,
         actorId: userId,
@@ -267,7 +276,11 @@ export const storefrontRouter = router({
         fromVersion: input.versionNumber,
         toVersion: versionNumber,
       });
-      return { versionNumber };
+      return {
+        versionNumber,
+        draftVersion: saved.version ?? 0,
+        config: valid.data,
+      };
     }),
 
   /** Upload a storefront asset (image) through the existing storage pipeline. */
