@@ -64,7 +64,7 @@ function SortableRow({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className={`flex items-center gap-2 border-b border-[#f1f3f2] px-3 py-2.5 text-[13px] font-bold last:border-b-0 ${
+      className={`flex items-center gap-2 px-3 py-2.5 text-[13px] font-bold ${
         active ? "bg-[#e4f3ef] text-[#0B5D57]" : "text-[#2f433f]"
       }`}
     >
@@ -222,7 +222,7 @@ export function ContentPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto">
-      <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
+      <div className="flex items-center justify-between px-3.5 py-3">
         <span className="text-[13.5px] font-black">الأقسام</span>
         <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
           {sections.length}
@@ -267,8 +267,8 @@ export function ContentPanel({
         </Button>
       </div>
 
-      <div className="border-t border-[#e7e9e8]">
-        <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
+      <div>
+        <div className="flex items-center justify-between px-3.5 py-3">
           <span className="text-[13.5px] font-black">إعدادات القسم</span>
           {selected ? (
             <div className="flex items-center gap-2">
