@@ -59,6 +59,9 @@ export default function StoreEditorPage() {
     } as CSSProperties;
   }, [config]);
 
+  const activeStore = trpc.stores.active.useQuery(undefined, { retry: false });
+  const storeName = activeStore.data?.name || "المتجر";
+
   if (managed.isLoading) {
     return (
       <div className="grid min-h-screen place-items-center bg-[#f4f1ea]">
@@ -81,8 +84,6 @@ export default function StoreEditorPage() {
     );
   }
 
-  const activeStore = trpc.stores.active.useQuery(undefined, { retry: false });
-  const storeName = activeStore.data?.name || "المتجر";
   const preview = (
     <div data-sf-root style={previewStyle} className="pointer-events-none">
       {config.templateKey === "minimal" ? (
