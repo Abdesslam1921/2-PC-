@@ -95,6 +95,24 @@ export const ADDABLE_SECTION_TYPES: StorefrontSectionType[] = [
   "newsletter",
 ];
 
+/** Styling override keys (cleared by "reset section styling"). */
+export const SECTION_STYLE_KEYS = [
+  "styleBg",
+  "styleText",
+  "styleFont",
+  "stylePadY",
+  "styleImage",
+] as const;
+
+/** Remove styling overrides from a section's settings (keeps content values). */
+export function stripSectionStyle(
+  settings: Record<string, string | number | boolean>
+): Record<string, string | number | boolean> {
+  const next: Record<string, string | number | boolean> = { ...settings };
+  for (const key of SECTION_STYLE_KEYS) delete next[key];
+  return next;
+}
+
 export const FONT_OPTIONS: SectionFieldOption[] = [
   { value: "cairo", label: "Cairo" },
   { value: "tajawal", label: "Tajawal" },

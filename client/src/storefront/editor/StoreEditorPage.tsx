@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useLocation } from "wouter";
-import { ArrowRight, Loader2, Rocket, Undo2, Redo2 } from "lucide-react";
+import { ArrowRight, Loader2, Rocket, Undo2, Redo2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -17,6 +17,7 @@ import { ThemePanel } from "@/storefront/editor/ThemePanel";
 import { useStoreDraft } from "@/storefront/editor/useStoreDraft";
 import { trpc } from "@/lib/trpc";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
+import { stripSectionStyle } from "@shared/storefront/sectionFields";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
 
 type Tab = "content" | "theme";
@@ -125,6 +126,18 @@ export default function StoreEditorPage() {
       <ContentPanel config={config} onChange={update} />
     );
 
+  // Scoped "reset all": content resets only section styling; theme resets only
+  // the theme tokens. Neither touches the other side or the draft structure.
+  const resetAllContent = () =>
+    update({
+      ...config,
+      sections: config.sections.map(s => ({
+        ...s,
+        settings: stripSectionStyle(s.settings),
+      })),
+    });
+  const resetAllTheme = () => update({ ...config, theme: {} });
+
   return (
     <div dir="rtl" className="flex h-screen flex-col bg-[#f4f1ea] text-[#0C2A26]">
       {/* Toolbar */}
@@ -160,6 +173,19 @@ export default function StoreEditorPage() {
             title="إعادة"
           >
             <Redo2 className="size-4" />
+          </button>
+          <button
+            type="button"
+            onClick={tab === "theme" ? resetAllTheme : resetAllContent}
+            title={
+              tab === "theme"
+                ? "إعادة تعيين الثيم كامل (لا يمس المحتوى)"
+                : "إعادة تعيين تنسيق كل الأقسام (لا يمس الثيم)"
+            }
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#e7e9e8] bg-white px-3 text-[11.5px] font-extrabold text-[#0B5D57] hover:border-[#0F766E]"
+          >
+            <RotateCcw className="size-4" />
+            {tab === "theme" ? "إعادة تعيين الثيم" : "إعادة تعيين كل الأقسام"}
           </button>
           <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-[#576B66]">
             <span className={`size-2 rounded-full ${dirty ? "bg-[#d97706]" : "bg-[#0F766E]"}`} />

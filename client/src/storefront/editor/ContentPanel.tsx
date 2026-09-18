@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, Eye, EyeOff, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Copy, Eye, EyeOff, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import {
@@ -24,6 +24,7 @@ import {
   COMMON_STYLE_FIELDS,
   SECTION_FIELDS,
   SECTION_LABELS,
+  stripSectionStyle,
 } from "@shared/storefront/sectionFields";
 import type {
   StorefrontConfig,
@@ -43,6 +44,7 @@ function SortableRow({
   onToggle,
   onDuplicate,
   onDelete,
+  onReset,
 }: {
   section: StorefrontSection;
   active: boolean;
@@ -50,6 +52,7 @@ function SortableRow({
   onToggle: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onReset: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section.id });
@@ -97,6 +100,14 @@ function SortableRow({
           className="grid size-7 place-items-center rounded-md text-[#7b8a86] hover:bg-white"
         >
           <Copy className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          title="إعادة تعيين تنسيق هذا القسم"
+          className="grid size-7 place-items-center rounded-md text-[#0F766E] hover:bg-white"
+        >
+          <RotateCcw className="size-3.5" />
         </button>
         <button
           type="button"
@@ -213,6 +224,9 @@ export function ContentPanel({
                 onToggle={() => patch(section.id, { enabled: !section.enabled })}
                 onDuplicate={() => duplicateSection(section.id)}
                 onDelete={() => deleteSection(section.id)}
+                onReset={() =>
+                  patch(section.id, { settings: stripSectionStyle(section.settings) })
+                }
               />
             ))}
           </SortableContext>
@@ -240,9 +254,21 @@ export function ContentPanel({
         <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
           <span className="text-[13.5px] font-black">إعدادات القسم</span>
           {selected ? (
-            <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
-              {SECTION_LABELS[selected.type]}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
+                {SECTION_LABELS[selected.type]}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  patch(selected.id, { settings: stripSectionStyle(selected.settings) })
+                }
+                title="إعادة تعيين تنسيق هذا القسم"
+                className="grid size-7 place-items-center rounded-md text-[#0F766E] hover:bg-white"
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+            </div>
           ) : null}
         </div>
         {!selected ? (

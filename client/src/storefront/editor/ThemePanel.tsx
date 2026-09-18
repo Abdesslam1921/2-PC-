@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
@@ -156,6 +157,28 @@ export function ThemePanel({
     patchTheme({ [group]: current });
   };
 
+  /** Reset the currently selected theme category to template defaults. */
+  const resetCategory = () => {
+    if (category === "density") {
+      const next = { ...((theme.spacing as Record<string, string>) ?? {}) };
+      delete next["--sf-space-section"];
+      onChange({ ...config, theme: { ...theme, spacing: next } });
+      return;
+    }
+    const groups: Record<Exclude<Category, "density">, string[]> = {
+      colors: ["colors"],
+      typography: ["fontFamilies"],
+      radius: ["radius"],
+      spacing: ["spacing"],
+      layout: ["layout"],
+      borders: ["borders"],
+      effects: ["shadows", "effects"],
+    };
+    const nextTheme: Record<string, unknown> = { ...theme };
+    for (const group of groups[category]) delete nextTheme[group];
+    onChange({ ...config, theme: nextTheme });
+  };
+
   const pairs: Array<[string, string, string]> = [
     ["النص على الخلفية", effective("--sf-color-text"), effective("--sf-color-background")],
     ["نص الزر على الأساسي", effective("--sf-color-primary-foreground") || "#FFFFFF", effective("--sf-color-primary")],
@@ -165,7 +188,17 @@ export function ThemePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-[#e7e9e8] px-3.5 py-3 text-[13.5px] font-black">الثيم</div>
+      <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
+        <span className="text-[13.5px] font-black">الثيم</span>
+        <button
+          type="button"
+          onClick={resetCategory}
+          title="إعادة تعيين هذه الفئة لافتراضي القالب"
+          className="grid size-7 place-items-center rounded-md text-[#0F766E] hover:bg-[#f7faf9]"
+        >
+          <RotateCcw className="size-3.5" />
+        </button>
+      </div>
       <div className="flex flex-wrap gap-1.5 border-b border-[#e7e9e8] px-3.5 py-3">
         {CATEGORIES.map(c => (
           <button
