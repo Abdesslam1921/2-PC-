@@ -144,6 +144,23 @@ export function ContentPanel({
       sections: config.sections.map(s => (s.id === id ? { ...s, ...p } : s)),
     });
 
+  const items = selected?.items ?? [];
+  const setItems = (next: StorefrontSection["items"]) => {
+    if (selected) patch(selected.id, { items: next });
+  };
+  const addCategory = () => {
+    setItems([
+      ...items,
+      { id: `cat-${Date.now().toString(36)}`, name: "فئة جديدة" },
+    ]);
+  };
+  const updateCategory = (
+    id: string,
+    p: Partial<{ name: string; imageUrl: string }>
+  ) => setItems(items.map(it => (it.id === id ? { ...it, ...p } : it)));
+  const removeCategory = (id: string) =>
+    setItems(items.filter(it => it.id !== id));
+
   const moveById = (fromId: string, toId: string) => {
     const list = sortSections(config.sections);
     const from = list.findIndex(s => s.id === fromId);
@@ -233,7 +250,7 @@ export function ContentPanel({
         </DndContext>
       </div>
 
-      <div className="flex items-center gap-2 border-t border-[#e7e9e8] p-3">
+      <div className="flex items-center gap-2 p-3">
         <select
           value={addType}
           onChange={e => setAddType(e.target.value as StorefrontSectionType)}
@@ -292,6 +309,90 @@ export function ContentPanel({
                 />
               </button>
             </div>
+
+            {selected.type === "categories" ? (
+              <div className="rounded-xl border border-[#e7e9e8] p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-[12px] font-black">الفئات المخصّصة</span>
+                  <button
+                    type="button"
+                    onClick={addCategory}
+                    className="rounded-md px-2 py-1 text-[11px] font-extrabold text-[#0B5D57] hover:bg-[#f7faf9]"
+                  >
+                    + إضافة فئة
+                  </button>
+                </div>
+                {items.length === 0 ? (
+                  <p className="text-[11.5px] leading-6 text-[#576B66]">
+                    لا فئات مخصّصة — تُعرض فئات المنتجات تلقائيًا. أضف فئة للتحكم
+                    الكامل بالاسم والصورة.
+                  </p>
+                ) : null}
+                <div className="space-y-2">
+                  {items.map(item => (
+                    <div key={item.id} className="flex items-center gap-2">
+                      <span
+                        className="size-10 shrink-0 rounded-lg border border-[#e7e9e8] bg-[#f3f7f6] bg-cover bg-center"
+                        style={
+                          item.imageUrl
+                            ? { backgroundImage: `url(${item.imageUrl})` }
+                            : undefined
+                        }
+                      />
+                      <input
+                        value={item.name}
+                        onChange={e => updateCategory(item.id, { name: e.target.value })}
+                        className="h-9 flex-1 rounded-lg border border-[#e7e9e8] px-2 text-[12.5px] outline-none focus:border-[#0F766E]"
+                      />
+                      <label className="cursor-pointer rounded-lg border border-[#e7e9e8] px-2 py-1.5 text-[11px] font-bold hover:border-[#0F766E]">
+                        {uploadAsset.isPending ? "…" : "صورة"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async event => {
+                            const file = event.target.files?.[0];
+                            event.target.value = "";
+                            if (!file) return;
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error("حجم الصورة يتجاوز 5MB.");
+                              return;
+                            }
+                            const dataUrl = await new Promise<string>(
+                              (resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = () => resolve(String(reader.result));
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                              }
+                            );
+                            try {
+                              const out = await uploadAsset.mutateAsync({
+                                fileName: file.name,
+                                dataUrl,
+                              });
+                              updateCategory(item.id, { imageUrl: out.url });
+                              toast.success("تم رفع صورة الفئة.");
+                            } catch (e) {
+                              toast.error(
+                                e instanceof Error ? e.message : "تعذّر رفع الصورة."
+                              );
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => removeCategory(item.id)}
+                        className="text-[11px] font-bold text-[#b03a2e]"
+                      >
+                        حذف
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {fields.length === 0 ? (
               <p className="text-[12px] text-[#576B66]">

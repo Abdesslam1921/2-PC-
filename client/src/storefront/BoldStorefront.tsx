@@ -481,6 +481,34 @@ export function BoldStorefront({
                 </div>
               </footer>
             );
+          case "categories":
+            return (
+              <section key={section.id} className={`${WRAP} py-12 sm:py-16`}>
+                <h2 className="mb-5 text-[26px] font-black sm:text-[40px]">
+                  {str(section.settings.title, "تسوق حسب الفئة")}
+                </h2>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {(section.items?.length
+                    ? section.items
+                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
+                  ).map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSearch(item.name)}
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[#0C2A26] bg-[linear-gradient(135deg,#0F766E,#0B5D57)] bg-cover bg-center p-4 text-right text-[16px] font-black text-white shadow-[8px_8px_0_0_#0C2A26]"
+                      style={
+                        item.imageUrl
+                          ? { backgroundImage: `url(${item.imageUrl})` }
+                          : undefined
+                      }
+                    >
+                      {item.name}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
           default:
             return null;
           }

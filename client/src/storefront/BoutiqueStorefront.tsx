@@ -453,6 +453,36 @@ export function BoutiqueStorefront({
                 </div>
               </footer>
             );
+          case "categories":
+            return (
+              <section key={section.id} className={`${WRAP} py-11 sm:py-16`}>
+                <div className="mb-9 text-center">
+                  <h2 className="text-[22px] font-semibold sm:text-[34px]">
+                    {str(section.settings.title, "تسوق حسب الفئة")}
+                  </h2>
+                </div>
+                <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-4">
+                  {(section.items?.length
+                    ? section.items
+                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
+                  ).map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSearch(item.name)}
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-[linear-gradient(145deg,#F6EFE2,#E8DCC6)] bg-cover bg-center p-4 text-right font-semibold text-[#2B211A]"
+                      style={
+                        item.imageUrl
+                          ? { backgroundImage: `url(${item.imageUrl})` }
+                          : undefined
+                      }
+                    >
+                      {item.name}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
           default:
             return null;
           }

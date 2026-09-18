@@ -325,28 +325,32 @@ export function ModernStorefront({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(collections.length
-                    ? collections
-                    : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"]
-                  ).map((name, i) => (
+                  {(section.items?.length
+                    ? section.items
+                    : (collections.length
+                        ? collections
+                        : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"]
+                      ).map(name => ({ id: name, name, imageUrl: undefined }))
+                  ).map((item, i) => (
                     <button
-                      key={name}
+                      key={item.id}
                       type="button"
-                      onClick={() =>
-                        setSearch(name === "ملابس" && !collections.length ? "" : name)
+                      onClick={() => setSearch(item.name)}
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,22px)] bg-cover bg-center p-4 text-right font-black text-white"
+                      style={
+                        item.imageUrl
+                          ? { backgroundImage: `url(${item.imageUrl})` }
+                          : {
+                              background: [
+                                "linear-gradient(135deg,#0F766E,#0B5D57)",
+                                "linear-gradient(135deg,#B45309,#7C2D12)",
+                                "linear-gradient(135deg,#15803D,#14532D)",
+                                "linear-gradient(135deg,#334155,#0F172A)",
+                              ][i % 4],
+                            }
                       }
-                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,22px)] p-4 text-right font-black text-white"
-                      style={{
-                        background:
-                          [
-                            "linear-gradient(135deg,#0F766E,#0B5D57)",
-                            "linear-gradient(135deg,#B45309,#7C2D12)",
-                            "linear-gradient(135deg,#15803D,#14532D)",
-                            "linear-gradient(135deg,#334155,#0F172A)",
-                          ][i % 4],
-                      }}
                     >
-                      {name}
+                      {item.name}
                     </button>
                   ))}
                 </div>

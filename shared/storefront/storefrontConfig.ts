@@ -41,6 +41,17 @@ const safeText = (max: number) =>
     .refine(v => !UNSAFE.test(v), "قيمة غير آمنة");
 const SETTING_KEY = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/;
 
+/** Repeatable section item (e.g. a category): name + optional image asset URL. */
+export const storefrontSectionItemSchema = z.strictObject({
+  id: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9][a-z0-9_-]{0,63}$/, "معرّف عنصر غير صالح"),
+  name: safeText(80),
+  imageUrl: safeText(600).optional(),
+});
+export type StorefrontSectionItem = z.infer<typeof storefrontSectionItemSchema>;
+
 export const storefrontSectionSchema = z.strictObject({
   id: z
     .string()
@@ -53,6 +64,8 @@ export const storefrontSectionSchema = z.strictObject({
     z.string().regex(SETTING_KEY, "مفتاح إعداد غير صالح"),
     z.union([safeText(600), z.number().finite(), z.boolean()])
   ),
+  /** Optional repeatable items (used by the Categories section). */
+  items: z.array(storefrontSectionItemSchema).max(24).optional(),
 });
 
 export type StorefrontSection = z.infer<typeof storefrontSectionSchema>;

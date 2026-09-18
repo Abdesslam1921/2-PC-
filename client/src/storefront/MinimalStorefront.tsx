@@ -394,6 +394,47 @@ export function MinimalStorefront({
                 </div>
               </footer>
             );
+          case "categories":
+            return (
+              <section
+                key={section.id}
+                className={`${WRAP} border-t border-[#E7E9E8] py-20`}
+              >
+                <div className="mb-11">
+                  <h2 className="text-[22px] font-semibold tracking-[-0.01em] sm:text-[26px]">
+                    {str(section.settings.title, "تسوق حسب الفئة")}
+                  </h2>
+                  <p className="mt-2 text-[13px] font-light text-[var(--sf-color-text-muted,#576B66)]">
+                    {str(section.settings.subtitle)}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-x-[22px] gap-y-[34px] sm:grid-cols-3 lg:grid-cols-4">
+                  {(section.items?.length
+                    ? section.items
+                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
+                  ).map(item => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSearch(item.name)}
+                      className="group text-right"
+                    >
+                      <span
+                        className="block aspect-[4/5] w-full rounded-[var(--sf-radius-lg,3px)] border border-[#E7E9E8] bg-[#F4F5F4] bg-cover bg-center transition group-hover:opacity-80"
+                        style={
+                          item.imageUrl
+                            ? { backgroundImage: `url(${item.imageUrl})` }
+                            : undefined
+                        }
+                      />
+                      <span className="mt-3 block text-[13.5px] font-medium">
+                        {item.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            );
           default:
             return null;
           }
