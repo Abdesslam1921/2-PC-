@@ -43,13 +43,22 @@ export default function StoreEditorPage() {
     publish,
   } = useStoreDraft();
 
-  const tab: Tab = useMemo(() => {
-    const search = location.includes("?") ? location.split("?")[1] : "";
-    return new URLSearchParams(search).get("tab") === "theme" ? "theme" : "content";
-  }, [location]);
-
-  const setTab = (next: Tab) =>
-    setLocation(`/store/editor?tab=${next}`, { replace: true });
+  // Tab state is local (instant, no navigation). The initial tab is read once
+  // from the URL so the legacy redirects land on the intended tab.
+  const [tab, setTabState] = useState<Tab>(() => {
+    const search = typeof window !== "undefined" ? window.location.search : "";
+    return new URLSearchParams(search).get("tab") === "theme"
+      ? "theme"
+      : "content";
+  });
+  const setTab = (next: Tab) => {
+    setTabState(next);
+    try {
+      window.history.replaceState(null, "", `/store/editor?tab=${next}`);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const previewStyle = useMemo(() => {
     if (!config) return {} as CSSProperties;
