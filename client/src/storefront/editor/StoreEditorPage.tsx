@@ -64,13 +64,6 @@ export default function StoreEditorPage() {
     }
   };
 
-  /** Resolve a conflict by adopting the server version (next save overwrites). */
-  const forceSave = () => {
-    if (conflict === null) return;
-    setBaseVersion(conflict);
-    setConflict(null);
-  };
-
   const previewStyle = useMemo(() => {
     if (!config) return {} as CSSProperties;
     return {
@@ -154,6 +147,22 @@ export default function StoreEditorPage() {
           <span className="rounded-full bg-[#e4f3ef] px-2.5 py-1 text-[11px] font-bold text-[#0B5D57]">
             القالب: {config.templateKey}
           </span>
+          {/* Tabs inline in the toolbar (no separate row). */}
+          <span className="mx-1 hidden h-6 w-px bg-[#e7e9e8] sm:block" />
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`rounded-full border px-5 py-1.5 text-[12.5px] font-black ${
+                tab === t.id
+                  ? "border-[#0F766E] bg-[#e4f3ef] text-[#0B5D57]"
+                  : "border-[#e7e9e8] bg-white text-[#4A5A56]"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -204,42 +213,6 @@ export default function StoreEditorPage() {
           ) : null}
         </div>
       </div>
-
-      {/* Tabs */}
-      <div className="flex justify-center gap-1.5 border-b border-[#e7e9e8] bg-white px-3.5 pb-2.5">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`rounded-full border px-6 py-2 text-[13px] font-black ${
-              tab === t.id
-                ? "border-[#0F766E] bg-[#e4f3ef] text-[#0B5D57]"
-                : "border-[#e7e9e8] bg-white text-[#4A5A56]"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {conflict !== null ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FEF3E2] px-3.5 py-2.5 text-[12.5px] font-bold text-[#8A4B00]">
-          <span>المسودة تغيّرت من مكان آخر (نسخة {conflict}).</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={reloadLatest}
-              className="h-8 rounded-lg text-xs font-extrabold"
-            >
-              تحميل الأحدث
-            </Button>
-            <Button onClick={forceSave} className="h-8 rounded-lg text-xs font-extrabold">
-              فرض حفظ تعديلاتي
-            </Button>
-          </div>
-        </div>
-      ) : null}
 
       {/* Body: side panel (RTL start/right) + fixed preview (center) */}
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[360px_1fr]">

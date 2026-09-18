@@ -1,7 +1,35 @@
 import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
+
+type SavedTheme = {
+  id: string;
+  name: string;
+  theme: Record<string, unknown>;
+  savedAt: string;
+};
+const SAVED_THEMES_KEY = "sf-saved-themes";
+const MAX_SAVED_THEMES = 3;
+
+function readSavedThemes(): SavedTheme[] {
+  try {
+    const raw = localStorage.getItem(SAVED_THEMES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_SAVED_THEMES) : [];
+  } catch {
+    return [];
+  }
+}
+function writeSavedThemes(list: SavedTheme[]) {
+  try {
+    localStorage.setItem(SAVED_THEMES_KEY, JSON.stringify(list.slice(0, MAX_SAVED_THEMES)));
+  } catch {
+    /* ignore quota errors */
+  }
+}
 
 type Category =
   | "colors"
@@ -132,6 +160,10 @@ export function ThemePanel({
   onChange: (next: StorefrontConfig) => void;
 }) {
   const [category, setCategory] = useState<Category>("colors");
+  const [savedThemes, setSavedThemes] = useState<SavedTheme[]>(() =>
+    readSavedThemes()
+  );
+  const [themeName, setThemeName] = useState("");
   const theme = (config.theme ?? {}) as Record<string, unknown>;
   const defaults = useMemo(
     () => templateDefaultTokens(config.templateKey),
@@ -177,6 +209,37 @@ export function ThemePanel({
     const nextTheme: Record<string, unknown> = { ...theme };
     for (const group of groups[category]) delete nextTheme[group];
     onChange({ ...config, theme: nextTheme });
+  };
+
+  /** Save the current theme under a name (max 3, stored in this browser). */
+  const saveTheme = () => {
+    if (savedThemes.length >= MAX_SAVED_THEMES) {
+      toast.error("الحد الأقصى ٣ ثيمات محفوظة.");
+      return;
+    }
+    const entry: SavedTheme = {
+      id: Date.now().toString(36),
+      name: themeName.trim() || `ثيم ${savedThemes.length + 1}`,
+      theme: JSON.parse(JSON.stringify(theme)) as Record<string, unknown>,
+      savedAt: new Date().toISOString(),
+    };
+    const next = [entry, ...savedThemes].slice(0, MAX_SAVED_THEMES);
+    setSavedThemes(next);
+    writeSavedThemes(next);
+    setThemeName("");
+    toast.success("تم حفظ الثيم.");
+  };
+  const restoreTheme = (saved: SavedTheme) => {
+    onChange({
+      ...config,
+      theme: saved.theme as unknown as StorefrontConfig["theme"],
+    });
+    toast.success(`تم استرجاع «${saved.name}».`);
+  };
+  const deleteTheme = (id: string) => {
+    const next = savedThemes.filter(t => t.id !== id);
+    setSavedThemes(next);
+    writeSavedThemes(next);
   };
 
   const pairs: Array<[string, string, string]> = [
@@ -463,6 +526,63 @@ export function ThemePanel({
             </p>
           </div>
         ) : null}
+      </div>
+
+      {/* Saved themes (max 3, browser-local) */}
+      <div className="border-t border-[#e7e9e8] p-3.5">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-[12.5px] font-black">الثيمات المحفوظة</span>
+          <span className="text-[11px] font-bold text-[#576B66]">
+            {savedThemes.length}/{MAX_SAVED_THEMES}
+          </span>
+        </div>
+        <div className="mb-2 flex gap-2">
+          <input
+            value={themeName}
+            onChange={e => setThemeName(e.target.value)}
+            placeholder="اسم الثيم"
+            className="h-9 flex-1 rounded-lg border border-[#e7e9e8] px-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
+          />
+          <Button
+            onClick={saveTheme}
+            disabled={savedThemes.length >= MAX_SAVED_THEMES}
+            className="h-9 rounded-lg px-3 text-xs font-extrabold"
+          >
+            حفظ الثيم
+          </Button>
+        </div>
+        <div className="space-y-1.5">
+          {savedThemes.length === 0 ? (
+            <p className="text-[11.5px] text-[#576B66]">لا توجد ثيمات محفوظة بعد.</p>
+          ) : null}
+          {savedThemes.map(saved => (
+            <div
+              key={saved.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-[#e7e9e8] px-2.5 py-1.5"
+            >
+              <span className="truncate text-[12px] font-bold">{saved.name}</span>
+              <span className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  onClick={() => restoreTheme(saved)}
+                  className="rounded-md px-2 py-1 text-[11px] font-extrabold text-[#0B5D57] hover:bg-[#f7faf9]"
+                >
+                  استرجاع
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteTheme(saved.id)}
+                  className="rounded-md px-2 py-1 text-[11px] font-extrabold text-[#b03a2e] hover:bg-[#f7faf9]"
+                >
+                  حذف
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="mt-2 text-[10.5px] text-[#8a938d]">
+          محفوظة في هذا المتصفح (٣ كحد أقصى).
+        </p>
       </div>
     </div>
   );

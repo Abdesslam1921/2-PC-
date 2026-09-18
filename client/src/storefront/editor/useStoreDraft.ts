@@ -117,29 +117,45 @@ export function useStoreDraft() {
     setHistVersion(v => v + 1);
   }, []);
 
-  // Autosave (debounced); pauses while a conflict is unresolved.
+  // Autosave (debounced). A single in-flight save at a time prevents the stale
+  // `expectedVersion` races that caused spurious conflicts.
+  const savingRef = useRef(false);
   useEffect(() => {
-    if (!config || !dirty || conflict !== null) return;
+    if (!config || !dirty) return;
+    if (savingRef.current) return;
     const handle = setTimeout(async () => {
+      savingRef.current = true;
+      setSaving(true);
       try {
-        setSaving(true);
-        const res = await saveDraft.mutateAsync({
+        let res = await saveDraft.mutateAsync({
           config,
           expectedVersion: baseVersion,
         });
-        if (res.conflict) setConflict(res.currentVersion ?? 0);
-        else {
+        if (res.conflict) {
+          // Rebase on the server version and retry once so local edits are kept
+          // (single-merchant editor). Non-blocking notice instead of a banner.
+          res = await saveDraft.mutateAsync({
+            config,
+            expectedVersion: res.currentVersion ?? 0,
+          });
+          if (res.conflict) {
+            setConflict(res.currentVersion ?? 0);
+            toast.message("تم اكتشاف تعديل من جلسة أخرى — أُعيدت المزامنة.");
+          }
+        }
+        if (!res.conflict) {
           setBaseVersion(res.version ?? baseVersion);
           setDirty(false);
         }
       } catch {
         /* retry on next change */
       } finally {
+        savingRef.current = false;
         setSaving(false);
       }
     }, 1000);
     return () => clearTimeout(handle);
-  }, [config, dirty, conflict, baseVersion, saveDraft]);
+  }, [config, dirty, baseVersion, saveDraft]);
 
   /** Save the current config now (used before publish / on demand). */
   const flushSave = useCallback(async (): Promise<boolean> => {
