@@ -27,7 +27,11 @@ export function sectionStyleFromSettings(
   const padY = settings.stylePadY;
   const image = settings.styleImage;
 
-  if (typeof bg === "string" && bg.trim()) style.backgroundColor = bg.trim();
+  if (typeof bg === "string" && bg.trim()) {
+    style.backgroundColor = bg.trim();
+    // Override any template gradient so the chosen background is visible.
+    style.backgroundImage = "none";
+  }
   if (typeof color === "string" && color.trim()) style.color = color.trim();
   if (typeof font === "string" && FONT_STACKS[font]) {
     style.fontFamily = FONT_STACKS[font];

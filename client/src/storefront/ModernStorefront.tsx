@@ -205,7 +205,7 @@ export function ModernStorefront({
             return (
               <div
                 key={section.id}
-                className="bg-[linear-gradient(90deg,#0B5D57,#0F766E)] py-2.5 text-center text-[12.5px] font-bold text-white"
+                className="bg-[linear-gradient(90deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E))] py-2.5 text-center text-[12.5px] font-bold text-white"
               >
                 {str(section.settings.text)}
               </div>
@@ -267,7 +267,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="relative grid min-h-[440px] items-end overflow-hidden bg-[radial-gradient(120%_100%_at_80%_0%,rgba(94,234,212,0.55),transparent_60%),linear-gradient(135deg,#0B5D57,#0F766E_55%,#12907F)]"
+                className="relative grid min-h-[440px] items-end overflow-hidden bg-[radial-gradient(120%_100%_at_80%_0%,rgba(94,234,212,0.55),transparent_60%),linear-gradient(135deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_55%,var(--sf-color-primary,#0F766E))]"
               >
                 {typeof section.settings.imageUrl === "string" &&
                 section.settings.imageUrl ? (
@@ -387,7 +387,7 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-6"
               >
-                <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[linear-gradient(120deg,#0B5D57,#0F766E_60%,#12907F)] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
+                <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[linear-gradient(120deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_60%,var(--sf-color-primary,#0F766E))] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
                   <div>
                     <h2 className="text-[24px] font-black sm:text-[32px]">
                       {str(section.settings.title)}
