@@ -83,9 +83,6 @@ export function SectionShell({
   const themeBase: CSSProperties = {
     paddingTop: "var(--sf-space-section, revert-layer)",
     paddingBottom: "var(--sf-space-section, revert-layer)",
-    borderWidth: "var(--sf-border-width-base, revert-layer)",
-    borderStyle: "var(--sf-border-style, revert-layer)",
-    boxShadow: "var(--sf-shadow-soft, revert-layer)",
     transitionDuration: "var(--sf-effect-transition-base, revert-layer)",
   };
   const merged = { ...themeBase, ...applied };

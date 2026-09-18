@@ -80,7 +80,7 @@ function SortableRow({
       <button
         type="button"
         onClick={onSelect}
-        className="min-w-0 flex-1 whitespace-normal py-0.5 text-right leading-6"
+        className="min-w-0 flex-1 whitespace-normal text-right"
       >
         {SECTION_LABELS[section.type]}
       </button>
