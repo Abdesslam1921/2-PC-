@@ -35,6 +35,9 @@ export default function StorePublic() {
     const themeStyle = {
       ...templateDefaultTokens(query.data.config.templateKey),
       ...buildStorefrontTokenOverrides(query.data.config.theme ?? {}),
+      // Applies the theme heading font; `revert-layer` keeps the template font
+      // unchanged when the merchant set no font token.
+      fontFamily: "var(--sf-font-heading, revert-layer)",
     } as CSSProperties;
 
     let template = null;

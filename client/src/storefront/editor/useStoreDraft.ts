@@ -55,8 +55,16 @@ export function useStoreDraft() {
     if (!managed.data) return;
     const draft = managed.data.draft;
     if (!draft?.config) return;
-    if (initialized.current && config?.templateKey === draft.config.templateKey) return;
-    if (seeded.current) return;
+    if (initialized.current && config?.templateKey === draft.config.templateKey) {
+      // Reconcile the concurrency version so autosave never uses a stale one
+      // (a stale baseVersion would raise a conflict and keep Publish disabled).
+      setBaseVersion(draft.version ?? 0);
+      return;
+    }
+    if (seeded.current) {
+      setBaseVersion(draft.version ?? 0);
+      return;
+    }
     setConfigState(draft.config);
     setBaseVersion(draft.version ?? 0);
     initialized.current = true;
@@ -205,6 +213,7 @@ export function useStoreDraft() {
     conflict,
     setConflict,
     baseVersion,
+    setBaseVersion,
     flushSave,
     publish,
     rollback,

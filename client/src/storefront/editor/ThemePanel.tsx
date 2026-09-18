@@ -102,6 +102,27 @@ const contrast = (a: string, b: string) => {
   return (Math.max(A, B) + 0.05) / (Math.min(A, B) + 0.05);
 };
 
+/** "Use template default" checkbox: when checked, the token is removed. */
+function DefaultToggle({
+  isDefault,
+  onToggle,
+}: {
+  isDefault: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[10.5px] font-bold text-[#576B66]">
+      <input
+        type="checkbox"
+        checked={isDefault}
+        onChange={e => onToggle(e.target.checked)}
+        className="size-3 accent-[#0F766E]"
+      />
+      افتراضي
+    </label>
+  );
+}
+
 export function ThemePanel({
   config,
   onChange,
@@ -169,23 +190,38 @@ export function ThemePanel({
               {COLOR_FIELDS.map(field => {
                 const value = effective(field.token);
                 const safe = HEX.test(value) ? value : "#000000";
+                const isDefault = !(field.token in colors);
                 return (
                   <div key={field.token}>
-                    <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                      {field.label}
-                    </label>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-[11.5px] font-bold text-[#576B66]">
+                        {field.label}
+                      </label>
+                      <DefaultToggle
+                        isDefault={isDefault}
+                        onToggle={next =>
+                          setToken(
+                            "colors",
+                            field.token,
+                            next ? undefined : defaults[field.token] ?? "#000000"
+                          )
+                        }
+                      />
+                    </div>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
                         value={safe}
+                        disabled={isDefault}
                         onChange={e => setColor(field.token, e.target.value)}
-                        className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
+                        className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1 disabled:opacity-50"
                       />
                       <input
                         type="text"
                         value={value}
+                        disabled={isDefault}
                         onChange={e => setColor(field.token, e.target.value)}
-                        className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
+                        className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E] disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -223,15 +259,27 @@ export function ThemePanel({
 
         {category === "typography" ? (
           <div className="space-y-3 p-3.5">
-            <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-              خط العناوين
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-[11.5px] font-bold text-[#576B66]">
+                خط العناوين
+              </label>
+              <DefaultToggle
+                isDefault={!fontFamilies["--sf-font-heading"]}
+                onToggle={next =>
+                  setToken(
+                    "fontFamilies",
+                    "--sf-font-heading",
+                    next ? undefined : "Cairo"
+                  )
+                }
+              />
+            </div>
             <select
               value={fontFamilies["--sf-font-heading"] ?? ""}
+              disabled={!fontFamilies["--sf-font-heading"]}
               onChange={e => setFont(e.target.value)}
-              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
+              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold disabled:opacity-60"
             >
-              <option value="">افتراضي القالب</option>
               {FONT_OPTIONS.map(f => (
                 <option key={f} value={f}>
                   {f}
@@ -243,14 +291,29 @@ export function ThemePanel({
 
         {category === "radius" ? (
           <div className="space-y-3 p-3.5">
-            <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-              انحناء حواف البطاقات (px)
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-[11.5px] font-bold text-[#576B66]">
+                انحناء حواف البطاقات (px)
+              </label>
+              <DefaultToggle
+                isDefault={!radius["--sf-radius-lg"]}
+                onToggle={next =>
+                  setToken(
+                    "radius",
+                    "--sf-radius-lg",
+                    next
+                      ? undefined
+                      : `${parseInt(defaults["--sf-radius-lg"] ?? "22", 10)}px`
+                  )
+                }
+              />
+            </div>
             <input
               type="number"
+              disabled={!radius["--sf-radius-lg"]}
               value={parseInt(radius["--sf-radius-lg"] ?? defaults["--sf-radius-lg"] ?? "22", 10)}
               onChange={e => setToken("radius", "--sf-radius-lg", `${Number(e.target.value) || 0}px`)}
-              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
+              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E] disabled:opacity-60"
             />
             <p className="text-[11px] text-[#576B66]">
               الحواف مصدرها الوحيد توكن الثيم (لا يوجد إعداد حواف لكل قسم).
@@ -262,18 +325,27 @@ export function ThemePanel({
           <div className="space-y-3 p-3.5">
             {CONTROLS[category].map(ctrl => {
               const current = ((theme[ctrl.group] as Record<string, string>) ?? {})[ctrl.token] ?? "";
+              const isDefault = !current;
               if (ctrl.type === "select") {
                 return (
                   <div key={ctrl.token}>
-                    <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                      {ctrl.label}
-                    </label>
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <label className="block text-[11.5px] font-bold text-[#576B66]">
+                        {ctrl.label}
+                      </label>
+                      <DefaultToggle
+                        isDefault={isDefault}
+                        onToggle={next => {
+                          if (next) setToken(ctrl.group, ctrl.token, undefined);
+                        }}
+                      />
+                    </div>
                     <select
                       value={current}
+                      disabled={isDefault}
                       onChange={e => setToken(ctrl.group, ctrl.token, e.target.value || undefined)}
-                      className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
+                      className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold disabled:opacity-60"
                     >
-                      <option value="">افتراضي القالب</option>
                       {(ctrl.options ?? []).map(o => (
                         <option key={o.value} value={o.value}>
                           {o.label}
@@ -286,20 +358,23 @@ export function ThemePanel({
               const unit = ctrl.type === "ms" ? "ms" : "px";
               return (
                 <div key={ctrl.token}>
-                  <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                    {ctrl.label}
-                  </label>
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <label className="block text-[11.5px] font-bold text-[#576B66]">
+                      {ctrl.label}
+                    </label>
+                    <DefaultToggle
+                      isDefault={isDefault}
+                      onToggle={next => {
+                        if (next) setToken(ctrl.group, ctrl.token, undefined);
+                      }}
+                    />
+                  </div>
                   <input
                     type="number"
+                    disabled={isDefault}
                     value={current ? parseInt(current, 10) : ""}
-                    onChange={e =>
-                      setToken(
-                        ctrl.group,
-                        ctrl.token,
-                        e.target.value ? `${Number(e.target.value)}${unit}` : undefined
-                      )
-                    }
-                    className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
+                    onChange={e => setToken(ctrl.group, ctrl.token, e.target.value ? `${Number(e.target.value)}${unit}` : undefined)}
+                    className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E] disabled:opacity-60"
                   />
                 </div>
               );
@@ -312,7 +387,15 @@ export function ThemePanel({
 
         {category === "density" ? (
           <div className="space-y-3 p-3.5">
-            <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">الكثافة</label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-[11.5px] font-bold text-[#576B66]">الكثافة</label>
+              <DefaultToggle
+                isDefault={!spacingPad}
+                onToggle={next => {
+                  if (next) setToken("spacing", "--sf-space-section", undefined);
+                }}
+              />
+            </div>
             <div className="inline-flex rounded-[10px] bg-[#f1f3f2] p-1">
               {DENSITY_PRESETS.map(d => {
                 const active = spacingPad === d.pad;

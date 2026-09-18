@@ -40,7 +40,10 @@ export default function StoreEditorPage() {
     dirty,
     saving,
     conflict,
+    setConflict,
+    setBaseVersion,
     publish,
+    reloadLatest,
   } = useStoreDraft();
 
   // Tab state is local (instant, no navigation). The initial tab is read once
@@ -60,11 +63,19 @@ export default function StoreEditorPage() {
     }
   };
 
+  /** Resolve a conflict by adopting the server version (next save overwrites). */
+  const forceSave = () => {
+    if (conflict === null) return;
+    setBaseVersion(conflict);
+    setConflict(null);
+  };
+
   const previewStyle = useMemo(() => {
     if (!config) return {} as CSSProperties;
     return {
       ...templateDefaultTokens(config.templateKey),
       ...buildStorefrontTokenOverrides(config.theme ?? {}),
+      fontFamily: "var(--sf-font-heading, revert-layer)",
     } as CSSProperties;
   }, [config]);
 
@@ -188,8 +199,20 @@ export default function StoreEditorPage() {
       </div>
 
       {conflict !== null ? (
-        <div className="bg-[#FEF3E2] px-3.5 py-2 text-[12.5px] font-bold text-[#8A4B00]">
-          المسودة تغيّرت من مكان آخر (نسخة {conflict}). أوقفنا الحفظ التلقائي.
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-[#FEF3E2] px-3.5 py-2.5 text-[12.5px] font-bold text-[#8A4B00]">
+          <span>المسودة تغيّرت من مكان آخر (نسخة {conflict}).</span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={reloadLatest}
+              className="h-8 rounded-lg text-xs font-extrabold"
+            >
+              تحميل الأحدث
+            </Button>
+            <Button onClick={forceSave} className="h-8 rounded-lg text-xs font-extrabold">
+              فرض حفظ تعديلاتي
+            </Button>
+          </div>
         </div>
       ) : null}
 
