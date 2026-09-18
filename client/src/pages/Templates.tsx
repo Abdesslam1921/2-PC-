@@ -182,7 +182,7 @@ export default function Templates() {
           } catch {
             // ignore storage failures
           }
-          setLocation("/store/builder");
+          setLocation("/store/editor?tab=content");
         },
         onError: error => toast.error(error.message),
       }

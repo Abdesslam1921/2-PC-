@@ -34,6 +34,17 @@ import Storefront from "@/pages/Storefront";
 import StorePublic from "@/pages/StorePublic";
 import BuilderPage from "@/storefront/builder/BuilderPage";
 import ThemeEditorPage from "@/storefront/builder/ThemeEditorPage";
+import StoreEditorPage from "@/storefront/editor/StoreEditorPage";
+import { useEffect } from "react";
+
+/** Redirect helper: lands on the exact tab, not the default. */
+function RedirectTo({ to }: { to: string }) {
+  const [, setLocation] = useLocation();
+  useEffect(() => {
+    setLocation(to, { replace: true });
+  }, [setLocation, to]);
+  return null;
+}
 import { Route, Switch, useLocation } from "wouter";
 import DashboardLayout from "./components/DashboardLayout";
 import { IdentityShell } from "./components/IdentityShell";
@@ -275,8 +286,18 @@ function Router() {
         )}
       />
       <Route path="/store">{() => <StorePublic />}</Route>
-      <Route path="/store/builder" component={BuilderPage} />
-      <Route path="/store/theme" component={ThemeEditorPage} />
+      <Route path="/store/editor" component={StoreEditorPage} />
+      <Route
+        path="/store/builder"
+        component={() => <RedirectTo to="/store/editor?tab=content" />}
+      />
+      <Route
+        path="/store/theme"
+        component={() => <RedirectTo to="/store/editor?tab=theme" />}
+      />
+      {/* Legacy editors kept reachable as a backup until the unified one is validated. */}
+      <Route path="/store/builder-legacy" component={BuilderPage} />
+      <Route path="/store/theme-legacy" component={ThemeEditorPage} />
       <Route path="/store/cart">{() => <Storefront view="cart" />}</Route>
       <Route path="/store/checkout" component={Checkout} />
       <Route path="/404" component={NotFound} />
