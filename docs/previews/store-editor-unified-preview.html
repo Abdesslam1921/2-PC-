@@ -112,7 +112,6 @@
       <div class="tabs">
         <button class="tab active" data-tab="content">المحتوى</button>
         <button class="tab" data-tab="theme">الثيم</button>
-        <button class="tab" data-tab="history">السجل</button>
       </div>
     </div>
 
@@ -173,21 +172,14 @@
           <div class="field"><label>المسافة الرأسية بين الأقسام (px)</label><input type="number" value="64" /></div>
         </section>
 
-        <!-- HISTORY -->
-        <section data-panel="history" hidden>
-          <div class="panel-head">سجل الإصدارات</div>
-          <div class="ver"><b>v5</b><button class="btn">تراجع</button></div>
-          <div class="ver"><b>v4</b><button class="btn">تراجع</button></div>
-          <div class="ver"><b>v3</b><button class="btn">تراجع</button></div>
-          <div class="ver"><b>v2</b><button class="btn">تراجع</button></div>
-        </section>
+        <!-- HISTORY tab removed: undo/redo in the toolbar is the only history UI.
+             storefront_versions keep being recorded in the DB (no UI for now). -->
       </aside>
     </div>
 
     <div class="mobile-bar">
       <button class="btn" data-tab="content">المحتوى</button>
       <button class="btn" data-tab="theme">الثيم</button>
-      <button class="btn" data-tab="history">السجل</button>
     </div>
 
     <script>
