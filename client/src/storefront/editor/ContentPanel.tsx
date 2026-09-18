@@ -74,7 +74,11 @@ function SortableRow({
       >
         <GripVertical className="size-4" />
       </button>
-      <button type="button" onClick={onSelect} className="min-w-0 flex-1 truncate text-right">
+      <button
+        type="button"
+        onClick={onSelect}
+        className="min-w-0 flex-1 whitespace-normal py-0.5 text-right leading-6"
+      >
         {SECTION_LABELS[section.type]}
       </button>
       <div className="flex items-center gap-1">
@@ -189,7 +193,7 @@ export function ContentPanel({
     : [];
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
       <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
         <span className="text-[13.5px] font-black">الأقسام</span>
         <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
@@ -197,7 +201,7 @@ export function ContentPanel({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex-none">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
             {sections.map(section => (
@@ -244,7 +248,7 @@ export function ContentPanel({
         {!selected ? (
           <p className="p-4 text-[12.5px] text-[#576B66]">اختر قسمًا لتعديل إعداداته.</p>
         ) : (
-          <div className="max-h-[45vh] space-y-3 overflow-y-auto p-3.5">
+          <div className="space-y-3 p-3.5">
             <div className="flex items-center justify-between rounded-xl bg-[#f7faf9] p-3">
               <span className="text-[12.5px] font-bold">القسم مفعّل</span>
               <button

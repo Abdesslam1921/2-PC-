@@ -167,7 +167,6 @@ export default function StoreEditorPage() {
           </span>
           <Button
             onClick={publish}
-            disabled={conflict !== null}
             className="h-9 gap-1.5 rounded-lg px-3 text-xs font-extrabold"
           >
             <Rocket className="size-4" /> نشر
