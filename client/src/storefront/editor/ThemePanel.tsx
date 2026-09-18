@@ -212,16 +212,14 @@ export function ThemePanel({
                       <input
                         type="color"
                         value={safe}
-                        disabled={isDefault}
                         onChange={e => setColor(field.token, e.target.value)}
-                        className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1 disabled:opacity-50"
+                        className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
                       />
                       <input
                         type="text"
                         value={value}
-                        disabled={isDefault}
                         onChange={e => setColor(field.token, e.target.value)}
-                        className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E] disabled:opacity-60"
+                        className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
                       />
                     </div>
                   </div>
@@ -276,9 +274,8 @@ export function ThemePanel({
             </div>
             <select
               value={fontFamilies["--sf-font-heading"] ?? ""}
-              disabled={!fontFamilies["--sf-font-heading"]}
               onChange={e => setFont(e.target.value)}
-              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold disabled:opacity-60"
+              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
             >
               {FONT_OPTIONS.map(f => (
                 <option key={f} value={f}>
@@ -310,10 +307,9 @@ export function ThemePanel({
             </div>
             <input
               type="number"
-              disabled={!radius["--sf-radius-lg"]}
               value={parseInt(radius["--sf-radius-lg"] ?? defaults["--sf-radius-lg"] ?? "22", 10)}
               onChange={e => setToken("radius", "--sf-radius-lg", `${Number(e.target.value) || 0}px`)}
-              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E] disabled:opacity-60"
+              className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
             />
             <p className="text-[11px] text-[#576B66]">
               الحواف مصدرها الوحيد توكن الثيم (لا يوجد إعداد حواف لكل قسم).
@@ -342,9 +338,8 @@ export function ThemePanel({
                     </div>
                     <select
                       value={current}
-                      disabled={isDefault}
                       onChange={e => setToken(ctrl.group, ctrl.token, e.target.value || undefined)}
-                      className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold disabled:opacity-60"
+                      className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
                     >
                       {(ctrl.options ?? []).map(o => (
                         <option key={o.value} value={o.value}>
@@ -371,10 +366,9 @@ export function ThemePanel({
                   </div>
                   <input
                     type="number"
-                    disabled={isDefault}
                     value={current ? parseInt(current, 10) : ""}
                     onChange={e => setToken(ctrl.group, ctrl.token, e.target.value ? `${Number(e.target.value)}${unit}` : undefined)}
-                    className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E] disabled:opacity-60"
+                    className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
                   />
                 </div>
               );
