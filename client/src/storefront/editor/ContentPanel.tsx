@@ -64,7 +64,7 @@ function SortableRow({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className={`flex items-center gap-2 border-b border-[#f1f3f2] px-3 py-2.5 text-[13px] font-bold ${
+      className={`flex items-center gap-2 border-b border-[#f1f3f2] px-3 py-2.5 text-[13px] font-bold last:border-b-0 ${
         active ? "bg-[#e4f3ef] text-[#0B5D57]" : "text-[#2f433f]"
       }`}
     >
