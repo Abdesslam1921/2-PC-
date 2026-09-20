@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * The single color control used by every editor (theme, section settings,
@@ -35,6 +35,11 @@ export function ColorField({
   ariaLabel?: string;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // An external reset (e.g. "نوع الخلفية" back to the template default) must
+  // win over a stale local draft, otherwise the cleared value keeps showing.
+  useEffect(() => {
+    if (!value) setDraft(null);
+  }, [value]);
   const shown = draft ?? value ?? "";
   const preview =
     (isHex(shown) && shown) ||

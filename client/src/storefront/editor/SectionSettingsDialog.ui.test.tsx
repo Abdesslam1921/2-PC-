@@ -107,4 +107,44 @@ describe("SectionSettingsDialog", () => {
     fireEvent.click(screen.getByText("تم"));
     expect(screen.queryByText("إعدادات القسم")).toBeNull();
   });
+
+  it("drops the stored background when the type returns to the template default", () => {
+    function Harness() {
+      const [cfg, setCfg] = useState(config());
+      return (
+        <SectionSettingsDialog
+          config={cfg}
+          onChange={setCfg}
+          sectionId={cfg.sections[0].id}
+          onClose={() => {}}
+        />
+      );
+    }
+    const { container } = render(<Harness />);
+
+    const modeSelect = (Array.from(container.querySelectorAll("select")) as HTMLSelectElement[]).find(
+      el => Array.from(el.options).some(option => option.value === "solid")
+    )!;
+    expect(modeSelect).toBeTruthy();
+
+    // pick "لون صلب" then a color (the first ltr text input is the background)
+    fireEvent.change(modeSelect, { target: { value: "solid" } });
+    const colorInputs = Array.from(
+      container.querySelectorAll('input[type="text"][dir="ltr"]')
+    ) as HTMLInputElement[];
+    const bgInput = colorInputs[0];
+    expect(bgInput).toBeTruthy();
+    fireEvent.change(bgInput, { target: { value: "#101010" } });
+    const valuesAfterPick = Array.from(container.querySelectorAll("input")).map(
+      input => (input as HTMLInputElement).value.toLowerCase()
+    );
+    expect(valuesAfterPick).toContain("#101010");
+
+    // back to "افتراضي القالب" → the stored color must be gone, not just hidden
+    fireEvent.change(modeSelect, { target: { value: "" } });
+    const valuesAfterReset = Array.from(container.querySelectorAll("input")).map(
+      input => (input as HTMLInputElement).value.toLowerCase()
+    );
+    expect(valuesAfterReset).not.toContain("#101010");
+  });
 });

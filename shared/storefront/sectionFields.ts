@@ -33,6 +33,13 @@ export interface SectionField {
   showWhen?: { key: string; in: Array<string | number | boolean> };
   /** Section types where this field must not be shown (avoids duplicates). */
   hideFor?: StorefrontSectionType[];
+  /**
+   * Keys to clear together with this field when it is reset to its default.
+   * Used by dependent choices: returning "نوع الخلفية" to the template default
+   * must also drop the stored color/gradient, otherwise the old value keeps
+   * painting the section.
+   */
+  onClearAlso?: string[];
 }
 
 export const SECTION_LABELS: Record<StorefrontSectionType, string> = {
@@ -238,6 +245,13 @@ export const COMMON_STYLE_FIELDS: SectionField[] = [
     options: [
       { value: "solid", label: "لون صلب" },
       { value: "gradient", label: "تدرّج" },
+    ],
+    // Going back to the template default drops the stored background values.
+    onClearAlso: [
+      "styleBg",
+      "styleGradientFrom",
+      "styleGradientTo",
+      "styleGradientAngle",
     ],
   },
   { key: "styleBg", label: "لون الخلفية", type: "color", showWhen: { key: "styleBgMode", in: ["", "solid"] } },

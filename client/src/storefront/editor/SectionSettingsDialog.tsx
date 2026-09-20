@@ -257,11 +257,16 @@ export function SectionSettingsDialog({
   const setSetting = (key: string, value: unknown) =>
     patch({ settings: { ...section?.settings, [key]: value as never } });
 
-  /** Remove an override so the field follows the theme/template again. */
-  const clearSetting = (key: string) => {
+  /**
+   * Remove an override so the field follows the theme/template again. Dependent
+   * keys (e.g. the stored background color) go with it, otherwise switching
+   * "نوع الخلفية" back to the default would keep the old value painted.
+   */
+  const clearSetting = (key: string, also: string[] = []) => {
     if (!section) return;
     const next = { ...section.settings };
     delete next[key];
+    for (const extra of also) delete next[extra];
     patch({ settings: next });
   };
 
@@ -354,7 +359,7 @@ export function SectionSettingsDialog({
         field={field}
         value={section.settings[field.key]}
         onChange={next => setSetting(field.key, next)}
-        onClear={() => clearSetting(field.key)}
+        onClear={() => clearSetting(field.key, field.onClearAlso)}
         upload={upload}
         effective={effectiveValue(field.key)}
       />
