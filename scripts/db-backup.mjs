@@ -9,9 +9,12 @@
  */
 import { createConnection } from "mysql2/promise";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 const ROOT = "C:/dev/abdou-store-main";
-const OUT_DIR = "C:/Users/CPADJI~1/AppData/Local/Temp/kilo";
+// Portable temp dir (the machine-local short name used to be hardcoded).
+const OUT_DIR = path.join(os.tmpdir(), "kilo");
 
 const env = fs.readFileSync(`${ROOT}/.env`, "utf8");
 const m = env.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m);

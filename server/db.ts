@@ -15,6 +15,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { sql } from "drizzle-orm";
 import {
   abandonedOrders,
+  categories,
   orderCleanEvents,
   orderCleanSettings,
   sharkCodEvents,
@@ -184,6 +185,8 @@ type StoreProductInput = {
   productKind?: "physical" | "digital";
   currency?: string;
   collectionName: string | null;
+  /** One category per product (null = uncategorised). */
+  categoryId?: number | null;
   digitalFileName?: string | null;
   digitalFileStorageKey?: string | null;
   digitalFileUrl?: string | null;
@@ -462,12 +465,232 @@ export async function listPublicStoreProducts(storeId?: number | null) {
       )
     )
     .orderBy(desc(storeProducts.createdAt));
+  return hydratePublicProducts(products, storeId);
+}
+
+/** Shared hydration so every public listing behaves identically. */
+async function hydratePublicProducts(
+  products: Array<typeof storeProducts.$inferSelect>,
+  storeId: number
+) {
   const hydrated = await Promise.all(
     products.map(product => getPublicStoreProduct(product.id, storeId))
   );
   return hydrated.filter((product): product is NonNullable<typeof product> =>
     Boolean(product)
   );
+}
+
+/* ---------------------------------------------------------------------------
+ * Categories
+ * ------------------------------------------------------------------------- */
+
+export async function listCategories(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(categories)
+    .where(eq(categories.storeId, storeId))
+    .orderBy(categories.sortOrder, categories.name);
+}
+
+/** Categories plus how many products are linked to each one. */
+export async function listCategoriesWithCounts(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      slug: categories.slug,
+      imageUrl: categories.imageUrl,
+      sortOrder: categories.sortOrder,
+      isActive: categories.isActive,
+      productCount: sql<number>`count(${storeProducts.id})`,
+    })
+    .from(categories)
+    .leftJoin(storeProducts, eq(storeProducts.categoryId, categories.id))
+    .where(eq(categories.storeId, storeId))
+    .groupBy(
+      categories.id,
+      categories.name,
+      categories.slug,
+      categories.imageUrl,
+      categories.sortOrder,
+      categories.isActive
+    )
+    .orderBy(categories.sortOrder, categories.name);
+  return rows.map(row => ({ ...row, productCount: Number(row.productCount) }));
+}
+
+export async function getCategoryById(storeId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.storeId, storeId), eq(categories.id, id)))
+    .limit(1);
+  return row;
+}
+
+export async function createCategory(input: {
+  ownerId: number;
+  storeId: number;
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  const [{ id }] = await db
+    .insert(categories)
+    .values({
+      ownerId: input.ownerId,
+      storeId: input.storeId,
+      name: input.name,
+      slug: input.slug,
+      imageUrl: input.imageUrl ?? null,
+      sortOrder: input.sortOrder ?? 0,
+      isActive: input.isActive ?? true,
+    })
+    .$returningId();
+  return id;
+}
+
+export async function updateCategory(input: {
+  storeId: number;
+  id: number;
+  patch: Partial<{
+    name: string;
+    slug: string;
+    imageUrl: string | null;
+    sortOrder: number;
+    isActive: boolean;
+  }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db
+    .update(categories)
+    .set(input.patch)
+    .where(and(eq(categories.storeId, input.storeId), eq(categories.id, input.id)));
+}
+
+/** Products linked to a category (used by the delete guard). */
+export async function countCategoryProducts(storeId: number, categoryId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.storeId, storeId),
+        eq(storeProducts.categoryId, categoryId)
+      )
+    );
+  return Number(row?.count ?? 0);
+}
+
+export async function deleteCategory(storeId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db
+    .delete(categories)
+    .where(and(eq(categories.storeId, storeId), eq(categories.id, id)));
+}
+
+export async function setCategoryOrder(
+  storeId: number,
+  orderedIds: number[]
+) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(categories)
+        .set({ sortOrder: index })
+        .where(and(eq(categories.storeId, storeId), eq(categories.id, id)))
+    )
+  );
+}
+
+/**
+ * Public categories of one store.
+ *
+ * Fail-closed exactly like `listPublicStoreProducts`: without a resolved store
+ * there is no safe list to return, so it returns an empty array instead of
+ * leaking every store's categories.
+ */
+export async function listPublicCategories(storeId?: number | null) {
+  const db = await getDb();
+  if (!db) return [];
+  if (storeId == null) return [];
+  return db
+    .select({
+      id: categories.id,
+      name: categories.name,
+      slug: categories.slug,
+      imageUrl: categories.imageUrl,
+      sortOrder: categories.sortOrder,
+    })
+    .from(categories)
+    .where(and(eq(categories.storeId, storeId), eq(categories.isActive, true)))
+    .orderBy(categories.sortOrder, categories.name);
+}
+
+/**
+ * One active category by slug inside a single store.
+ *
+ * Fail-closed: no resolved store, a missing slug or an inactive category all
+ * resolve to `undefined` (never to another tenant's row).
+ */
+export async function getPublicCategoryBySlug(
+  slug: string,
+  storeId?: number | null
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  if (storeId == null) return undefined;
+  const [row] = await db
+    .select()
+    .from(categories)
+    .where(
+      and(
+        eq(categories.storeId, storeId),
+        eq(categories.slug, slug),
+        eq(categories.isActive, true)
+      )
+    )
+    .limit(1);
+  return row;
+}
+
+/** Active products of one category, same hydration as every public list. */
+export async function listPublicProductsByCategory(
+  categoryId: number,
+  storeId?: number | null
+) {
+  const db = await getDb();
+  if (!db) return [];
+  if (storeId == null) return [];
+  const products = await db
+    .select()
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.status, "active"),
+        eq(storeProducts.storeId, storeId),
+        eq(storeProducts.categoryId, categoryId)
+      )
+    )
+    .orderBy(desc(storeProducts.createdAt));
+  return hydratePublicProducts(products, storeId);
 }
 
 export async function getTodayWilayaOrderCount(productId: number, wilaya: string) {

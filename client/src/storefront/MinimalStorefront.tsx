@@ -77,6 +77,12 @@ export function MinimalStorefront({
   const [search, setSearch] = useState("");
 
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
+  /** Real store categories (fail-closed on the server). */
+  const categoriesQuery = trpc.categories.publicList.useQuery(undefined, {
+    retry: false,
+  });
+  const publicCategories = categoriesQuery.data ?? [];
+
   const collections = useMemo(() => {
     const set = new Set<string>();
     for (const p of products) if (p.collectionName) set.add(p.collectionName);
@@ -467,11 +473,15 @@ export function MinimalStorefront({
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-x-[22px] gap-y-[34px] sm:grid-cols-3 lg:grid-cols-4">
-                  {categoryTiles(section, collections).map(item => (
+                  {categoryTiles(section, publicCategories, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSearch(item.name)}
+                      onClick={() =>
+                        item.slug
+                          ? setLocation(`/store/category/${item.slug}`)
+                          : setSearch(item.name)
+                      }
                       className="group text-right"
                     >
                       <span

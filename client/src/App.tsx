@@ -22,6 +22,8 @@ import ProductCreate from "@/pages/ProductCreate";
 import ProductEdit from "@/pages/ProductEdit";
 import ProductLanding from "@/pages/ProductLanding";
 import Products from "@/pages/Products";
+import Categories from "@/pages/Categories";
+import StoreCategory from "@/pages/StoreCategory";
 import Profitability from "@/pages/Profitability";
 import MediaBuying from "@/pages/MediaBuying";
 import ForShip from "@/pages/ForShip";
@@ -68,6 +70,14 @@ function Router() {
         )}
       />
       <Route path="/login" component={Login} />
+      <Route
+        path="/categories"
+        component={() => (
+          <DashboardPage>
+            <Categories />
+          </DashboardPage>
+        )}
+      />
       <Route
         path="/products"
         component={() => (
@@ -286,6 +296,9 @@ function Router() {
         )}
       />
       <Route path="/store">{() => <StorePublic />}</Route>
+      {/* Public category page: fail-closed on the server (no store / unknown
+          slug / inactive category → NOT_FOUND). */}
+      <Route path="/store/category/:slug" component={StoreCategory} />
       <Route path="/store/editor" component={StoreEditorPage} />
       {/* The editor is one merged page (content + theme); legacy entries redirect to it. */}
       <Route path="/store/builder" component={() => <RedirectTo to="/store/editor" />} />

@@ -34,6 +34,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  FolderTree,
   Package,
   PhoneCall,
   PanelsTopLeft,
@@ -52,6 +53,7 @@ import { toast } from "sonner";
 export const dashboardNavigation = [
   { icon: LayoutDashboard, label: "نظرة عامة", path: "/dashboard" },
   { icon: Package, label: "المنتجات", path: "/products" },
+  { icon: FolderTree, label: "الفئات", path: "/categories" },
   { icon: FileDown, label: "المنتجات الرقمية", path: "/digital-products" },
   { icon: Truck, label: "التوصيل", path: "/delivery" },
   { icon: Cable, label: "Connecteurs", path: "/connecteurs" },

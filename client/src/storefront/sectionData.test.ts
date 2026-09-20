@@ -36,11 +36,12 @@ describe("per-item editing data", () => {
     expect(rows[0].bg).toBeUndefined();
   });
 
-  it("uses per-category name/image/background, else live collections", () => {
+  it("uses per-category name/image/background, then real categories, then collections", () => {
     const custom = categoryTiles(
       section("categories", {}, [
         { id: "c1", name: "مجوهرات", imageUrl: "/j.jpg", bg: "#123456" },
       ]),
+      [],
       ["ملابس"]
     );
     expect(custom[0]).toEqual({
@@ -49,9 +50,23 @@ describe("per-item editing data", () => {
       imageUrl: "/j.jpg",
       bg: "#123456",
     });
-    const auto = categoryTiles(section("categories"), ["ملابس", "عناية"]);
+
+    // Real store categories come second and carry the slug used for the page link.
+    const real = categoryTiles(section("categories"), [
+      { id: 4, name: "إكسسوارات", slug: "accessories", imageUrl: null },
+    ], []);
+    expect(real[0]).toEqual({
+      id: "4",
+      name: "إكسسوارات",
+      imageUrl: undefined,
+      slug: "accessories",
+    });
+
+    // Live collections stay the last fallback.
+    const auto = categoryTiles(section("categories"), [], ["ملابس", "عناية"]);
     expect(auto.map(t => t.name)).toEqual(["ملابس", "عناية"]);
     expect(auto[0].bg).toBeUndefined();
+    expect(auto[0].slug).toBeUndefined();
   });
 });
 

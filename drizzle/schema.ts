@@ -69,6 +69,11 @@ export const storeProducts = mysqlTable("store_products", {
     .notNull(),
   currency: varchar("currency", { length: 8 }).default("DZD").notNull(),
   collectionName: varchar("collectionName", { length: 160 }),
+  /**
+   * One category per product. `collectionName` is kept as archived data but is
+   * no longer edited from the product form.
+   */
+  categoryId: int("categoryId"),
   digitalFileName: varchar("digitalFileName", { length: 255 }),
   digitalFileStorageKey: varchar("digitalFileStorageKey", { length: 512 }),
   digitalFileUrl: varchar("digitalFileUrl", { length: 1024 }),
@@ -144,7 +149,11 @@ export const storeProducts = mysqlTable("store_products", {
   codTrustScore: varchar("codTrustScore", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+},
+table => ({
+  categoryIdx: index("store_products_category_idx").on(table.categoryId),
+  storeIdx: index("store_products_store_idx").on(table.storeId),
+}));
 
 export const storeProductImages = mysqlTable("store_product_images", {
   id: int("id").autoincrement().primaryKey(),
@@ -1469,3 +1478,35 @@ export type StorefrontDraft = typeof storefrontDrafts.$inferSelect;
 export type StorefrontVersion = typeof storefrontVersions.$inferSelect;
 export type StorefrontAuditLog = typeof storefrontAuditLogs.$inferSelect;
 export type DashboardColorSetting = typeof dashboardColorSettings.$inferSelect;
+
+/**
+ * Store categories (one category per product, no subcategories).
+ *
+ * `slug` is unique per store so the storefront URL `/store/category/<slug>`
+ * resolves inside a single tenant only.
+ */
+export const categories = mysqlTable(
+  "categories",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    ownerId: int("ownerId").notNull(),
+    storeId: int("storeId").notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    slug: varchar("slug", { length: 160 }).notNull(),
+    imageUrl: varchar("imageUrl", { length: 1024 }),
+    sortOrder: int("sortOrder").default(0).notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    storeSlugUnique: uniqueIndex("categories_store_slug_unique").on(
+      table.storeId,
+      table.slug
+    ),
+    storeIdx: index("categories_store_idx").on(table.storeId),
+  })
+);
+
+export type Category = typeof categories.$inferSelect;
+export type InsertCategory = typeof categories.$inferInsert;

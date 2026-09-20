@@ -47,14 +47,26 @@ export interface CategoryTile {
   name: string;
   imageUrl?: string;
   bg?: string;
+  /** Set when the tile comes from a real store category (links to its page). */
+  slug?: string;
+}
+
+export interface PublicCategory {
+  id: number;
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
 }
 
 /**
- * Categories: merchant items when present (each with its own name/image/color),
- * otherwise the live product collections — unchanged default behaviour.
+ * Categories, in priority order:
+ *   1. merchant items for this section (name/image/color, searched on click)
+ *   2. the store's real categories (each links to /store/category/<slug>)
+ *   3. live product collections (unchanged fallback behaviour)
  */
 export function categoryTiles(
   section: StorefrontSection,
+  categories: PublicCategory[],
   collections: string[]
 ): CategoryTile[] {
   const items = section.items ?? [];
@@ -64,6 +76,14 @@ export function categoryTiles(
       name: item.name,
       imageUrl: item.imageUrl,
       bg: item.bg,
+    }));
+  }
+  if (categories.length) {
+    return categories.map(category => ({
+      id: String(category.id),
+      name: category.name,
+      imageUrl: category.imageUrl ?? undefined,
+      slug: category.slug,
     }));
   }
   return collections.map(name => ({ id: name, name }));

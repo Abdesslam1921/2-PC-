@@ -79,6 +79,12 @@ export function BoutiqueStorefront({
   const [search, setSearch] = useState("");
 
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
+  /** Real store categories (fail-closed on the server). */
+  const categoriesQuery = trpc.categories.publicList.useQuery(undefined, {
+    retry: false,
+  });
+  const publicCategories = categoriesQuery.data ?? [];
+
   const collections = useMemo(() => {
     const set = new Set<string>();
     for (const p of products) if (p.collectionName) set.add(p.collectionName);
@@ -494,11 +500,15 @@ export function BoutiqueStorefront({
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-4">
-                  {categoryTiles(section, collections).map(item => (
+                  {categoryTiles(section, publicCategories, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSearch(item.name)}
+                      onClick={() =>
+                        item.slug
+                          ? setLocation(`/store/category/${item.slug}`)
+                          : setSearch(item.name)
+                      }
                       className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-accent-soft,#E9C77B)] bg-[linear-gradient(145deg,var(--sf-color-surface-muted,#F6EFE2),color-mix(in_srgb,var(--sf-color-surface-muted,#F6EFE2)_80%,black))] bg-cover bg-center p-4 text-right font-semibold text-[var(--sf-color-text,#2B211A)]"
                       style={
                         item.imageUrl

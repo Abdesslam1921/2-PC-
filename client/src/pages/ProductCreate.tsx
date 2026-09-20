@@ -153,6 +153,9 @@ export default function ProductCreate() {
     }>
   >([]);
   const [title, setTitle] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  /** Existing store categories (one category per product). */
+  const categories = trpc.categories.list.useQuery(undefined, { retry: false });
   const [description, setDescription] = useState("");
   const [codTrustScore, setCodTrustScore] = useState("");
   const [codTrustScoreEnabled, setCodTrustScoreEnabled] = useState(false);
@@ -383,6 +386,7 @@ export default function ProductCreate() {
         productKind,
         currency,
         collectionName: "",
+        categoryId: categoryId ? Number(categoryId) : null,
         status,
         price: basePrice,
         compareAtPrice,
@@ -597,8 +601,19 @@ export default function ProductCreate() {
                   <TextInput placeholder="ملابس، إكسسوارات..." />
                 </div>
                 <div>
-                  <FieldLabel optional>المجموعة</FieldLabel>
-                  <TextInput placeholder="مجموعة الصيف" />
+                  <FieldLabel optional>الفئة</FieldLabel>
+                  <select
+                    value={categoryId}
+                    onChange={event => setCategoryId(event.target.value)}
+                    className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
+                  >
+                    <option value="">بدون فئة</option>
+                    {categories.data?.map(category => (
+                      <option key={category.id} value={String(category.id)}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

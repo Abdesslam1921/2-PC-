@@ -54,6 +54,7 @@ export default function ProductEdit() {
   });
   const [form, setForm] = useState({
     title: "",
+    categoryId: "" as string,
     description: "",
     price: "",
     compareAtPrice: "",
@@ -92,6 +93,8 @@ export default function ProductEdit() {
   });
   const [offers, setOffers] = useState<OfferDraft[]>([]);
   const [costBatches, setCostBatches] = useState<CostBatchDraft[]>([]);
+  /** Store categories for the (single) product category picker. */
+  const categories = trpc.categories.list.useQuery(undefined, { retry: false });
   const storeProducts = trpc.products.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -113,6 +116,7 @@ export default function ProductEdit() {
     if (!product) return;
     setForm({
       title: product.title,
+      categoryId: product.categoryId ? String(product.categoryId) : "",
       description: product.description,
       price: product.price ?? "",
       compareAtPrice: product.compareAtPrice ?? "",
@@ -250,6 +254,7 @@ export default function ProductEdit() {
       description: form.description,
       productType: productQuery.data.productType ?? "",
       collectionName: productQuery.data.collectionName ?? "",
+      categoryId: form.categoryId ? Number(form.categoryId) : null,
       productKind: form.productKind,
       currency: form.currency,
       status: form.status,
@@ -386,6 +391,21 @@ export default function ProductEdit() {
                 value={form.description}
                 onChange={event => field("description", event.target.value)}
               />
+            </label>
+            <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">
+              الفئة
+              <select
+                className={inputClass}
+                value={form.categoryId}
+                onChange={event => field("categoryId", event.target.value)}
+              >
+                <option value="">بدون فئة</option>
+                {categories.data?.map(category => (
+                  <option key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
             </label>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">

@@ -79,6 +79,12 @@ export function BoldStorefront({
   const [search, setSearch] = useState("");
 
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
+  /** Real store categories (fail-closed on the server). */
+  const categoriesQuery = trpc.categories.publicList.useQuery(undefined, {
+    retry: false,
+  });
+  const publicCategories = categoriesQuery.data ?? [];
+
   const collections = useMemo(() => {
     const set = new Set<string>();
     for (const p of products) if (p.collectionName) set.add(p.collectionName);
@@ -515,11 +521,15 @@ export function BoldStorefront({
                   {str(section.settings.title, "تسوق حسب الفئة")}
                 </h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {categoryTiles(section, collections).map(item => (
+                  {categoryTiles(section, publicCategories, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSearch(item.name)}
+                      onClick={() =>
+                        item.slug
+                          ? setLocation(`/store/category/${item.slug}`)
+                          : setSearch(item.name)
+                      }
                       className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(135deg,#0F766E,#0B5D57))] bg-cover bg-center p-4 text-right text-[16px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)] shadow-[8px_8px_0_0_#0C2A26]"
                       style={
                         item.imageUrl
