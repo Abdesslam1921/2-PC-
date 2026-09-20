@@ -5,7 +5,10 @@
  * Every value comes from the validated section config; templates only decide
  * how to render it.
  */
-import type { StorefrontSection } from "@shared/storefront/storefrontConfig";
+import type {
+  StorefrontConfig,
+  StorefrontSection,
+} from "@shared/storefront/storefrontConfig";
 
 export interface BenefitRow {
   id: string;
@@ -59,31 +62,90 @@ export interface PublicCategory {
 }
 
 /**
+ * Category items that were SHIPPED by older template defaults.
+ *
+ * They were removed from the defaults, but older drafts and published
+ * snapshots still carry them (immutable versions are never rewritten), which
+ * made the four stock tiles flash for ~2s before the real categories loaded.
+ * They are ignored at render time unless the merchant edited them (a different
+ * name means it is no longer the untouched stock item).
+ */
+export const LEGACY_DEFAULT_CATEGORY_ITEMS: Record<string, string> = {
+  "cat-clothes": "ملابس",
+  "cat-accessories": "إكسسوارات",
+  "cat-electronics": "إلكترونيات",
+  "cat-beauty": "عناية",
+};
+
+export function isUntouchedLegacyCategoryItem(item: {
+  id: string;
+  name: string;
+}): boolean {
+  return LEGACY_DEFAULT_CATEGORY_ITEMS[item.id] === item.name.trim();
+}
+
+/** Drop the untouched stock items from a list of section items. */
+export function stripLegacyDefaultCategoryItems<
+  T extends { id: string; name: string },
+>(items: T[]): T[] {
+  return items.filter(item => !isUntouchedLegacyCategoryItem(item));
+}
+
+/**
+ * Remove the untouched stock category tiles from a whole config (used when the
+ * editor loads a draft so the stale defaults are cleaned, not republished).
+ */
+export function stripLegacyDefaultCategoriesFromConfig<T extends StorefrontConfig>(
+  config: T
+): T {
+  let changed = false;
+  const sections = config.sections.map(section => {
+    if (section.type !== "categories" || !section.items?.length) return section;
+    const items = stripLegacyDefaultCategoryItems(section.items);
+    if (items.length === section.items.length) return section;
+    changed = true;
+    return { ...section, items: items.length ? items : undefined };
+  });
+  return changed ? ({ ...config, sections } as T) : config;
+}
+
+/**
  * Categories, in priority order:
- *   1. merchant items for this section (name/image/color, searched on click)
- *   2. the store's real categories (each links to /store/category/<slug>)
+ *   1. the store's REAL categories that have at least one active product
+ *      (each links to /store/category/<slug>)
+ *   2. merchant items for this section (custom tiles for stores without
+ *      categories; searched in-page on click)
  *   3. live product collections (unchanged fallback behaviour)
+ *
+ * Real categories win because they are the store's source of truth: shipping
+ * default items used to hide every category the merchant created.
+ *
+ * While the categories query is still loading the caller must render a
+ * skeleton instead of calling this (otherwise the fallbacks flash on screen).
  */
 export function categoryTiles(
   section: StorefrontSection,
   categories: PublicCategory[],
-  collections: string[]
+  collections: string[],
+  /** While the categories query is in flight nothing else may be shown. */
+  loading = false
 ): CategoryTile[] {
-  const items = section.items ?? [];
-  if (items.length) {
-    return items.map(item => ({
-      id: item.id,
-      name: item.name,
-      imageUrl: item.imageUrl,
-      bg: item.bg,
-    }));
-  }
+  if (loading) return [];
   if (categories.length) {
     return categories.map(category => ({
       id: String(category.id),
       name: category.name,
       imageUrl: category.imageUrl ?? undefined,
       slug: category.slug,
+    }));
+  }
+  const items = stripLegacyDefaultCategoryItems(section.items ?? []);
+  if (items.length) {
+    return items.map(item => ({
+      id: item.id,
+      name: item.name,
+      imageUrl: item.imageUrl,
+      bg: item.bg,
     }));
   }
   return collections.map(name => ({ id: name, name }));

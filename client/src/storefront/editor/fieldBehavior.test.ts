@@ -185,12 +185,12 @@ describe("editable defaults shipped for every template", () => {
     }
   });
 
-  it("ships the four category tiles as editable items", () => {
+  it("does not ship preset category tiles (they hid the real categories)", () => {
     for (const key of STOREFRONT_TEMPLATE_KEYS) {
       const categories = TEMPLATE_DEFAULT_CONFIGS[key].sections.find(
         s => s.type === "categories"
       );
-      expect(categories?.items?.length, key).toBe(4);
+      expect(categories?.items ?? [], key).toEqual([]);
     }
   });
 });

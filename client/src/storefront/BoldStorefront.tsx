@@ -521,7 +521,22 @@ export function BoldStorefront({
                   {str(section.settings.title, "تسوق حسب الفئة")}
                 </h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {categoryTiles(section, publicCategories, collections).map(item => (
+                  {categoriesQuery.isLoading ? (
+                    <div className="col-span-2 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:col-span-4">
+                      {[0, 1, 2, 3].map(i => (
+                        <div
+                          key={i}
+                          className="h-[120px] animate-pulse rounded-[var(--sf-radius-lg,28px)] bg-[var(--sf-color-surface-muted,#DFF2EE)]"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {categoryTiles(
+                    section,
+                    publicCategories,
+                    collections,
+                    categoriesQuery.isLoading
+                  ).map(item => (
                     <button
                       key={item.id}
                       type="button"

@@ -11,6 +11,7 @@ import {
   listPublicCategories,
   listPublicProductsByCategory,
   setCategoryOrder,
+  setCategoryProducts,
   updateCategory,
 } from "../db";
 
@@ -181,6 +182,32 @@ export const categoriesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const storeId = requireStoreId(ctx);
       await setCategoryOrder(storeId, input.ids);
+      return { ok: true };
+    }),
+
+  /**
+   * Bulk (un)assign products of the caller's store to one category. Products
+   * are always resolved through the store, so ids from other tenants are
+   * ignored instead of being moved.
+   */
+  setProducts: protectedProcedure
+    .input(
+      z.object({
+        categoryId: z.number().int().positive(),
+        productIds: z.array(z.number().int().positive()).max(2000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const storeId = requireStoreId(ctx);
+      const category = await getCategoryById(storeId, input.categoryId);
+      if (!category) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "الفئة غير موجودة." });
+      }
+      await setCategoryProducts({
+        storeId,
+        categoryId: input.categoryId,
+        productIds: input.productIds,
+      });
       return { ok: true };
     }),
 

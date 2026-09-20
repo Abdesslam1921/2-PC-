@@ -153,9 +153,37 @@ export default function ProductCreate() {
     }>
   >([]);
   const [title, setTitle] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState(() => {
+    // Deep link from the categories page: /products/create?categoryId=12
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("categoryId") ?? "";
+  });
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   /** Existing store categories (one category per product). */
   const categories = trpc.categories.list.useQuery(undefined, { retry: false });
+  const createCategory = trpc.categories.create.useMutation();
+  /** Create a category without leaving the product form, then select it. */
+  const createCategoryInline = () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("اكتب اسم الفئة.");
+      return;
+    }
+    createCategory.mutate(
+      { name },
+      {
+        onSuccess: async data => {
+          await categories.refetch();
+          setCategoryId(String(data.id));
+          setNewCategoryName("");
+          setCreatingCategory(false);
+          toast.success("تم إنشاء الفئة.");
+        },
+        onError: error => toast.error(error.message),
+      }
+    );
+  };
   const [description, setDescription] = useState("");
   const [codTrustScore, setCodTrustScore] = useState("");
   const [codTrustScoreEnabled, setCodTrustScoreEnabled] = useState(false);
@@ -602,18 +630,50 @@ export default function ProductCreate() {
                 </div>
                 <div>
                   <FieldLabel optional>الفئة</FieldLabel>
-                  <select
-                    value={categoryId}
-                    onChange={event => setCategoryId(event.target.value)}
-                    className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
-                  >
-                    <option value="">بدون فئة</option>
-                    {categories.data?.map(category => (
-                      <option key={category.id} value={String(category.id)}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
+                  {creatingCategory ? (
+                    <div className="flex items-center gap-2">
+                      <TextInput
+                        value={newCategoryName}
+                        onChange={event => setNewCategoryName(event.target.value)}
+                        placeholder="اسم الفئة الجديدة"
+                      />
+                      <button
+                        type="button"
+                        onClick={createCategoryInline}
+                        disabled={createCategory.isPending}
+                        className="h-11 shrink-0 rounded-xl bg-[var(--brand)] px-3 text-xs font-extrabold text-white disabled:opacity-50"
+                      >
+                        {createCategory.isPending ? "…" : "إنشاء"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreatingCategory(false)}
+                        className="h-11 shrink-0 rounded-xl border border-[#E3E1D8] px-3 text-xs font-bold"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  ) : (
+                    <select
+                      value={categoryId}
+                      onChange={event => {
+                        if (event.target.value === "__new__") {
+                          setCreatingCategory(true);
+                          return;
+                        }
+                        setCategoryId(event.target.value);
+                      }}
+                      className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition duration-200 focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
+                    >
+                      <option value="">بدون فئة</option>
+                      {categories.data?.map(category => (
+                        <option key={category.id} value={String(category.id)}>
+                          {category.name}
+                        </option>
+                      ))}
+                      <option value="__new__">+ إنشاء فئة جديدة</option>
+                    </select>
+                  )}
                 </div>
               </div>
             </div>

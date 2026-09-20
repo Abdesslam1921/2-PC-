@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -6,6 +6,8 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Search,
+  Settings2,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -47,8 +49,17 @@ export default function Categories() {
   const utils = trpc.useUtils();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [uploading, setUploading] = useState(false);
+  /** Category whose product list is being edited. */
+  const [assigning, setAssigning] = useState<{ id: number; name: string } | null>(
+    null
+  );
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
+  const [productFilter, setProductFilter] = useState("");
 
   const categories = trpc.categories.list.useQuery();
+  const products = trpc.products.list.useQuery(undefined, {
+    enabled: Boolean(assigning),
+  });
   const [ordered, setOrdered] = useState<number[] | null>(null);
   const rows = ordered
     ? [...(categories.data ?? [])].sort(
@@ -91,7 +102,45 @@ export default function Categories() {
       setOrdered(null);
     },
   });
+  const setProducts = trpc.categories.setProducts.useMutation({
+    onSuccess: () => {
+      toast.success("تم تحديث منتجات الفئة.");
+      setAssigning(null);
+      invalidate();
+      // The picker pre-fills from products.list: refresh it so a product moved
+      // to another category never looks like it is in two categories.
+      void utils.products.list.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
   const uploadAsset = trpc.storefront.uploadAsset.useMutation();
+
+  /** Toggling active state straight from the list row. */
+  const toggleActive = (id: number, isActive: boolean) =>
+    update.mutate({ id, isActive });
+
+  const openProducts = (row: { id: number; name: string }) => {
+    const preselected = (products.data ?? [])
+      .filter(
+        (product): product is NonNullable<typeof product> =>
+          product != null && product.categoryId === row.id
+      )
+      .map(product => product.id);
+    setSelectedProducts(preselected);
+    setProductFilter("");
+    setAssigning({ id: row.id, name: row.name });
+  };
+
+  const visibleProducts = useMemo(() => {
+    const query = productFilter.trim().toLowerCase();
+    const list = (products.data ?? []).filter(
+      (product): product is NonNullable<typeof product> => product != null
+    );
+    if (!query) return list;
+    return list.filter(product =>
+      (product.title ?? "").toLowerCase().includes(query)
+    );
+  }, [products.data, productFilter]);
 
   const save = () => {
     if (!draft) return;
@@ -147,7 +196,9 @@ export default function Categories() {
           </h1>
           <p className="mt-1 text-sm text-[#73758a]">
             فئة واحدة لكل منتج. الفئات النشطة تظهر في واجهة المتجر وفي صفحة
-            الفئة <span dir="ltr">/store/category/&lt;slug&gt;</span>.
+            الفئة <span dir="ltr">/store/category/&lt;slug&gt;</span>. يظهر في
+            المتجر فقط ما فيه منتج <b>منشور</b> واحد على الأقل — والمنتج ينتمي
+            لفئة واحدة، فاختياره هنا ينقله من فئته السابقة.
           </p>
         </div>
         <Button
@@ -224,7 +275,33 @@ export default function Categories() {
                   <Badge className="rounded-full bg-[#e4f3ef] text-[var(--brand)] hover:bg-[#e4f3ef]">
                     {row.productCount} منتج
                   </Badge>
+                  {row.isActive && row.activeProductCount === 0 ? (
+                    <span
+                      className="rounded-full bg-[#FDF1DC] px-2.5 py-1 text-[11px] font-bold text-[#B45309]"
+                      title="المتجر يعرض فقط الفئات التي فيها منتج منشور واحد على الأقل."
+                    >
+                      لن تظهر في المتجر: لا منتج منشور ({row.productCount} مسودة)
+                    </span>
+                  ) : null}
+                  <label
+                    className="flex items-center gap-2 text-[11.5px] font-bold text-[#576B66]"
+                    title={row.isActive ? "الفئة مفعّلة" : "الفئة معطّلة"}
+                  >
+                    {row.isActive ? "مفعّلة" : "معطّلة"}
+                    <Switch
+                      checked={row.isActive}
+                      onCheckedChange={checked => toggleActive(row.id, checked)}
+                    />
+                  </label>
                   <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openProducts(row)}
+                      className="grid size-9 place-items-center rounded-lg border border-[#E7E9E2] bg-white"
+                      title="إدارة منتجات الفئة"
+                    >
+                      <Settings2 className="size-4" />
+                    </button>
                     <button
                       type="button"
                       onClick={() =>
@@ -359,6 +436,127 @@ export default function Categories() {
               className="rounded-xl brand-shine cta-gradient font-extrabold"
             >
               {create.isPending || update.isPending ? "…" : "حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage the products of one category (one category per product). */}
+      <Dialog
+        open={Boolean(assigning)}
+        onOpenChange={open => {
+          if (!open) setAssigning(null);
+        }}
+      >
+        <DialogContent dir="rtl" className="rounded-2xl sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-right font-black">
+              منتجات «{assigning?.name}»
+            </DialogTitle>
+            <DialogDescription className="text-right">
+              اختر المنتجات التي تنتمي لهذه الفئة. المنتج ينتمي لفئة واحدة —
+              اختياره هنا ينقله من فئته السابقة.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#9aa39d]" />
+              <Input
+                value={productFilter}
+                onChange={event => setProductFilter(event.target.value)}
+                placeholder="ابحث في المنتجات…"
+                className="pr-9"
+              />
+            </div>
+
+            {products.isLoading ? (
+              <div className="grid place-items-center py-10">
+                <Loader2 className="size-5 animate-spin text-[var(--brand)]" />
+              </div>
+            ) : visibleProducts.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[#73758a]">
+                لا منتجات مطابقة. أضف منتجًا جديدًا من الزر أسفله.
+              </p>
+            ) : (
+              <ul className="max-h-[46vh] space-y-1 overflow-y-auto rounded-xl border border-[#E7E9E2] p-2">
+                {visibleProducts.map(product => {
+                  const checked = selectedProducts.includes(product.id);
+                  const otherCategory =
+                    product.categoryId && product.categoryId !== assigning?.id
+                      ? "منتقل من فئة أخرى"
+                      : null;
+                  return (
+                    <li key={product.id}>
+                      <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#F7F7F3]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={event =>
+                            setSelectedProducts(current =>
+                              event.target.checked
+                                ? [...current, product.id]
+                                : current.filter(id => id !== product.id)
+                            )
+                          }
+                          className="size-4 accent-[var(--brand)]"
+                        />
+                        <span className="size-9 shrink-0 rounded-lg border border-[#E7E9E2] bg-[#F7F7F3] bg-cover bg-center" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-bold">
+                            {product.title}
+                          </span>
+                          {otherCategory ? (
+                            <span className="text-[11px] text-[#B45309]">
+                              {otherCategory}
+                            </span>
+                          ) : null}
+                        </span>
+                        <Badge variant="secondary" className="rounded-full">
+                          {product.status === "active" ? "منشور" : "مسودة"}
+                        </Badge>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-[#73758a]">
+              <span>{selectedProducts.length} منتج مختار</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAssigning(null);
+                  window.location.href = `/products/create?categoryId=${assigning?.id ?? ""}`;
+                }}
+                className="font-extrabold text-[var(--brand)]"
+              >
+                + إضافة منتج جديد لهذه الفئة
+              </button>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setAssigning(null)}
+              className="rounded-xl"
+            >
+              إلغاء
+            </Button>
+            <Button
+              onClick={() =>
+                assigning &&
+                setProducts.mutate({
+                  categoryId: assigning.id,
+                  productIds: selectedProducts,
+                })
+              }
+              disabled={setProducts.isPending}
+              className="rounded-xl brand-shine cta-gradient font-extrabold"
+            >
+              {setProducts.isPending ? "…" : "حفظ المنتجات"}
             </Button>
           </DialogFooter>
         </DialogContent>

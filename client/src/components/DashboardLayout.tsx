@@ -81,7 +81,7 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
   },
   {
     title: "الكتالوج والتوصيل",
-    paths: ["/products", "/digital-products", "/delivery", "/for-ship"],
+    paths: ["/products", "/categories", "/digital-products", "/delivery", "/for-ship"],
   },
   {
     title: "النمو والتسويق",

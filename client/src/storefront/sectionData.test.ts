@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { benefitRows, categoryTiles, footerData, phoneHref, whatsappHref } from "./sectionData";
+import {
+  benefitRows,
+  categoryTiles,
+  footerData,
+  phoneHref,
+  stripLegacyDefaultCategoriesFromConfig,
+  whatsappHref,
+} from "./sectionData";
 import { signatureStyle } from "./FooterExtras";
 import { SECTION_FIELDS } from "@shared/storefront/sectionFields";
 import { storefrontAnchors } from "./sectionIcons";
@@ -36,7 +43,20 @@ describe("per-item editing data", () => {
     expect(rows[0].bg).toBeUndefined();
   });
 
-  it("uses per-category name/image/background, then real categories, then collections", () => {
+  it("prefers real categories, then merchant items, then collections", () => {
+    // 1) real categories win (they link to their own page)
+    const real = categoryTiles(
+      section("categories", {}, [
+        { id: "c1", name: "مجوهرات", imageUrl: "/j.jpg", bg: "#123456" },
+      ]),
+      [{ id: 4, name: "إكسسوارات", slug: "accessories", imageUrl: null }],
+      ["ملابس"]
+    );
+    expect(real).toEqual([
+      { id: "4", name: "إكسسوارات", imageUrl: undefined, slug: "accessories" },
+    ]);
+
+    // 2) merchant items when the store has no categories yet
     const custom = categoryTiles(
       section("categories", {}, [
         { id: "c1", name: "مجوهرات", imageUrl: "/j.jpg", bg: "#123456" },
@@ -51,22 +71,81 @@ describe("per-item editing data", () => {
       bg: "#123456",
     });
 
-    // Real store categories come second and carry the slug used for the page link.
-    const real = categoryTiles(section("categories"), [
-      { id: 4, name: "إكسسوارات", slug: "accessories", imageUrl: null },
-    ], []);
-    expect(real[0]).toEqual({
-      id: "4",
-      name: "إكسسوارات",
-      imageUrl: undefined,
-      slug: "accessories",
-    });
-
-    // Live collections stay the last fallback.
+    // 3) live collections stay the last fallback
     const auto = categoryTiles(section("categories"), [], ["ملابس", "عناية"]);
     expect(auto.map(t => t.name)).toEqual(["ملابس", "عناية"]);
     expect(auto[0].bg).toBeUndefined();
     expect(auto[0].slug).toBeUndefined();
+  });
+});
+
+describe("stock template tiles never flash (legacy defaults in old drafts)", () => {
+  const stockItems = [
+    { id: "cat-clothes", name: "ملابس" },
+    { id: "cat-accessories", name: "إكسسوارات" },
+    { id: "cat-electronics", name: "إلكترونيات" },
+    { id: "cat-beauty", name: "عناية" },
+  ];
+
+  it("ignores untouched stock items and falls back to collections", () => {
+    const tiles = categoryTiles(
+      section("categories", {}, stockItems),
+      [],
+      ["ملابس", "عناية"]
+    );
+    // Not the stock items: the collection fallback (or nothing) is used.
+    expect(tiles.every(tile => !tile.id.startsWith("cat-"))).toBe(true);
+  });
+
+  it("keeps a stock item the merchant edited (different name)", () => {
+    const tiles = categoryTiles(
+      section("categories", {}, [
+        { id: "cat-clothes", name: "ملابس صيفية" },
+        { id: "cat-beauty", name: "عناية" },
+      ]),
+      [],
+      []
+    );
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0]).toMatchObject({ id: "cat-clothes", name: "ملابس صيفية" });
+  });
+
+  it("keeps merchant-created items (random ids)", () => {
+    const tiles = categoryTiles(
+      section("categories", {}, [{ id: "item-abc", name: "هدايا" }]),
+      [],
+      []
+    );
+    expect(tiles).toEqual([
+      { id: "item-abc", name: "هدايا", imageUrl: undefined, bg: undefined },
+    ]);
+  });
+
+  it("renders nothing at all while the categories query is loading", () => {
+    // No items, no collections, real categories not loaded yet → empty, so the
+    // template can show its own skeleton without any fallback flashing.
+    expect(
+      categoryTiles(
+        section("categories", {}, stockItems),
+        [],
+        ["ملابس", "عناية"],
+        true
+      )
+    ).toEqual([]);
+  });
+
+  it("cleans the stale tiles out of a loaded draft config", () => {
+    const config = {
+      templateKey: "modern" as const,
+      sections: [
+        { id: "categories", type: "categories" as const, enabled: true, order: 1, settings: {}, items: stockItems },
+        { id: "hero", type: "hero" as const, enabled: true, order: 0, settings: {} },
+      ],
+    };
+    const cleaned = stripLegacyDefaultCategoriesFromConfig(config);
+    expect(cleaned.sections[0].items).toBeUndefined();
+    // untouched sections are returned as-is
+    expect(cleaned.sections[1]).toBe(config.sections[1]);
   });
 });
 

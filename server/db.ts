@@ -508,6 +508,9 @@ export async function listCategoriesWithCounts(storeId: number) {
       sortOrder: categories.sortOrder,
       isActive: categories.isActive,
       productCount: sql<number>`count(${storeProducts.id})`,
+      // The storefront only lists categories with at least one PUBLISHED
+      // product, so the dashboard must show both numbers to explain itself.
+      activeProductCount: sql<number>`sum(case when ${storeProducts.status} = 'active' then 1 else 0 end)`,
     })
     .from(categories)
     .leftJoin(storeProducts, eq(storeProducts.categoryId, categories.id))
@@ -521,7 +524,11 @@ export async function listCategoriesWithCounts(storeId: number) {
       categories.isActive
     )
     .orderBy(categories.sortOrder, categories.name);
-  return rows.map(row => ({ ...row, productCount: Number(row.productCount) }));
+  return rows.map(row => ({
+    ...row,
+    productCount: Number(row.productCount),
+    activeProductCount: Number(row.activeProductCount ?? 0),
+  }));
 }
 
 export async function getCategoryById(storeId: number, id: number) {
@@ -626,6 +633,9 @@ export async function setCategoryOrder(
  * Fail-closed exactly like `listPublicStoreProducts`: without a resolved store
  * there is no safe list to return, so it returns an empty array instead of
  * leaking every store's categories.
+ *
+ * Only categories that actually have at least one active product are listed, so
+ * the storefront never shows a tile that leads to an empty page.
  */
 export async function listPublicCategories(storeId?: number | null) {
   const db = await getDb();
@@ -640,8 +650,57 @@ export async function listPublicCategories(storeId?: number | null) {
       sortOrder: categories.sortOrder,
     })
     .from(categories)
-    .where(and(eq(categories.storeId, storeId), eq(categories.isActive, true)))
+    .where(
+      and(
+        eq(categories.storeId, storeId),
+        eq(categories.isActive, true),
+        sql`EXISTS (
+          SELECT 1 FROM store_products p
+           WHERE p.categoryId = ${categories.id}
+             AND p.storeId = ${storeId}
+             AND p.status = 'active'
+        )`
+      )
+    )
     .orderBy(categories.sortOrder, categories.name);
+}
+
+/**
+ * Replace the product set of one category (bulk, store-scoped).
+ *
+ * Products previously linked to this category but missing from the new list are
+ * unlinked; listed products are (re)assigned. Only rows of the caller's store
+ * can ever be touched.
+ */
+export async function setCategoryProducts(input: {
+  storeId: number;
+  categoryId: number;
+  productIds: number[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db.transaction(async tx => {
+    await tx
+      .update(storeProducts)
+      .set({ categoryId: null })
+      .where(
+        and(
+          eq(storeProducts.storeId, input.storeId),
+          eq(storeProducts.categoryId, input.categoryId)
+        )
+      );
+    if (input.productIds.length) {
+      await tx
+        .update(storeProducts)
+        .set({ categoryId: input.categoryId })
+        .where(
+          and(
+            eq(storeProducts.storeId, input.storeId),
+            inArray(storeProducts.id, input.productIds)
+          )
+        );
+    }
+  });
 }
 
 /**

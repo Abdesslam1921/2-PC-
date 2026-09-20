@@ -195,12 +195,6 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       enabled: true,
       order: 3,
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
-      items: [
-        { id: "cat-clothes", name: "ملابس" },
-        { id: "cat-accessories", name: "إكسسوارات" },
-        { id: "cat-electronics", name: "إلكترونيات" },
-        { id: "cat-beauty", name: "عناية" },
-      ],
     },
     {
       id: "featured_products",
@@ -306,12 +300,6 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       enabled: true,
       order: 3,
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
-      items: [
-        { id: "cat-clothes", name: "ملابس" },
-        { id: "cat-accessories", name: "إكسسوارات" },
-        { id: "cat-electronics", name: "إلكترونيات" },
-        { id: "cat-beauty", name: "عناية" },
-      ],
     },
     {
       id: "product_grid",
@@ -416,12 +404,6 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       enabled: true,
       order: 3,
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
-      items: [
-        { id: "cat-clothes", name: "ملابس" },
-        { id: "cat-accessories", name: "إكسسوارات" },
-        { id: "cat-electronics", name: "إلكترونيات" },
-        { id: "cat-beauty", name: "عناية" },
-      ],
     },
     {
       id: "product_grid",
@@ -526,12 +508,6 @@ export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
       enabled: true,
       order: 3,
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
-      items: [
-        { id: "cat-clothes", name: "ملابس" },
-        { id: "cat-accessories", name: "إكسسوارات" },
-        { id: "cat-electronics", name: "إلكترونيات" },
-        { id: "cat-beauty", name: "عناية" },
-      ],
     },
     {
       id: "product_grid",

@@ -95,6 +95,30 @@ export default function ProductEdit() {
   const [costBatches, setCostBatches] = useState<CostBatchDraft[]>([]);
   /** Store categories for the (single) product category picker. */
   const categories = trpc.categories.list.useQuery(undefined, { retry: false });
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const createCategory = trpc.categories.create.useMutation();
+  /** Create a category without leaving the form, then select it. */
+  const createCategoryInline = () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("اكتب اسم الفئة.");
+      return;
+    }
+    createCategory.mutate(
+      { name },
+      {
+        onSuccess: async data => {
+          await categories.refetch();
+          field("categoryId", String(data.id));
+          setNewCategoryName("");
+          setCreatingCategory(false);
+          toast.success("تم إنشاء الفئة.");
+        },
+        onError: error => toast.error(error.message),
+      }
+    );
+  };
   const storeProducts = trpc.products.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
@@ -394,18 +418,51 @@ export default function ProductEdit() {
             </label>
             <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">
               الفئة
-              <select
-                className={inputClass}
-                value={form.categoryId}
-                onChange={event => field("categoryId", event.target.value)}
-              >
-                <option value="">بدون فئة</option>
-                {categories.data?.map(category => (
-                  <option key={category.id} value={String(category.id)}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+              {creatingCategory ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    className={inputClass}
+                    value={newCategoryName}
+                    onChange={event => setNewCategoryName(event.target.value)}
+                    placeholder="اسم الفئة الجديدة"
+                  />
+                  <button
+                    type="button"
+                    onClick={createCategoryInline}
+                    disabled={createCategory.isPending}
+                    className="h-11 shrink-0 rounded-xl bg-[var(--brand)] px-3 text-xs font-extrabold text-white disabled:opacity-50"
+                  >
+                    {createCategory.isPending ? "…" : "إنشاء"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreatingCategory(false)}
+                    className="h-11 shrink-0 rounded-xl border border-[#E3E1D8] px-3 text-xs font-bold"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              ) : (
+                <select
+                  className={inputClass}
+                  value={form.categoryId}
+                  onChange={event => {
+                    if (event.target.value === "__new__") {
+                      setCreatingCategory(true);
+                      return;
+                    }
+                    field("categoryId", event.target.value);
+                  }}
+                >
+                  <option value="">بدون فئة</option>
+                  {categories.data?.map(category => (
+                    <option key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </option>
+                  ))}
+                  <option value="__new__">+ إنشاء فئة جديدة</option>
+                </select>
+              )}
             </label>
             <div className="grid gap-4 sm:grid-cols-3">
               <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">

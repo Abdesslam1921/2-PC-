@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   listPublicCategories: vi.fn(),
   getPublicCategoryBySlug: vi.fn(),
   listPublicProductsByCategory: vi.fn(),
+  setCategoryProducts: vi.fn(),
 }));
 
 vi.mock("../db", () => ({
@@ -23,6 +24,7 @@ vi.mock("../db", () => ({
   countCategoryProducts: mocks.countCategoryProducts,
   deleteCategory: mocks.deleteCategory,
   setCategoryOrder: mocks.setCategoryOrder,
+  setCategoryProducts: mocks.setCategoryProducts,
   listPublicCategories: mocks.listPublicCategories,
   getPublicCategoryBySlug: mocks.getPublicCategoryBySlug,
   listPublicProductsByCategory: mocks.listPublicProductsByCategory,
@@ -166,5 +168,40 @@ describe("categories dashboard operations", () => {
     const caller = appRouter.createCaller(makeContext({ id: 30001, ownerId: 7 }));
     await caller.categories.reorder({ ids: [3, 1, 2] });
     expect(mocks.setCategoryOrder).toHaveBeenCalledWith(30001, [3, 1, 2]);
+  });
+
+  it("assigns products to a category of the caller's store", async () => {
+    mocks.getCategoryById.mockResolvedValueOnce({ id: 5, storeId: 30001 });
+    mocks.setCategoryProducts.mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(makeContext({ id: 30001, ownerId: 7 }));
+    await expect(
+      caller.categories.setProducts({ categoryId: 5, productIds: [11, 12] })
+    ).resolves.toEqual({ ok: true });
+    expect(mocks.setCategoryProducts).toHaveBeenCalledWith({
+      storeId: 30001,
+      categoryId: 5,
+      productIds: [11, 12],
+    });
+  });
+
+  it("refuses to assign products to another store's category", async () => {
+    mocks.getCategoryById.mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(makeContext({ id: 30001, ownerId: 7 }));
+    await expect(
+      caller.categories.setProducts({ categoryId: 99, productIds: [11] })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.setCategoryProducts).not.toHaveBeenCalled();
+  });
+
+  it("accepts an empty product list (unlink everything)", async () => {
+    mocks.getCategoryById.mockResolvedValueOnce({ id: 5, storeId: 30001 });
+    mocks.setCategoryProducts.mockResolvedValueOnce(undefined);
+    const caller = appRouter.createCaller(makeContext({ id: 30001, ownerId: 7 }));
+    await caller.categories.setProducts({ categoryId: 5, productIds: [] });
+    expect(mocks.setCategoryProducts).toHaveBeenCalledWith({
+      storeId: 30001,
+      categoryId: 5,
+      productIds: [],
+    });
   });
 });

@@ -349,12 +349,23 @@ export function ModernStorefront({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {categoriesQuery.isLoading ? (
+                    <div className="col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:col-span-4">
+                      {[0, 1, 2, 3].map(i => (
+                        <div
+                          key={i}
+                          className="h-[120px] animate-pulse rounded-[var(--sf-radius-lg,22px)] bg-[var(--sf-color-surface-muted,#F3F7F6)]"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                   {categoryTiles(
                     section,
                     publicCategories,
                     collections.length
                       ? collections
-                      : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"]
+                      : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"],
+                    categoriesQuery.isLoading
                   ).map((item, i) => (
                     <button
                       key={item.id}

@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { validateStorefrontConfig } from "@shared/storefront/storefrontConfig";
+import { stripLegacyDefaultCategoriesFromConfig } from "@/storefront/sectionData";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 const SEED_KEY = "sf-builder-seed";
 
 /**
- * Per-section style overrides are editable again (section-scoped overrides on
- * top of the global theme), so loaded configs are used exactly as stored.
+ * Configs are used exactly as stored, except for the untouched stock category
+ * tiles that older template defaults shipped: they are dropped on load so they
+ * can never flash in the storefront or be republished.
  */
-function normalizeConfig(next: StorefrontConfig): StorefrontConfig {
-  return next;
+export function normalizeConfig(next: StorefrontConfig): StorefrontConfig {
+  return stripLegacyDefaultCategoriesFromConfig(next);
 }
 
 /**

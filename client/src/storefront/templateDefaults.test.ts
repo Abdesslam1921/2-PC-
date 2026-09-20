@@ -29,20 +29,14 @@ describe("template default lookup", () => {
     }
   });
 
-  it("ships the four default categories as editable items in every template", () => {
+  it("ships a categories section without preset tiles (real categories win)", () => {
     for (const key of STOREFRONT_TEMPLATE_KEYS) {
       const categories = TEMPLATE_DEFAULT_CONFIGS[key].sections.find(
         section => section.type === "categories"
       );
       expect(categories, `${key} has no categories section`).toBeTruthy();
-      expect(categories?.items?.map(item => item.name)).toEqual([
-        "ملابس",
-        "إكسسوارات",
-        "إلكترونيات",
-        "عناية",
-      ]);
-      // No background is preset, so each template keeps its gradient palette.
-      expect(categories?.items?.every(item => item.bg === undefined)).toBe(true);
+      // Shipped items used to hide every real category in the storefront.
+      expect(categories?.items ?? []).toEqual([]);
     }
   });
 
@@ -73,13 +67,9 @@ describe("template default lookup", () => {
       templateDefaultConfig("modern")?.sections.find(s => s.type === "categories")
         ?.settings
     );
-    // Resetting a categories section restores the four default tiles.
-    expect(found?.items?.map(item => item.name)).toEqual([
-      "ملابس",
-      "إكسسوارات",
-      "إلكترونيات",
-      "عناية",
-    ]);
+    // Resetting a categories section clears custom tiles (real categories are
+    // the default source again).
+    expect(found?.items ?? []).toEqual([]);
   });
 
   it("returns null for a section type the template does not define", () => {

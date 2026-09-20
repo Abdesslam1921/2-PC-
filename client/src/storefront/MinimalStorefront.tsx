@@ -473,7 +473,22 @@ export function MinimalStorefront({
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-x-[22px] gap-y-[34px] sm:grid-cols-3 lg:grid-cols-4">
-                  {categoryTiles(section, publicCategories, collections).map(item => (
+                  {categoriesQuery.isLoading ? (
+                    <div className="col-span-2 grid grid-cols-2 gap-x-[22px] gap-y-[34px] sm:grid-cols-3 lg:grid-cols-4">
+                      {[0, 1, 2, 3].map(i => (
+                        <div
+                          key={i}
+                          className="aspect-[4/5] w-full animate-pulse rounded-[var(--sf-radius-lg,3px)] bg-[var(--sf-color-surface-muted,#F4F5F4)]"
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  {categoryTiles(
+                    section,
+                    publicCategories,
+                    collections,
+                    categoriesQuery.isLoading
+                  ).map(item => (
                     <button
                       key={item.id}
                       type="button"
