@@ -16,7 +16,18 @@ import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
+import { benefitRows, categoryTiles, footerData } from "@/storefront/sectionData";
+import {
+  FooterHelp,
+  FooterSocial,
+  FooterStoreLinks,
+  SignatureFlourish,
+  signatureStyle,
+} from "@/storefront/FooterExtras";
+import { sectionIcon, storefrontAnchors } from "@/storefront/sectionIcons";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
+
+const DEFAULT_BENEFIT_ICONS = [Truck, Banknote, RotateCcw, ShieldCheck];
 
 type CatalogProduct = {
   id: number;
@@ -83,6 +94,8 @@ export function ModernStorefront({
     return Array.from(set).slice(0, 4);
   }, [products]);
 
+  const anchors = useMemo(() => storefrontAnchors(config), [config]);
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return products;
@@ -139,12 +152,12 @@ export function ModernStorefront({
         return (
           <article
             key={product.id}
-            className="overflow-hidden rounded-[var(--sf-radius-lg,22px)] border border-[#E6EEEB] bg-white shadow-[0_14px_34px_-22px_rgba(12,42,38,0.4)] transition hover:-translate-y-1"
+            className="overflow-hidden rounded-[var(--sf-radius-lg,22px)] border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] shadow-[0_14px_34px_-22px_rgba(12,42,38,0.4)] transition hover:-translate-y-1"
           >
             <button
               type="button"
               onClick={() => setLocation(`/p/${product.id}`)}
-              className="relative block h-44 w-full bg-[linear-gradient(135deg,#E7F4F1,#CFE9E3)]"
+              className="relative block h-44 w-full bg-[linear-gradient(135deg,var(--sf-color-surface-muted,#F3F7F6),color-mix(in_srgb,var(--sf-color-primary,#0F766E)_14%,var(--sf-color-surface-muted,#F3F7F6)))]"
             >
               {product.images[0]?.url ? (
                 <img
@@ -155,7 +168,7 @@ export function ModernStorefront({
                 />
               ) : null}
               {discount ? (
-                <span className="absolute right-2.5 top-2.5 rounded-full bg-[#FDF1DC] px-2.5 py-1 text-[11px] font-extrabold text-[var(--sf-color-accent,#B45309)]">
+                <span className="absolute right-2.5 top-2.5 rounded-full bg-[color-mix(in_srgb,var(--sf-color-accent,#B45309)_16%,white)] px-2.5 py-1 text-[11px] font-extrabold text-[var(--sf-color-accent,#B45309)]">
                   خصم {discount}%
                 </span>
               ) : null}
@@ -180,7 +193,7 @@ export function ModernStorefront({
               <button
                 type="button"
                 onClick={() => cartFn(product)}
-                className="mt-3 w-full rounded-full border-[1.6px] border-[var(--sf-color-primary,#0F766E)] bg-white py-2.5 text-[13px] font-extrabold text-[var(--sf-color-primary,#0F766E)] transition hover:bg-[#0F766E] hover:text-white"
+                className="mt-3 w-full rounded-full border-[1.6px] border-[var(--sf-color-primary,#0F766E)] bg-[var(--sf-color-surface,#FFFFFF)] py-2.5 text-[13px] font-extrabold text-[var(--sf-color-primary,#0F766E)] transition hover:border-[var(--sf-color-primary-hover,#0B5D57)] hover:bg-[var(--sf-color-primary-hover,#0B5D57)] hover:text-[var(--sf-color-primary-foreground,#FFFFFF)]"
               >
                 أضف إلى السلة
               </button>
@@ -189,7 +202,7 @@ export function ModernStorefront({
         );
       })}
       {!list.length && (
-        <div className="col-span-full rounded-2xl border border-dashed border-[#CDE3DE] bg-white/60 p-8 text-center text-sm text-[var(--sf-color-text-muted,#576B66)]">
+        <div className="col-span-full rounded-2xl border border-dashed border-[var(--sf-color-border,#CDE3DE)] bg-[var(--sf-color-surface,#FFFFFF)] p-8 text-center text-sm text-[var(--sf-color-text-muted,#576B66)]">
           لا توجد منتجات منشورة بعد.
         </div>
       )}
@@ -205,26 +218,31 @@ export function ModernStorefront({
             return (
               <div
                 key={section.id}
-                className="bg-[linear-gradient(90deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E))] py-2.5 text-center text-[12.5px] font-bold text-white"
+                className="bg-[image:var(--sf-brand-fill,linear-gradient(90deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)))] py-2.5 text-center text-[12.5px] font-bold text-[var(--sf-color-primary-foreground,#FFFFFF)]"
               >
-                {str(section.settings.text)}
+                <div>{str(section.settings.text)}</div>
+                {str(section.settings.subtitle) ? (
+                  <div className="mt-0.5 text-[11px] font-semibold text-[var(--sf-color-text-muted,#576B66)] opacity-90">
+                    {str(section.settings.subtitle)}
+                  </div>
+                ) : null}
               </div>
             );
           case "header":
             return (
               <header
                 key={section.id}
-                className="sticky top-0 z-30 border-b border-[#E6EEEB] bg-[rgba(255,252,246,0.9)] backdrop-blur-xl"
+                className="sticky top-0 z-30 border-b border-[var(--sf-color-border,#E6EEEB)] bg-[color-mix(in_srgb,var(--sf-color-surface,#FFFFFF)_92%,transparent)] backdrop-blur-xl"
               >
                 <div className="mx-auto flex h-[68px] max-w-[var(--sf-container-max,1200px)] items-center justify-between gap-3 px-4">
                   <div className="flex items-center gap-2.5 text-[18px] font-black">
-                    <span className="grid size-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] font-black text-white">
+                    <span className="grid size-9 place-items-center rounded-xl bg-[image:var(--sf-brand-fill,linear-gradient(135deg,var(--sf-color-primary,#0F766E),var(--sf-color-primary-hover,#0B5D57)))] font-black text-[var(--sf-color-primary-foreground,#FFFFFF)]">
                       {storeName.slice(0, 1)}
                     </span>
                     {storeName}
                   </div>
                   {section.settings.showSearch !== false ? (
-                    <label className="hidden min-w-[220px] items-center gap-2 rounded-full border border-[#E6EEEB] bg-white px-3.5 py-2.5 text-[13px] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
+                    <label className="hidden min-w-[220px] items-center gap-2 rounded-full border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] px-3.5 py-2.5 text-[13px] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
                       <Search className="size-4" />
                       <input
                         value={search}
@@ -239,12 +257,12 @@ export function ModernStorefront({
                       <button
                         type="button"
                         onClick={() => setLocation("/store/checkout")}
-                        className="relative grid size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F]"
+                        className="relative grid size-10 place-items-center rounded-xl border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] text-[var(--sf-color-text,#0C2A26)]"
                         aria-label="السلة"
                       >
                         <ShoppingCart className="size-[18px]" />
                         {itemCount > 0 && (
-                          <span className="absolute -left-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[#0F766E] px-1 text-[10px] font-extrabold text-white">
+                          <span className="absolute -left-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-[var(--sf-color-primary,#0F766E)] px-1 text-[10px] font-extrabold text-white">
                             {itemCount}
                           </span>
                         )}
@@ -253,7 +271,7 @@ export function ModernStorefront({
                     {section.settings.showAccount !== false ? (
                       <button
                         type="button"
-                        className="hidden size-10 place-items-center rounded-xl border border-[#E6EEEB] bg-white text-[#2F433F] sm:grid"
+                        className="hidden size-10 place-items-center rounded-xl border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] text-[var(--sf-color-text,#0C2A26)] sm:grid"
                         aria-label="الحساب"
                       >
                         <UserRound className="size-[18px]" />
@@ -267,7 +285,7 @@ export function ModernStorefront({
             return (
               <section
                 key={section.id}
-                className="relative grid min-h-[440px] items-end overflow-hidden bg-[radial-gradient(120%_100%_at_80%_0%,rgba(94,234,212,0.55),transparent_60%),linear-gradient(135deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_55%,var(--sf-color-primary,#0F766E))]"
+                className="relative grid min-h-[440px] items-end overflow-hidden bg-[radial-gradient(120%_100%_at_80%_0%,rgba(94,234,212,0.45),transparent_60%),var(--sf-brand-fill,linear-gradient(135deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_55%,var(--sf-color-primary,#0F766E)))]"
               >
                 {typeof section.settings.imageUrl === "string" &&
                 section.settings.imageUrl ? (
@@ -288,7 +306,7 @@ export function ModernStorefront({
                   <h1 className="mt-4 mb-3 max-w-[16ch] text-[34px] font-black leading-[1.25] sm:text-[52px]">
                     {str(section.settings.title, storeName)}
                   </h1>
-                  <p className="mb-5 max-w-[46ch] text-[14px] leading-8 text-[#E7F4F1] sm:text-[17px]">
+                  <p className="mb-5 max-w-[46ch] text-[14px] leading-8 text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-90 sm:text-[17px]">
                     {str(section.settings.subtitle)}
                   </p>
                   <div className="flex flex-wrap gap-2.5">
@@ -299,7 +317,7 @@ export function ModernStorefront({
                           .getElementById("featured")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-[15px] font-extrabold text-[var(--sf-color-primary-hover,#0B5D57)]"
+                      className="inline-flex items-center gap-2 rounded-full bg-[var(--sf-color-surface,#FFFFFF)] px-6 py-3.5 text-[15px] font-extrabold text-[var(--sf-color-primary,#0F766E)]"
                     >
                       {str(section.settings.ctaLabel, "تسوق الآن")}
                       <ArrowLeft className="size-4" />
@@ -325,12 +343,11 @@ export function ModernStorefront({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(section.items?.length
-                    ? section.items
-                    : (collections.length
-                        ? collections
-                        : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"]
-                      ).map(name => ({ id: name, name, imageUrl: undefined }))
+                  {categoryTiles(
+                    section,
+                    collections.length
+                      ? collections
+                      : ["ملابس", "عناية", "إكسسوارات", "إلكترونيات"]
                   ).map((item, i) => (
                     <button
                       key={item.id}
@@ -340,14 +357,16 @@ export function ModernStorefront({
                       style={
                         item.imageUrl
                           ? { backgroundImage: `url(${item.imageUrl})` }
-                          : {
-                              background: [
-                                "linear-gradient(135deg,#0F766E,#0B5D57)",
-                                "linear-gradient(135deg,#B45309,#7C2D12)",
-                                "linear-gradient(135deg,#15803D,#14532D)",
-                                "linear-gradient(135deg,#334155,#0F172A)",
-                              ][i % 4],
-                            }
+                          : item.bg
+                            ? { background: item.bg }
+                            : {
+                                background: [
+                                  "var(--sf-brand-fill,linear-gradient(135deg,var(--sf-color-primary,#0F766E),var(--sf-color-primary-hover,#0B5D57)))",
+                                  "var(--sf-accent-fill,linear-gradient(135deg,var(--sf-color-accent,#B45309),color-mix(in srgb, var(--sf-color-accent,#B45309) 62%, black)))",
+                                  "linear-gradient(135deg,#15803D,#14532D)",
+                                  "linear-gradient(135deg,#334155,#0F172A)",
+                                ][i % 4],
+                              }
                       }
                     >
                       {item.name}
@@ -391,12 +410,12 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-6"
               >
-                <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[linear-gradient(120deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_60%,var(--sf-color-primary,#0F766E))] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
+                <div className="grid items-center gap-5 rounded-[var(--sf-radius-lg,22px)] bg-[image:var(--sf-brand-fill,linear-gradient(120deg,var(--sf-color-primary-hover,#0B5D57),var(--sf-color-primary,#0F766E)_60%,var(--sf-color-primary,#0F766E)))] p-8 text-white sm:grid-cols-[1.4fr_auto] sm:p-11">
                   <div>
                     <h2 className="text-[24px] font-black sm:text-[32px]">
                       {str(section.settings.title)}
                     </h2>
-                    <p className="mt-2 text-[14px] leading-8 text-[#DFF0EC]">
+                    <p className="mt-2 text-[14px] leading-8 text-[var(--sf-color-primary-foreground,#FFFFFF)] opacity-85">
                       {str(section.settings.body)}
                     </p>
                   </div>
@@ -407,7 +426,7 @@ export function ModernStorefront({
                         .getElementById("featured")
                         ?.scrollIntoView({ behavior: "smooth" })
                     }
-                    className="rounded-full bg-white px-6 py-3.5 text-[14px] font-extrabold text-[var(--sf-color-primary-hover,#0B5D57)]"
+                    className="rounded-full bg-[var(--sf-color-surface,#FFFFFF)] px-6 py-3.5 text-[14px] font-extrabold text-[var(--sf-color-primary,#0F766E)]"
                   >
                     {str(section.settings.ctaLabel, "اكتشف")}
                   </button>
@@ -426,25 +445,31 @@ export function ModernStorefront({
                   </h2>
                 ) : null}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {[
-                    { icon: Truck, title: "توصيل سريع", text: "لجميع الولايات." },
-                    { icon: Banknote, title: "دفع عند الاستلام", text: "افحص قبل الدفع." },
-                    { icon: RotateCcw, title: "إرجاع 7 أيام", text: "استرجاع سهل." },
-                    { icon: ShieldCheck, title: "دفع آمن", text: "بياناتك محمية." },
-                  ].map(({ icon: Icon, title, text }) => (
-                    <div
-                      key={title}
-                      className="flex items-start gap-3 rounded-2xl border border-[#E6EEEB] bg-white p-4"
-                    >
-                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#F3F7F6] text-[var(--sf-color-primary,#0F766E)]">
-                        <Icon className="size-5" />
-                      </span>
-                      <span>
-                        <b className="block text-[13.5px]">{title}</b>
-                        <span className="text-[11.5px] text-[var(--sf-color-text-muted,#576B66)]">{text}</span>
-                      </span>
-                    </div>
-                  ))}
+                  {benefitRows(section, [
+                    ["01", "توصيل سريع", "لجميع الولايات."],
+                    ["02", "دفع عند الاستلام", "افحص قبل الدفع."],
+                    ["03", "إرجاع 7 أيام", "استرجاع سهل."],
+                    ["04", "دفع آمن", "بياناتك محمية."],
+                  ]).map((row, index) => {
+                    const Icon = sectionIcon(row.icon, DEFAULT_BENEFIT_ICONS[index % 4]);
+                    return (
+                      <div
+                        key={row.id}
+                        className="flex items-start gap-3 rounded-2xl border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] p-4"
+                        style={row.bg ? { backgroundColor: row.bg } : undefined}
+                      >
+                        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--sf-color-surface-muted,#F3F7F6)] text-[var(--sf-color-primary,#0F766E)]">
+                          <Icon className="size-5" />
+                        </span>
+                        <span>
+                          <b className="block text-[13.5px]">{row.title}</b>
+                          <span className="text-[11.5px] text-[var(--sf-color-text-muted,#576B66)]">
+                            {row.text}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );
@@ -454,7 +479,7 @@ export function ModernStorefront({
                 key={section.id}
                 className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-8"
               >
-                <div className="grid items-center gap-4 rounded-[var(--sf-radius-lg,22px)] border border-[#E6EEEB] bg-[#F3F7F6] p-7 sm:grid-cols-[1fr_auto] sm:p-9">
+                <div className="grid items-center gap-4 rounded-[var(--sf-radius-lg,22px)] border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface-muted,#F3F7F6)] p-7 sm:grid-cols-[1fr_auto] sm:p-9">
                   <div>
                     <h2 className="text-[22px] font-black">
                       {str(section.settings.title, "انضم إلى نشرتنا")}
@@ -470,11 +495,11 @@ export function ModernStorefront({
                     <input
                       type="email"
                       placeholder="بريدك الإلكتروني"
-                      className="h-12 min-w-[200px] flex-1 rounded-full border border-[#E6EEEB] bg-white px-4 text-[14px] outline-none"
+                      className="h-12 min-w-[200px] flex-1 rounded-full border border-[var(--sf-color-border,#E6EEEB)] bg-[var(--sf-color-surface,#FFFFFF)] px-4 text-[14px] outline-none"
                     />
                     <button
                       type="submit"
-                      className="h-12 rounded-full bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] px-6 text-[14px] font-extrabold text-white"
+                      className="h-12 rounded-full bg-[image:var(--sf-brand-fill,linear-gradient(135deg,var(--sf-color-primary,#0F766E),var(--sf-color-primary-hover,#0B5D57)))] px-6 text-[14px] font-extrabold text-[var(--sf-color-primary-foreground,#FFFFFF)]"
                     >
                       {str(section.settings.ctaLabel, "اشترك")}
                     </button>
@@ -484,41 +509,72 @@ export function ModernStorefront({
             );
           case "footer":
             return (
-              <footer key={section.id} className="mt-14 bg-[#0C2A26] text-[#CFE0DC]">
-                <div className="mx-auto grid max-w-[var(--sf-container-max,1200px)] gap-7 px-4 py-11 sm:grid-cols-2 lg:grid-cols-4">
-                  <div>
-                    <div className="flex items-center gap-2.5 text-[18px] font-black text-white">
-                      <span className="grid size-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] text-white">
-                        {storeName.slice(0, 1)}
-                      </span>
-                      {storeName}
+              <footer key={section.id} className="mt-14 bg-[var(--sf-color-surface-raised,#0C2A26)] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-95">
+                {(() => {
+                  const footer = footerData(section, anchors);
+                  return (
+                    <div className="mx-auto grid max-w-[var(--sf-container-max,1200px)] gap-7 px-4 py-11 sm:grid-cols-2 lg:grid-cols-4">
+                      <div>
+                        <div className="flex items-center gap-2.5 text-[18px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]">
+                          <span className="grid size-9 place-items-center rounded-xl bg-[linear-gradient(135deg,#14B8A6,#0B5D57)] text-white">
+                            {storeName.slice(0, 1)}
+                          </span>
+                          {storeName}
+                        </div>
+                        <p className="mt-3 max-w-[34ch] text-[12.5px] leading-7">
+                          {footer.about ||
+                            "تسوق بثقة — توصيل لكل الولايات والدفع عند الاستلام."}
+                        </p>
+                      </div>
+                      <div>
+                        <h3 className="mb-3 text-[15px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]">المتجر</h3>
+                        <FooterStoreLinks footer={footer} />
+                      </div>
+                      <div>
+                        <h3 className="mb-3 text-[15px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]">المساعدة</h3>
+                        <FooterHelp footer={footer} />
+                      </div>
+                      <div>
+                        <h3 className="mb-3 text-[15px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]">تابعنا</h3>
+                        <FooterSocial footer={footer} />
+                      </div>
                     </div>
-                    <p className="mt-3 max-w-[34ch] text-[12.5px] leading-7">
-                      تسوق بثقة — توصيل لكل الولايات والدفع عند الاستلام.
-                    </p>
-                  </div>
-                  {[
-                    { h: "المتجر", links: ["المنتجات", "الفئات", "العروض"] },
-                    { h: "المساعدة", links: ["تتبع الطلب", "سياسة الإرجاع", "اتصل بنا"] },
-                    { h: "تابعنا", links: ["فيسبوك", "إنستغرام", "واتساب"] },
-                  ].map(col => (
-                    <div key={col.h}>
-                      <h3 className="mb-3 text-[15px] font-black text-white">
-                        {col.h}
-                      </h3>
-                      {col.links.map(l => (
-                        <span key={l} className="mb-2 block text-[13px]">
-                          {l}
-                        </span>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-                <div className="mx-auto flex max-w-[var(--sf-container-max,1200px)] flex-wrap justify-between gap-2.5 border-t border-white/10 px-4 py-4 text-[12px] text-[#9FB8B3]">
+                  );
+                })()}
+                <div className="mx-auto flex max-w-[var(--sf-container-max,1200px)] flex-wrap justify-between gap-2.5 border-t border-white/10 px-4 py-4 text-[12px] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-70">
                   <span>© {new Date().getFullYear()} {storeName}</span>
                   <span>جميع الحقوق محفوظة</span>
                 </div>
               </footer>
+            );
+          case "signature":
+            return (
+              <section
+                key={section.id}
+                className="mx-auto max-w-[var(--sf-container-max,1200px)] px-4 py-10 text-center"
+              >
+                {(() => {
+                  const sig = signatureStyle(section);
+                  return (
+                    <>
+                      {sig.showOrnament ? (
+                        <SignatureFlourish className="mb-3" />
+                      ) : null}
+                      <div style={sig.style} className="text-[26px] font-black sm:text-[34px]">
+                        {sig.text || storeName}
+                      </div>
+                      {sig.subtitle ? (
+                        <div
+                          style={sig.style}
+                          className="mt-2 text-[13.5px] text-[var(--sf-color-text-muted,#576B66)]"
+                        >
+                          {sig.subtitle}
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </section>
             );
           case "testimonials":
             return null;

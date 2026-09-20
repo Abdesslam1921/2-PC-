@@ -1,175 +1,144 @@
-import { useMemo, useState } from "react";
-import { Link, useLocation } from "wouter";
-import {
-  Check,
-  Eye,
-  LayoutTemplate,
-  Monitor,
-  Palette,
-  Smartphone,
-  Sparkles,
-  Zap,
-  Star,
-  ShoppingBag,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useLocation } from "wouter";
+import { Check, Eye, LayoutTemplate, Loader2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { ModernStorefront } from "@/storefront/ModernStorefront";
+import { MinimalStorefront } from "@/storefront/MinimalStorefront";
+import { BoldStorefront } from "@/storefront/BoldStorefront";
+import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
+import { templateDefaultTokens } from "@/storefront/themeDefaults";
+import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
+import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
-const FALLBACK_CUSTOMIZATION = {
-  primaryColor: "var(--brand)",
-  accentColor: "#f4b84a",
-  fontFamily: "Cairo",
-  showCountdown: true,
-  showTrustBadges: true,
-  showNewsletter: true,
-};
+type TemplateKey = "modern" | "minimal" | "bold" | "boutique";
 
-// معاينات مصغرة حقيقية لكل قالب - مشي غير لون
-function MiniPreview({
+const TEMPLATES: Array<{ key: TemplateKey; label: string; hint: string }> = [
+  { key: "modern", label: "Modern", hint: "هيرو بصورة كاملة، بطاقات ناعمة، هوية تيركواز." },
+  { key: "minimal", label: "Minimal", hint: "هادئ، حواف حادة، هيرو نصّي، مساحات واسعة." },
+  { key: "bold", label: "Bold", hint: "تباين عالٍ، هيرو داكن، حدود سميكة، ذهبي." },
+  { key: "boutique", label: "Boutique", hint: "كريمي دافئ، هيرو مقسوم بإطار، لمسات ذهبية." },
+];
+
+/** Width of the simulated browser viewport used for the live thumbs. */
+const PREVIEW_WIDTH = 1280;
+/** Visible slice height (px) of each thumbnail. */
+const PREVIEW_HEIGHT = 300;
+
+function TemplateSurface({
   templateKey,
-  customization,
+  config,
+  storeName,
 }: {
-  templateKey: string;
-  customization: any;
+  templateKey: TemplateKey;
+  config: StorefrontConfig;
+  storeName: string;
 }) {
-  if (templateKey === "fashion-luxe") {
-    return (
-      <div className="p-3 space-y-2 bg-white">
-        <div className="h-20 rounded-xl bg-black text-white p-3 flex flex-col justify-end">
-          <span className="text-[10px] font-black">NEW COLLECTION</span>
-          <span className="text-sm font-black">FASHION LUXE</span>
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          <div className="h-12 bg-zinc-100 rounded-lg" />
-          <div className="h-12 bg-zinc-100 rounded-lg" />
-          <div className="h-12 bg-zinc-100 rounded-lg" />
-        </div>
-        <div className="h-6 rounded-full bg-zinc-900 w-1/2 mx-auto" />
-      </div>
-    );
+  if (templateKey === "minimal") {
+    return <MinimalStorefront config={config} storeName={storeName} />;
   }
-  if (templateKey === "electro-hub") {
-    return (
-      <div className="p-3 space-y-2 bg-[#f5f7ff]">
-        <div className="flex gap-1">
-          <span className="text-[8px] bg-blue-600 text-white px-2 py-1 rounded-full">
-            TOP DEALS
-          </span>
-          <span className="text-[8px] bg-yellow-400 px-2 py-1 rounded-full">
-            24H
-          </span>
-        </div>
-        <div
-          className="h-16 rounded-xl p-2 text-white flex items-center justify-between"
-          style={{ background: customization.primaryColor }}
-        >
-          <span className="text-xs font-black">خصم 40% اليوم</span>
-          <span className="bg-white text-black text-[8px] px-2 py-1 rounded-full">
-            تسوق
-          </span>
-        </div>
-        <div className="grid grid-cols-4 gap-1">
-          {[1, 2, 3, 4].map(i => (
-            <div
-              key={i}
-              className="h-10 bg-white rounded-lg border flex flex-col items-center justify-center"
-            >
-              <div className="size-4 bg-slate-200 rounded-full" />
-              <span className="text-[6px] mt-1">Phone</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+  if (templateKey === "bold") {
+    return <BoldStorefront config={config} storeName={storeName} />;
   }
-  if (templateKey === "beauty-glow") {
-    return (
-      <div className="p-3 space-y-2 bg-[#fff5f8]">
-        <div className="h-20 rounded-[1.2rem] bg-gradient-to-br from-pink-500 to-rose-300 p-3 text-white">
-          <span className="text-[9px]">BEAUTY GLOW</span>
-          <p className="text-xs font-black mt-1">جمالك يبدأ هنا</p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="h-16 bg-white rounded-xl p-1">
-            <div className="h-10 bg-pink-50 rounded-lg" />
-            <p className="text-[7px] mt-1 text-center">قبل / بعد</p>
-          </div>
-          <div className="h-16 bg-white rounded-xl p-2 flex flex-col justify-center">
-            <div className="flex gap-1">
-              <Star className="size-2 fill-yellow-400 text-yellow-400" />
-              <Star className="size-2 fill-yellow-400 text-yellow-400" />
-              <Star className="size-2 fill-yellow-400 text-yellow-400" />
-            </div>
-            <p className="text-[7px] mt-1">"روعة!"</p>
-          </div>
-        </div>
-      </div>
-    );
+  if (templateKey === "boutique") {
+    return <BoutiqueStorefront config={config} storeName={storeName} />;
   }
-  // market-pro - نفس الفيديو
+  return <ModernStorefront config={config} storeName={storeName} />;
+}
+
+/**
+ * Real, non-production preview: mounts the actual template component with its
+ * default config at a simulated desktop viewport, then scales it down. Same
+ * components, tokens and layout rules as the live storefront.
+ */
+function LiveTemplatePreview({
+  templateKey,
+  config,
+  storeName,
+}: {
+  templateKey: TemplateKey;
+  config: StorefrontConfig;
+  storeName: string;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.3);
+
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const update = () => {
+      const width = el.clientWidth;
+      if (width > 0) setScale(width / PREVIEW_WIDTH);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const themeStyle = useMemo(
+    () =>
+      ({
+        ...templateDefaultTokens(templateKey),
+        ...buildStorefrontTokenOverrides(config.theme ?? {}),
+        fontFamily: "var(--sf-font-heading, revert-layer)",
+      }) as CSSProperties,
+    [templateKey, config]
+  );
+
   return (
-    <div className="p-3 space-y-2 bg-white">
-      <div className="flex items-center gap-2">
-        <div className="size-6 rounded-full bg-orange-100 flex items-center justify-center">
-          <ShoppingBag className="size-3" />
-        </div>
-        <div>
-          <p className="text-[8px] font-black">مورد متميز</p>
-          <p className="text-[6px] text-zinc-500">توصيل 58 ولاية</p>
-        </div>
-      </div>
+    <div
+      ref={boxRef}
+      dir="rtl"
+      className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-[rgba(15,118,110,0.16)] bg-white"
+    >
       <div
-        className="h-12 rounded-xl flex items-center justify-between px-3"
+        data-sf-root
         style={{
-          background: `linear-gradient(135deg, ${customization.primaryColor}, #9f96ff)`,
+          ...themeStyle,
+          width: PREVIEW_WIDTH,
+          height: PREVIEW_HEIGHT / scale,
+          transform: `scale(${scale})`,
+          transformOrigin: "top right",
         }}
+        className="pointer-events-none absolute right-0 top-0 select-none"
       >
-        <span className="text-white text-[9px] font-black">بانر بسيط</span>
-        <span className="bg-white text-[7px] px-2 py-1 rounded-full font-bold">
-          SHOP NOW
-        </span>
+        <TemplateSurface
+          templateKey={templateKey}
+          config={config}
+          storeName={storeName}
+        />
       </div>
-      <div className="flex gap-2 overflow-hidden">
-        <div className="min-w-[50px] h-10 bg-zinc-100 rounded-lg" />
-        <div className="min-w-[50px] h-10 bg-zinc-100 rounded-lg" />
-        <div className="min-w-[50px] h-10 bg-zinc-100 rounded-lg" />
-      </div>
-      <div className="flex gap-1">
-        <span className="text-[6px] bg-orange-100 text-orange-600 px-2 py-1 rounded-full">
-          ⭐ 4.9 (120)
-        </span>
-        <span className="text-[6px] bg-green-50 text-green-600 px-2 py-1 rounded-full">
-          دفع عند الاستلام
-        </span>
-      </div>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.92))]" />
     </div>
   );
 }
 
 export default function Templates() {
-  const presets = trpc.templates.presets.useQuery();
-  const settings = trpc.templates.settings.useQuery();
-  const save = trpc.templates.save.useMutation({
-    onSuccess: () => settings.refetch(),
-  });
-  const [selected, setSelected] = useState("market-pro");
-  const storefrontManaged = trpc.storefront.managed.useQuery();
   const [, setLocation] = useLocation();
+  const storefrontManaged = trpc.storefront.managed.useQuery();
+  const templateDefaults = trpc.storefront.templateDefaults.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeStore = trpc.stores.active.useQuery(undefined, { retry: false });
+  const storeName = activeStore.data?.name || "المتجر";
+
   const enableTemplate = trpc.storefront.enableTemplate.useMutation({
     onSuccess: data => {
-      toast.success(`تم تفعيل قالب ${data.templateKey} ونشره على واجهة المتجر.`);
+      if (data.alreadyActive) {
+        toast.message(`قالب ${data.templateKey} مفعّل بالفعل — لم يتغيّر شيء.`);
+      } else {
+        toast.success(`تم تفعيل قالب ${data.templateKey} ونشره على واجهة المتجر.`);
+      }
       void storefrontManaged.refetch();
     },
     onError: error => toast.error(error.message),
   });
   const startEditing = trpc.storefront.startEditing.useMutation();
-  const openEditor = (templateKey: "modern" | "minimal" | "bold" | "boutique") =>
+  const openEditor = (templateKey: TemplateKey) =>
     startEditing.mutate(
       { templateKey },
       {
@@ -180,333 +149,157 @@ export default function Templates() {
               JSON.stringify({ config: data.config, version: data.version })
             );
           } catch {
-            // ignore storage failures
+            /* ignore storage failures */
           }
-          setLocation("/store/editor?tab=content");
+          if (data.seededFrom === "published") {
+            toast.message("تم فتح التصميم المنشور للقالب.");
+          }
+          setLocation("/store/editor");
         },
         onError: error => toast.error(error.message),
       }
     );
-  const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">(
-    "mobile"
-  );
-  const [customization, setCustomization] = useState(FALLBACK_CUSTOMIZATION);
-  const activeKey = settings.data?.templateKey ?? selected;
-  const activeCustomization = useMemo(
-    () => ({
-      ...FALLBACK_CUSTOMIZATION,
-      ...((settings.data?.customization as any) ?? customization),
-    }),
-    [settings.data?.customization, customization]
-  );
 
-  const choose = (key: string) => {
-    setSelected(key);
-    const preset = presets.data?.find(item => item.key === key);
-    if (preset)
-      setCustomization({
-        ...customization,
-        primaryColor: preset.colors[0],
-        accentColor: preset.colors[1],
-      });
-  };
-
-  const saveTemplate = () =>
-    save.mutate({ templateKey: selected, customization });
+  const publishedKey = storefrontManaged.data?.published?.templateKey ?? null;
+  const publishedLabel =
+    TEMPLATES.find(t => t.key === publishedKey)?.label ?? publishedKey;
+  const publishedVersion = storefrontManaged.data?.published?.versionNumber;
 
   return (
     <div dir="rtl" className="mx-auto max-w-7xl space-y-6 pb-12">
-      <div className="flex flex-col gap-4 rounded-[2rem] border border-[rgba(15,118,110,0.14)] bg-gradient-to-l from-[var(--brand-soft)] via-white to-[#fffaf1] p-6 shadow-[0_18px_60px_rgba(15,118,110,0.10)] sm:flex-row sm:items-center sm:justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-4 rounded-[2rem] border border-[rgba(15,118,110,0.18)] bg-[linear-gradient(180deg,#f7fbfa,#ffffff)] p-6 shadow-soft sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--brand)]">
-            <LayoutTemplate className="size-4" /> مركز القوالب البرو
+            <LayoutTemplate className="size-4" /> مركز القوالب
           </div>
           <h1 className="text-3xl font-black tracking-tight text-[#181a2b]">
-            اختر قالب يبيع، مشي غير لون
+            اختر تصميم متجرك
           </h1>
           <p className="mt-2 max-w-xl text-sm leading-7 text-[#73758a]">
-            كل قالب عنده هيكل مختلف، سلايدر، تقييمات، وكيفاش يعرض المنتجات.
-            المعاينة على اليمين توريك الفرق الحقيقي.
+            أربعة قوالب بهويات بصرية مختلفة. المعاينة أدناه تعرض القالب الحقيقي
+            ببيانات متجرك. فعّل التصميم أو افتح المحرّر لتخصيص المحتوى والثيم.
           </p>
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[rgba(15,118,110,0.25)] bg-white px-3.5 py-1.5 text-[12.5px] font-bold text-[#181a2b]">
+            <span className="size-2 rounded-full bg-[var(--brand)]" />
+            {publishedLabel ? (
+              <>
+                القالب النشط الآن: {publishedLabel}
+                {publishedVersion ? (
+                  <span className="text-[#73758a]">· الإصدار {publishedVersion}</span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-[#73758a]">لا يوجد قالب منشور بعد</span>
+            )}
+          </div>
         </div>
-        <Link href="/templates/ai">
-          <Button className="brand-shine cta-gradient h-12 rounded-2xl bg-[var(--brand)] px-5 font-extrabold shadow-lg shadow-[var(--brand)]/20">
-            <Sparkles className="ml-2 size-4" />
-            إنشاء قالب بالذكاء الاصطناعي
-          </Button>
-        </Link>
+        <Button
+          onClick={() => setLocation("/templates/ai")}
+          className="h-12 rounded-2xl brand-shine cta-gradient px-5 font-extrabold"
+        >
+          <Sparkles className="ml-2 size-4" />
+          إنشاء قالب بالذكاء الاصطناعي
+        </Button>
       </div>
 
-      <Card className="rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft">
-        <CardContent className="p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-black text-[var(--brand)]">
-              <Sparkles className="size-4" /> نظام القوالب الجديد
-            </div>
-            <span className="text-xs font-bold text-[#576B66]">
-              {storefrontManaged.data?.published
-                ? `المنشور: ${storefrontManaged.data.published.templateKey ?? "—"} · الإصدار ${storefrontManaged.data.published.versionNumber}`
-                : "لم يُفعَّل بعد — الواجهة القديمة (Legacy) تعمل."}
-            </span>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {(["modern", "minimal", "bold", "boutique"] as const).map(key => {
-              const isPublished =
-                storefrontManaged.data?.published?.templateKey === key;
-              return (
-                <div
-                  key={key}
-                  className="rounded-2xl border border-[#e7e9e8] p-3.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <b className="text-sm capitalize">{key}</b>
-                    {isPublished ? (
-                      <Badge className="rounded-full bg-[#e4f3ef] text-[var(--brand)] hover:bg-[#e4f3ef]">
-                        منشور
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      onClick={() => enableTemplate.mutate({ templateKey: key })}
-                      disabled={enableTemplate.isPending}
-                      variant={isPublished ? "default" : "outline"}
-                      className={`h-9 flex-1 rounded-lg text-xs font-extrabold ${
-                        isPublished ? "brand-shine cta-gradient" : ""
-                      }`}
-                    >
-                      تفعيل
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => openEditor(key)}
-                      disabled={startEditing.isPending}
-                      className="h-9 flex-1 rounded-lg text-xs font-extrabold"
-                    >
-                      تعديل
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-black text-[#181a2b]">
-                4 قوالب برو جاهزة
-              </h2>
-              <p className="text-sm text-[#85879a]">
-                مستوحاة من أشهر قوالب Shopify و Porto
-              </p>
-            </div>
-            <Badge variant="outline" className="rounded-full">
-              {presets.data?.length ?? 0} قوالب
-            </Badge>
-          </div>
-          <div className="grid gap-5 md:grid-cols-2">
-            {(presets.data ?? []).map(template => (
+      {templateDefaults.isLoading ? (
+        <div className="grid place-items-center rounded-[1.7rem] border border-[rgba(15,118,110,0.14)] bg-white py-20 shadow-soft">
+          <Loader2 className="size-7 animate-spin text-[var(--brand)]" />
+        </div>
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2">
+          {TEMPLATES.map(template => {
+            const isPublished = publishedKey === template.key;
+            const raw = templateDefaults.data?.[template.key];
+            const config = raw as StorefrontConfig | undefined;
+            return (
               <Card
                 key={template.key}
-                className={`overflow-hidden rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft transition hover:shadow-xl ${activeKey === template.key ? "ring-2 ring-[var(--brand)] shadow-lg" : ""}`}
+                className={
+                  isPublished
+                    ? "relative overflow-hidden rounded-[1.7rem] border-2 border-[var(--brand)] bg-white shadow-soft ring-4 ring-[rgba(15,118,110,0.10)]"
+                    : "overflow-hidden rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft"
+                }
               >
-                <div className="relative h-64 overflow-hidden bg-white border-b">
-                  <MiniPreview
-                    templateKey={template.key}
-                    customization={{
-                      primaryColor: template.colors[0],
-                      accentColor: template.colors[1],
-                    }}
-                  />
-                  <div className="absolute top-3 right-3 flex gap-2">
-                    <Badge className="rounded-full bg-black/80 text-white backdrop-blur text-[10px]">
-                      <Zap className="ml-1 size-3" />
-                      {(template as any).layout}
-                    </Badge>
-                  </div>
-                </div>
-                <CardContent className="space-y-3 p-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-[17px] font-black">
-                      {template.name}
-                    </CardTitle>
-                    {activeKey === template.key && (
-                      <Badge className="rounded-full bg-[var(--brand-soft)] text-[var(--brand)] hover:bg-[var(--brand-soft)]">
-                        <Check className="ml-1 size-3" />
-                        مفعّل
-                      </Badge>
+                <CardContent className="space-y-4 p-4">
+                  <div className="relative">
+                    {config ? (
+                      <LiveTemplatePreview
+                        templateKey={template.key}
+                        config={config}
+                        storeName={storeName}
+                      />
+                    ) : (
+                      <div className="grid h-[300px] place-items-center rounded-2xl border border-dashed border-[rgba(15,118,110,0.25)] bg-[#f7fbfa] text-xs font-bold text-[#73758a]">
+                        المعاينة غير متوفرة
+                      </div>
                     )}
+                    {isPublished ? (
+                      <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-[var(--brand)] px-3 py-1.5 text-[11.5px] font-black text-white shadow-[0_10px_24px_-12px_rgba(11,93,87,0.9)]">
+                        <Check className="size-3.5" />
+                        القالب النشط
+                      </span>
+                    ) : null}
                   </div>
-                  <p className="text-[13px] leading-5 text-[#77798d]">
-                    {template.description}
-                  </p>
-                  <p className="text-[11px] text-[var(--brand)] font-bold">
-                    مثالي لـ: {(template as any).bestFor}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {template.sections.slice(0, 4).map(section => (
-                      <Badge
-                        key={section}
-                        variant="secondary"
-                        className="rounded-full bg-[#f7f6fc] text-[10px] text-[#686a7b]"
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-black text-[#181a2b]">
+                          {template.label}
+                        </h2>
+                        {isPublished ? (
+                          <Badge className="rounded-full bg-[#e4f3ef] text-[var(--brand)] hover:bg-[#e4f3ef]">
+                            <Check className="ml-1 size-3" />
+                            نشط
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <p className="mt-1 text-[12.5px] leading-6 text-[#73758a]">
+                        {template.hint}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {isPublished ? (
+                      <Button
+                        disabled
+                        className="h-10 flex-1 rounded-xl border border-[rgba(15,118,110,0.25)] bg-[#e4f3ef] text-sm font-extrabold text-[var(--brand)] opacity-100"
                       >
-                        {section}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {((template as any).features ?? [])
-                      .slice(0, 2)
-                      .map((f: string) => (
-                        <span
-                          key={f}
-                          className="text-[10px] bg-green-50 text-green-700 px-2 py-1 rounded-full"
-                        >
-                          ✓ {f}
-                        </span>
-                      ))}
-                  </div>
-                  <div className="flex gap-2 pt-2">
+                        <Check className="ml-1.5 size-4" />
+                        مفعّل
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() =>
+                          enableTemplate.mutate({ templateKey: template.key })
+                        }
+                        disabled={enableTemplate.isPending}
+                        className="h-10 flex-1 rounded-xl brand-shine cta-gradient text-sm font-extrabold"
+                      >
+                        تفعيل
+                      </Button>
+                    )}
                     <Button
-                      variant="outline"
-                      className="flex-1 rounded-xl h-10"
-                      onClick={() => choose(template.key)}
+                      variant={isPublished ? "default" : "outline"}
+                      onClick={() => openEditor(template.key)}
+                      disabled={startEditing.isPending}
+                      className={
+                        isPublished
+                          ? "h-10 flex-1 rounded-xl brand-shine cta-gradient text-sm font-extrabold"
+                          : "h-10 flex-1 rounded-xl text-sm font-extrabold"
+                      }
                     >
-                      <Eye className="ml-2 size-4" />
-                      معاينة
-                    </Button>
-                    <Button
-                      className="brand-shine cta-gradient flex-1 rounded-xl bg-[var(--brand)] h-10"
-                      onClick={() => {
-                        choose(template.key);
-                        save.mutate({
-                          templateKey: template.key,
-                          customization,
-                        });
-                      }}
-                    >
-                      {activeKey === template.key
-                        ? "مفعّل حاليا"
-                        : "استخدام هذا القالب"}
+                      <Eye className="ml-1.5 size-3.5" />
+                      تعديل
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </section>
-
-        <aside className="space-y-4 xl:sticky xl:top-6 xl:self-start">
-          <Card className="overflow-hidden rounded-[1.7rem] border-[rgba(15,118,110,0.14)] bg-white shadow-soft">
-            <CardHeader className="border-b border-[rgba(15,118,110,0.12)] bg-[var(--brand-soft)]">
-              <div className="flex items-center justify-between">
-                <CardTitle className="font-black flex items-center gap-2">
-                  <Palette className="size-4" />
-                  المعاينة الحية - فرق حقيقي
-                </CardTitle>
-                <div className="flex rounded-xl bg-white p-1 shadow-sm">
-                  <Button
-                    size="icon"
-                    variant={previewMode === "desktop" ? "secondary" : "ghost"}
-                    className="size-8 rounded-lg"
-                    onClick={() => setPreviewMode("desktop")}
-                  >
-                    <Monitor className="size-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant={previewMode === "mobile" ? "secondary" : "ghost"}
-                    className="size-8 rounded-lg"
-                    onClick={() => setPreviewMode("mobile")}
-                  >
-                    <Smartphone className="size-4" />
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs text-zinc-500 mt-2">
-                هذا مشي غير تغيير لون، كل قالب عنده structure مختلف
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-5 p-5">
-              <div
-                className={`mx-auto overflow-hidden rounded-[1.5rem] border-[6px] border-[#222437] bg-white shadow-2xl transition-all ${previewMode === "mobile" ? "max-w-[280px]" : "w-full"}`}
-              >
-                <div className="h-7 bg-[#222437] flex items-center justify-center">
-                  <div className="w-12 h-1.5 bg-white/30 rounded-full" />
-                </div>
-                <MiniPreview
-                  templateKey={activeKey}
-                  customization={activeCustomization}
-                />
-              </div>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>اللون الرئيسي</Label>
-                    <Input
-                      type="color"
-                      value={customization.primaryColor}
-                      onChange={e =>
-                        setCustomization({
-                          ...customization,
-                          primaryColor: e.target.value,
-                        })
-                      }
-                      className="mt-2 h-11 w-full rounded-xl p-1"
-                    />
-                  </div>
-                  <div>
-                    <Label>لون التمييز</Label>
-                    <Input
-                      type="color"
-                      value={customization.accentColor}
-                      onChange={e =>
-                        setCustomization({
-                          ...customization,
-                          accentColor: e.target.value,
-                        })
-                      }
-                      className="mt-2 h-11 w-full rounded-xl p-1"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-[var(--brand-soft)] p-3">
-                  <Label>عرض العداد</Label>
-                  <Switch
-                    checked={customization.showCountdown}
-                    onCheckedChange={c =>
-                      setCustomization({ ...customization, showCountdown: c })
-                    }
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-xl bg-[var(--brand-soft)] p-3">
-                  <Label>عناصر الثقة</Label>
-                  <Switch
-                    checked={customization.showTrustBadges}
-                    onCheckedChange={c =>
-                      setCustomization({ ...customization, showTrustBadges: c })
-                    }
-                  />
-                </div>
-                <Button
-                  className="brand-shine cta-gradient w-full rounded-xl bg-[var(--brand)] h-11 font-black"
-                  onClick={saveTemplate}
-                  disabled={save.isPending}
-                >
-                  حفظ وتفعيل القالب البرو
-                </Button>
-                <p className="text-[11px] text-center text-zinc-400">
-                  القالب يتغير كامل، مشي غير اللون
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

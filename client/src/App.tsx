@@ -287,14 +287,9 @@ function Router() {
       />
       <Route path="/store">{() => <StorePublic />}</Route>
       <Route path="/store/editor" component={StoreEditorPage} />
-      <Route
-        path="/store/builder"
-        component={() => <RedirectTo to="/store/editor?tab=content" />}
-      />
-      <Route
-        path="/store/theme"
-        component={() => <RedirectTo to="/store/editor?tab=theme" />}
-      />
+      {/* The editor is one merged page (content + theme); legacy entries redirect to it. */}
+      <Route path="/store/builder" component={() => <RedirectTo to="/store/editor" />} />
+      <Route path="/store/theme" component={() => <RedirectTo to="/store/editor" />} />
       {/* Legacy editors kept reachable as a backup until the unified one is validated. */}
       <Route path="/store/builder-legacy" component={BuilderPage} />
       <Route path="/store/theme-legacy" component={ThemeEditorPage} />

@@ -37,6 +37,7 @@ export const storefrontColorTokens = {
   primaryForeground: "--sf-color-primary-foreground",
   primaryHover: "--sf-color-primary-hover",
   accent: "--sf-color-accent",
+  accentSoft: "--sf-color-accent-soft",
   accentForeground: "--sf-color-accent-foreground",
   success: "--sf-color-success",
   warning: "--sf-color-warning",
@@ -49,6 +50,17 @@ export const storefrontColorTokens = {
   badgeSoldOut: "--sf-color-badge-sold-out",
   announcementBackground: "--sf-color-announcement-background",
   announcementForeground: "--sf-color-announcement-foreground",
+} as const;
+
+/* ---------------------------------------------------------------------------
+ * Fill tokens — a complete `background-image` value (solid or gradient)
+ * composed from the color tokens. Templates paint brand fills from these, so
+ * one switch (or one token edit) restyles every brand surface at once.
+ * ------------------------------------------------------------------------- */
+
+export const storefrontFillTokens = {
+  brand: "--sf-brand-fill",
+  accent: "--sf-accent-fill",
 } as const;
 
 /* ---------------------------------------------------------------------------
@@ -222,6 +234,7 @@ export const STOREFRONT_BREAKPOINT_NAMES = [
 
 export const STOREFRONT_TOKEN_CATALOG = {
   color: storefrontColorTokens,
+  fill: storefrontFillTokens,
   fontFamily: storefrontFontFamilyTokens,
   fontScale: storefrontFontScaleTokens,
   fontWeight: storefrontFontWeightTokens,

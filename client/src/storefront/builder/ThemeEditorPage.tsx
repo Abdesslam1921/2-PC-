@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ColorField } from "@/storefront/editor/ColorField";
 import { Link } from "wouter";
 import { toast } from "sonner";
 import { ArrowRight, Loader2, Rocket, RotateCcw, Undo2 } from "lucide-react";
@@ -395,20 +396,12 @@ export default function ThemeEditorPage() {
                       <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
                         {field.label}
                       </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={safe}
-                          onChange={e => setColor(field.token, e.target.value)}
-                          className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
-                        />
-                        <input
-                          type="text"
-                          value={value}
-                          onChange={e => setColor(field.token, e.target.value)}
-                          className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
-                        />
-                      </div>
+                      <ColorField
+                        value={value}
+                        onChange={next => setColor(field.token, next)}
+                        defaultValue={defaults[field.token]}
+                        ariaLabel={field.label}
+                      />
                     </div>
                   );
                 })}

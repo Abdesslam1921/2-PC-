@@ -1,11 +1,18 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Loader2, Search, UserRound } from "lucide-react";
+import { Loader2, Search, Sparkles, UserRound } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
+import { benefitRows, categoryTiles, footerData } from "@/storefront/sectionData";
+import {
+  FooterInlineLinks,
+  SignatureFlourish,
+  signatureStyle,
+} from "@/storefront/FooterExtras";
+import { sectionIcon, storefrontAnchors } from "@/storefront/sectionIcons";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -50,7 +57,7 @@ const str = (value: unknown, fallback = "") =>
 
 const WRAP = "mx-auto w-full max-w-[var(--sf-container-max,1140px)] px-5 sm:px-7";
 const LABEL =
-  "text-[11px] uppercase tracking-[0.3em] text-[#8A6A3B]";
+  "text-[11px] uppercase tracking-[0.3em] text-[var(--sf-color-accent,#8A6A3B)]";
 
 export function BoutiqueStorefront({
   config,
@@ -77,6 +84,8 @@ export function BoutiqueStorefront({
     for (const p of products) if (p.collectionName) set.add(p.collectionName);
     return Array.from(set).slice(0, 3);
   }, [products]);
+
+  const anchors = useMemo(() => storefrontAnchors(config), [config]);
 
   const visible = useMemo(() => {
     let list = activeCollection
@@ -127,21 +136,26 @@ export function BoutiqueStorefront({
             return (
               <div
                 key={section.id}
-                className="border-b border-[#EADFCE] py-3.5 text-center text-[11.5px] uppercase tracking-[0.16em] text-[var(--sf-color-text-muted,#6B5F52)]"
+                className="border-b border-[var(--sf-color-border,#EADFCE)] bg-[var(--sf-color-surface,#FFFFFF)] py-3.5 text-center text-[11.5px] uppercase tracking-[0.16em] text-[var(--sf-color-text-muted,#6B5F52)]"
               >
-                {str(section.settings.text)}
+                <div>{str(section.settings.text)}</div>
+                {str(section.settings.subtitle) ? (
+                  <div className="mt-1 text-[10.5px] normal-case tracking-normal text-[var(--sf-color-text-muted,#6B5F52)] opacity-90">
+                    {str(section.settings.subtitle)}
+                  </div>
+                ) : null}
               </div>
             );
           case "header":
             return (
               <header
                 key={section.id}
-                className="sticky top-0 z-30 border-b border-[#EADFCE] bg-[rgba(251,246,238,0.92)] backdrop-blur-md"
+                className="sticky top-0 z-30 border-b border-[var(--sf-color-border,#EADFCE)] bg-[color-mix(in_srgb,var(--sf-color-background,#FBF6EE)_92%,transparent)] backdrop-blur-md"
               >
                 <div className={`${WRAP} flex items-center justify-between gap-3.5 py-3.5`}>
                   <div className="flex items-center gap-3">
                     {section.settings.showSearch !== false ? (
-                      <label className="hidden items-center gap-2 border-b border-[#EADFCE] py-1 text-[12px] text-[var(--sf-color-text-muted,#6B5F52)] sm:flex">
+                      <label className="hidden items-center gap-2 border-b border-[var(--sf-color-border,#EADFCE)] py-1 text-[12px] text-[var(--sf-color-text-muted,#6B5F52)] sm:flex">
                         <Search className="size-4" />
                         <input
                           value={search}
@@ -174,7 +188,7 @@ export function BoutiqueStorefront({
                     <b className="text-[21px] font-bold tracking-[0.01em]">
                       {storeName}
                     </b>
-                    <span className="text-[9.5px] uppercase tracking-[0.32em] text-[#8A6A3B]">
+                    <span className="text-[9.5px] uppercase tracking-[0.32em] text-[var(--sf-color-accent,#B45309)]">
                       Boutique
                     </span>
                   </div>
@@ -219,15 +233,15 @@ export function BoutiqueStorefront({
                           .getElementById("boutique-grid")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      className="inline-flex items-center gap-2.5 rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-white"
+                      className="inline-flex items-center gap-2.5 rounded-full border border-[var(--sf-color-primary,#2B211A)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-[var(--sf-color-primary-foreground,#FFFFFF)] transition hover:bg-none hover:bg-[var(--sf-color-primary-hover,#1F1813)] hover:border-[var(--sf-color-primary-hover,#1F1813)]"
                     >
                       {str(section.settings.ctaLabel, "اكتشف المجموعة")}
                     </button>
                   </div>
                   <div className="relative">
-                    <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-white p-3">
+                    <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-accent-soft,#E9C77B)] bg-[var(--sf-color-surface,#FFFFFF)] p-3">
                       <div
-                        className="h-[240px] rounded-[20px] bg-cover bg-center bg-[radial-gradient(90%_80%_at_25%_20%,rgba(233,199,123,0.55),transparent_60%),linear-gradient(150deg,#EFE2CB,#DCCFAE_55%,#C9B78D)] sm:h-[400px]"
+                        className="h-[240px] rounded-[20px] bg-cover bg-center bg-[radial-gradient(90%_80%_at_25%_20%,rgba(233,199,123,0.55),transparent_60%),linear-gradient(150deg,var(--sf-color-surface-muted,#F6EFE2),color-mix(in_srgb,var(--sf-color-surface-muted,#F6EFE2)_78%,black))] sm:h-[400px]"
                         style={
                           typeof section.settings.imageUrl === "string" &&
                           section.settings.imageUrl
@@ -281,7 +295,7 @@ export function BoutiqueStorefront({
                           <button
                             type="button"
                             onClick={() => setLocation(`/p/${product.id}`)}
-                            className="relative block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,26px)] border border-[#EADFCE] bg-[linear-gradient(145deg,#F6EFE2,#E8DCC6)] transition duration-300 group-hover:-translate-y-1.5 group-hover:border-[#E9C77B] group-hover:shadow-[0_20px_40px_-26px_rgba(43,33,26,0.45)]"
+                            className="relative block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-border,#EADFCE)] bg-[linear-gradient(145deg,var(--sf-color-surface-muted,#F6EFE2),color-mix(in_srgb,var(--sf-color-surface-muted,#F6EFE2)_80%,black))] transition duration-300 group-hover:-translate-y-1.5 group-hover:border-[var(--sf-color-accent-soft,#E9C77B)] group-hover:shadow-[0_20px_40px_-26px_rgba(43,33,26,0.45)]"
                           >
                             {product.images[0]?.url ? (
                               <img
@@ -292,7 +306,7 @@ export function BoutiqueStorefront({
                               />
                             ) : null}
                             {discount ? (
-                              <span className="absolute right-3 top-3 rounded-full border border-[#E9C77B] bg-white px-3 py-1 text-[10.5px] uppercase tracking-[0.12em] text-[var(--sf-color-accent,#B45309)]">
+                              <span className="absolute right-3 top-3 rounded-full border border-[var(--sf-color-accent-soft,#E9C77B)] bg-[var(--sf-color-surface,#FFFFFF)] px-3 py-1 text-[10.5px] uppercase tracking-[0.12em] text-[var(--sf-color-accent,#B45309)]">
                                 -{discount}%
                               </span>
                             ) : null}
@@ -300,7 +314,7 @@ export function BoutiqueStorefront({
                           <h3 className="mt-4 text-[15px] font-semibold">
                             {product.title}
                           </h3>
-                          <div className="text-[11.5px] uppercase tracking-[0.12em] text-[#8A6A3B]">
+                          <div className="text-[11.5px] uppercase tracking-[0.12em] text-[var(--sf-color-accent,#B45309)]">
                             {product.collectionName ?? "قطعة مختارة"}
                           </div>
                           <div className="mt-2 text-[14px] text-[var(--sf-color-text-muted,#6B5F52)]">
@@ -316,7 +330,7 @@ export function BoutiqueStorefront({
                           <button
                             type="button"
                             onClick={() => add(product)}
-                            className="mt-3 rounded-full border border-[#E9C77B] px-[22px] py-2.5 text-[11.5px] uppercase tracking-[0.14em] text-[var(--sf-color-text,#2B211A)] transition hover:border-[var(--sf-color-text,#2B211A)] hover:bg-[var(--sf-color-text,#2B211A)] hover:text-white"
+                            className="mt-3 rounded-full border border-[var(--sf-color-accent-soft,#E9C77B)] px-[22px] py-2.5 text-[11.5px] uppercase tracking-[0.14em] text-[var(--sf-color-text,#2B211A)] transition hover:border-[var(--sf-color-primary,#2B211A)] hover:bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#2B211A)] hover:text-[var(--sf-color-primary-foreground,#FFFFFF)]"
                           >
                             أضف إلى السلة
                           </button>
@@ -329,11 +343,11 @@ export function BoutiqueStorefront({
           case "promo":
             return (
               <section key={section.id} className={`${WRAP} py-6`}>
-                <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-white px-8 py-14 text-center sm:px-16">
-                  <span className="absolute right-4 top-3.5 text-[14px] text-[#E9C77B]">
+                <div className="relative rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-accent-soft,#E9C77B)] bg-[var(--sf-color-surface,#FFFFFF)] px-8 py-14 text-center sm:px-16">
+                  <span className="absolute right-4 top-3.5 text-[14px] text-[var(--sf-color-accent-soft,#E9C77B)]">
                     ✦
                   </span>
-                  <span className="absolute bottom-3.5 left-4 text-[14px] text-[#E9C77B]">
+                  <span className="absolute bottom-3.5 left-4 text-[14px] text-[var(--sf-color-accent-soft,#E9C77B)]">
                     ✦
                   </span>
                   <span className={LABEL}>✦ هدية الموسم ✦</span>
@@ -350,7 +364,7 @@ export function BoutiqueStorefront({
                         .getElementById("boutique-grid")
                         ?.scrollIntoView({ behavior: "smooth" })
                     }
-                    className="rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-white"
+                    className="rounded-full border border-[var(--sf-color-primary,#2B211A)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#2B211A)] px-7 py-3.5 text-[14px] font-bold text-[var(--sf-color-primary-foreground,#FFFFFF)] transition hover:bg-none hover:bg-[var(--sf-color-primary-hover,#1F1813)] hover:border-[var(--sf-color-primary-hover,#1F1813)]"
                   >
                     {str(section.settings.ctaLabel, "اطلب الآن")}
                   </button>
@@ -369,35 +383,39 @@ export function BoutiqueStorefront({
                     {str(section.settings.title)}
                   </h2>
                 ) : null}
-                <div className="grid border-y border-[#EADFCE] sm:grid-cols-2 sm:column-gap-10">
-                  {[
-                    ["توصيل فاخر", "تغليف أنيق لكل الولايات."],
-                    ["دفع عند الاستلام", "افحص طلبك قبل الدفع."],
-                    ["إرجاع خلال 7 أيام", "استرجاع هادئ بلا تعقيد."],
-                    ["خامات أصلية", "مصادر موثوقة وضمان جودة."],
-                  ].map(([title, text]) => (
-                    <div
-                      key={title}
-                      className="flex items-center gap-3.5 border-b border-[#EADFCE] px-1.5 py-5 last:border-b-0 sm:[&:nth-child(odd)]:border-b"
-                    >
-                      <span className="grid size-[34px] shrink-0 place-items-center rounded-full border border-[#E9C77B] text-[13px] text-[var(--sf-color-accent,#B45309)]">
-                        ✦
-                      </span>
-                      <span>
-                        <b className="block text-[14px] font-semibold">{title}</b>
-                        <span className="text-[12.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
-                          {text}
+                <div className="grid border-y border-[var(--sf-color-border,#EADFCE)] sm:grid-cols-2 sm:column-gap-10">
+                  {benefitRows(section, [
+                    ["01", "توصيل فاخر", "تغليف أنيق لكل الولايات."],
+                    ["02", "دفع عند الاستلام", "افحص طلبك قبل الدفع."],
+                    ["03", "إرجاع خلال 7 أيام", "استرجاع هادئ بلا تعقيد."],
+                    ["04", "خامات أصلية", "مصادر موثوقة وضمان جودة."],
+                  ]).map(row => {
+                    const Icon = row.icon ? sectionIcon(row.icon, Sparkles) : null;
+                    return (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-3.5 border-b border-[var(--sf-color-border,#EADFCE)] px-1.5 py-5 last:border-b-0 sm:[&:nth-child(odd)]:border-b"
+                        style={row.bg ? { backgroundColor: row.bg } : undefined}
+                      >
+                        <span className="grid size-[34px] shrink-0 place-items-center rounded-full border border-[var(--sf-color-accent-soft,#E9C77B)] text-[13px] text-[var(--sf-color-accent,#B45309)]">
+                          {Icon ? <Icon className="size-4" /> : "✦"}
                         </span>
-                      </span>
-                    </div>
-                  ))}
+                        <span>
+                          <b className="block text-[14px] font-semibold">{row.title}</b>
+                          <span className="text-[12.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
+                            {row.text}
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );
           case "newsletter":
             return (
               <section key={section.id} className={`${WRAP} py-10 sm:py-14`}>
-                <div className="rounded-[var(--sf-radius-lg,26px)] border border-[#EADFCE] bg-white px-7 py-12 text-center sm:px-14">
+                <div className="rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-border,#EADFCE)] bg-[var(--sf-color-surface,#FFFFFF)] px-7 py-12 text-center sm:px-14">
                   <span className={LABEL}>✦ النشرة ✦</span>
                   <h2 className="mt-3.5 text-[22px] font-semibold sm:text-[32px]">
                     {str(section.settings.title, "رسائل راقية فقط")}
@@ -412,11 +430,11 @@ export function BoutiqueStorefront({
                     <input
                       type="email"
                       placeholder="بريدك الإلكتروني"
-                      className="h-[50px] min-w-[220px] max-w-[340px] flex-1 rounded-full border border-[#EADFCE] bg-[var(--sf-color-background,#FBF6EE)] px-5 text-[14px] outline-none focus:border-[#E9C77B]"
+                      className="h-[50px] min-w-[220px] max-w-[340px] flex-1 rounded-full border border-[var(--sf-color-border,#EADFCE)] bg-[var(--sf-color-background,#FBF6EE)] px-5 text-[14px] outline-none focus:border-[var(--sf-color-accent-soft,#E9C77B)]"
                     />
                     <button
                       type="submit"
-                      className="h-[50px] rounded-full border border-[var(--sf-color-text,#2B211A)] bg-[var(--sf-color-text,#2B211A)] px-7 text-[13px] font-bold tracking-[0.08em] text-white"
+                      className="h-[50px] rounded-full border border-[var(--sf-color-primary,#2B211A)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#2B211A)] px-7 text-[13px] font-bold tracking-[0.08em] text-[var(--sf-color-primary-foreground,#FFFFFF)] transition hover:bg-none hover:bg-[var(--sf-color-primary-hover,#1F1813)] hover:border-[var(--sf-color-primary-hover,#1F1813)]"
                     >
                       {str(section.settings.ctaLabel, "اشترك")}
                     </button>
@@ -428,26 +446,40 @@ export function BoutiqueStorefront({
             return (
               <footer
                 key={section.id}
-                className="mt-16 border-t border-[#EADFCE] py-11"
+                className="mt-16 border-t border-[var(--sf-color-border,#EADFCE)] py-11"
               >
                 <div className={`${WRAP} grid gap-6 text-center`}>
                   <div className="flex flex-col items-center gap-0.5">
                     <b className="text-[20px] font-bold">{storeName}</b>
-                    <span className="text-[9.5px] uppercase tracking-[0.32em] text-[#8A6A3B]">
+                    <span className="text-[9.5px] uppercase tracking-[0.32em] text-[var(--sf-color-accent,#B45309)]">
                       Boutique
                     </span>
                   </div>
-                  <div className="flex flex-wrap justify-center gap-x-6 gap-y-2.5 text-[12px] uppercase tracking-[0.1em] text-[var(--sf-color-text-muted,#6B5F52)]">
-                    <a href="#boutique-grid" className="hover:text-[var(--sf-color-accent,#B45309)]">
-                      المجموعة
-                    </a>
-                    <a href="#about" className="hover:text-[var(--sf-color-accent,#B45309)]">
-                      عن العلامة
-                    </a>
-                    <span>الإرجاع</span>
-                    <span>إنستغرام</span>
-                  </div>
-                  <div className="text-[11.5px] text-[#8A6A3B]">
+                  {(() => {
+                    const footer = footerData(section, anchors);
+                    return (
+                      <>
+                        {footer.about ? (
+                          <p className="mx-auto max-w-[46ch] text-[12.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
+                            {footer.about}
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2.5 text-[12px] uppercase tracking-[0.1em] text-[var(--sf-color-text-muted,#6B5F52)]">
+                          <FooterInlineLinks
+                            footer={footer}
+                            itemClass="hover:text-[var(--sf-color-accent,#B45309)]"
+                          />
+                        </div>
+                        {footer.trackOrder || footer.returns ? (
+                          <div className="mx-auto max-w-[52ch] space-y-1 text-[11.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]">
+                            {footer.trackOrder ? <p>تتبع الطلب: {footer.trackOrder}</p> : null}
+                            {footer.returns ? <p>الإرجاع: {footer.returns}</p> : null}
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
+                  <div className="text-[11.5px] text-[var(--sf-color-accent,#B45309)]">
                     © {new Date().getFullYear()} {storeName} — جميع الحقوق محفوظة
                   </div>
                 </div>
@@ -462,25 +494,50 @@ export function BoutiqueStorefront({
                   </h2>
                 </div>
                 <div className="grid grid-cols-2 gap-[18px] sm:grid-cols-4">
-                  {(section.items?.length
-                    ? section.items
-                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
-                  ).map(item => (
+                  {categoryTiles(section, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => setSearch(item.name)}
-                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,26px)] border border-[#E9C77B] bg-[linear-gradient(145deg,#F6EFE2,#E8DCC6)] bg-cover bg-center p-4 text-right font-semibold text-[#2B211A]"
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,26px)] border border-[var(--sf-color-accent-soft,#E9C77B)] bg-[linear-gradient(145deg,var(--sf-color-surface-muted,#F6EFE2),color-mix(in_srgb,var(--sf-color-surface-muted,#F6EFE2)_80%,black))] bg-cover bg-center p-4 text-right font-semibold text-[var(--sf-color-text,#2B211A)]"
                       style={
                         item.imageUrl
                           ? { backgroundImage: `url(${item.imageUrl})` }
-                          : undefined
+                          : item.bg
+                            ? { background: item.bg }
+                            : undefined
                       }
                     >
                       {item.name}
                     </button>
                   ))}
                 </div>
+              </section>
+            );
+          case "signature":
+            return (
+              <section key={section.id} className={`${WRAP} py-12 text-center`}>
+                {(() => {
+                  const sig = signatureStyle(section);
+                  return (
+                    <>
+                      {sig.showOrnament ? (
+                        <SignatureFlourish className="mb-3" />
+                      ) : null}
+                      <div style={sig.style} className="text-[26px] font-semibold sm:text-[34px]">
+                        {sig.text || storeName}
+                      </div>
+                      {sig.subtitle ? (
+                        <div
+                          style={sig.style}
+                          className="mt-2 text-[12.5px] font-light text-[var(--sf-color-text-muted,#6B5F52)]"
+                        >
+                          {sig.subtitle}
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </section>
             );
           default:

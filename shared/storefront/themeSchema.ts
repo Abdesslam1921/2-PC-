@@ -23,6 +23,7 @@ import {
   storefrontBorderTokens,
   storefrontColorTokens,
   storefrontEffectTokens,
+  storefrontFillTokens,
   storefrontFontFamilyTokens,
   storefrontFontScaleTokens,
   storefrontFontWeightTokens,
@@ -69,6 +70,7 @@ const lengthValueSchema = safeCssValue(80);
 const lineHeightValueSchema = safeCssValue(40);
 const letterSpacingValueSchema = safeCssValue(40);
 const shadowValueSchema = safeCssValue(300);
+const fillValueSchema = safeCssValue(320);
 const effectValueSchema = safeCssValue(160);
 const fontFamilyValueSchema = safeCssValue(160);
 const fontSizeValueSchema = safeCssValue(60);
@@ -104,6 +106,7 @@ function tokenRecord<T extends string>(
 }
 
 const colorNames = Object.values(storefrontColorTokens);
+const fillNames = Object.values(storefrontFillTokens);
 const fontFamilyNames = Object.values(storefrontFontFamilyTokens);
 const fontScaleNames = Object.values(storefrontFontScaleTokens);
 const fontWeightNames = Object.values(storefrontFontWeightTokens);
@@ -124,6 +127,8 @@ const effectNames = Object.values(storefrontEffectTokens);
 export const storefrontThemeConfigSchema = z
   .strictObject({
     colors: tokenRecord(colorNames, colorValueSchema).optional(),
+    /** Composite background-image values (solid or gradient) built from tokens. */
+    fills: tokenRecord(fillNames, fillValueSchema).optional(),
     fontFamilies: tokenRecord(fontFamilyNames, fontFamilyValueSchema).optional(),
     fontScale: tokenRecord(fontScaleNames, fontSizeValueSchema).optional(),
     fontWeights: tokenRecord(fontWeightNames, fontWeightValueSchema).optional(),

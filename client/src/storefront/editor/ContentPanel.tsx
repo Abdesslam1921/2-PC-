@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import {
   DndContext,
   closestCenter,
@@ -18,14 +17,11 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Copy, Eye, EyeOff, GripVertical, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { trpc } from "@/lib/trpc";
 import {
   ADDABLE_SECTION_TYPES,
-  COMMON_STYLE_FIELDS,
-  SECTION_FIELDS,
   SECTION_LABELS,
-  stripSectionStyle,
 } from "@shared/storefront/sectionFields";
+import { templateDefaultSection } from "@shared/storefront/storefrontConfig";
 import type {
   StorefrontConfig,
   StorefrontSection,
@@ -36,11 +32,17 @@ const sortSections = (sections: StorefrontSection[]) =>
   [...sections].sort((a, b) => a.order - b.order);
 const reindex = (list: StorefrontSection[]) =>
   list.map((s, i) => ({ ...s, order: i }));
+const newId = (prefix: string) => `${prefix}-${Date.now().toString(36)}`;
 
-function SortableRow({
+/**
+ * One row = a single big control that opens the section editor, with the
+ * quick actions kept as real (separate) buttons so nested interactive elements
+ * stay valid and keyboard accessible.
+ */
+function SectionRow({
   section,
   active,
-  onSelect,
+  onEdit,
   onToggle,
   onDuplicate,
   onDelete,
@@ -48,7 +50,7 @@ function SortableRow({
 }: {
   section: StorefrontSection;
   active: boolean;
-  onSelect: () => void;
+  onEdit: () => void;
   onToggle: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
@@ -56,6 +58,12 @@ function SortableRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section.id });
+
+  const stop = (fn: () => void) => (event: React.MouseEvent) => {
+    event.stopPropagation();
+    fn();
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -64,7 +72,17 @@ function SortableRow({
         transition,
         opacity: isDragging ? 0.6 : 1,
       }}
-      className={`flex items-center gap-2 px-3 py-2.5 text-[13px] font-bold ${
+      role="button"
+      tabIndex={0}
+      onClick={onEdit}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onEdit();
+        }
+      }}
+      title="افتح إعدادات القسم"
+      className={`flex cursor-pointer items-center gap-2 border-b border-[#f1f3f2] px-3 py-2.5 text-[13px] font-bold outline-none transition hover:bg-[#f7faf9] focus-visible:bg-[#f7faf9] ${
         active ? "bg-[#e4f3ef] text-[#0B5D57]" : "text-[#2f433f]"
       }`}
     >
@@ -72,22 +90,19 @@ function SortableRow({
         type="button"
         className="touch-none text-[#9fb0ac]"
         aria-label="سحب لإعادة الترتيب"
+        onClick={event => event.stopPropagation()}
         {...attributes}
         {...listeners}
       >
         <GripVertical className="size-4" />
       </button>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="min-w-0 flex-1 whitespace-normal text-right"
-      >
+      <span className="min-w-0 flex-1 whitespace-normal text-right">
         {SECTION_LABELS[section.type]}
-      </button>
+      </span>
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={onToggle}
+          onClick={stop(onToggle)}
           title={section.enabled ? "إخفاء" : "إظهار"}
           className="grid size-7 place-items-center rounded-md text-[#7b8a86] hover:bg-white"
         >
@@ -95,7 +110,7 @@ function SortableRow({
         </button>
         <button
           type="button"
-          onClick={onDuplicate}
+          onClick={stop(onDuplicate)}
           title="تكرار"
           className="grid size-7 place-items-center rounded-md text-[#7b8a86] hover:bg-white"
         >
@@ -103,21 +118,22 @@ function SortableRow({
         </button>
         <button
           type="button"
-          onClick={onReset}
-          title="إعادة تعيين تنسيق هذا القسم"
+          onClick={stop(onReset)}
+          title="إعادة تعيين القسم إلى الافتراضي"
           className="grid size-7 place-items-center rounded-md text-[#0F766E] hover:bg-white"
         >
           <RotateCcw className="size-3.5" />
         </button>
         <button
           type="button"
-          onClick={onDelete}
+          onClick={stop(onDelete)}
           title="حذف"
           className="grid size-7 place-items-center rounded-md text-[#b03a2e] hover:bg-white"
         >
           <Trash2 className="size-3.5" />
         </button>
       </div>
+      <span className="text-[12px] text-[#9fb0ac]">›</span>
     </div>
   );
 }
@@ -125,18 +141,19 @@ function SortableRow({
 export function ContentPanel({
   config,
   onChange,
+  selectedSectionId,
+  onSelectSection,
+  onEditSection,
 }: {
   config: StorefrontConfig;
   onChange: (next: StorefrontConfig) => void;
+  selectedSectionId: string | null;
+  onSelectSection: (id: string) => void;
+  /** Opens the section settings editor (dialog on desktop, full-screen on mobile). */
+  onEditSection: (id: string) => void;
 }) {
-  const uploadAsset = trpc.storefront.uploadAsset.useMutation();
   const sections = useMemo(() => sortSections(config.sections), [config.sections]);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    sections[0]?.id ?? null
-  );
   const [addType, setAddType] = useState<StorefrontSectionType>("hero");
-
-  const selected = sections.find(s => s.id === selectedId) ?? null;
 
   const patch = (id: string, p: Partial<StorefrontSection>) =>
     onChange({
@@ -144,22 +161,15 @@ export function ContentPanel({
       sections: config.sections.map(s => (s.id === id ? { ...s, ...p } : s)),
     });
 
-  const items = selected?.items ?? [];
-  const setItems = (next: StorefrontSection["items"]) => {
-    if (selected) patch(selected.id, { items: next });
+  const resetSection = (id: string) => {
+    const section = config.sections.find(s => s.id === id);
+    if (!section) return;
+    const fallback = templateDefaultSection(config.templateKey, section);
+    patch(id, {
+      settings: { ...(fallback?.settings ?? {}) },
+      items: fallback?.items ? [...fallback.items] : undefined,
+    });
   };
-  const addCategory = () => {
-    setItems([
-      ...items,
-      { id: `cat-${Date.now().toString(36)}`, name: "فئة جديدة" },
-    ]);
-  };
-  const updateCategory = (
-    id: string,
-    p: Partial<{ name: string; imageUrl: string }>
-  ) => setItems(items.map(it => (it.id === id ? { ...it, ...p } : it)));
-  const removeCategory = (id: string) =>
-    setItems(items.filter(it => it.id !== id));
 
   const moveById = (fromId: string, toId: string) => {
     const list = sortSections(config.sections);
@@ -179,26 +189,24 @@ export function ContentPanel({
       settings: {},
     };
     onChange({ ...config, sections: reindex([...sections, next]) });
-    setSelectedId(id);
+    onSelectSection(id);
+    onEditSection(id);
   };
 
   const duplicateSection = (id: string) => {
     const list = sortSections(config.sections);
     const index = list.findIndex(s => s.id === id);
     if (index < 0) return;
-    const clone: StorefrontSection = {
-      ...list[index],
-      id: `${list[index].type}-${Date.now().toString(36)}`,
-    };
+    const clone: StorefrontSection = { ...list[index], id: newId(list[index].type) };
     list.splice(index + 1, 0, clone);
     onChange({ ...config, sections: reindex(list) });
-    setSelectedId(clone.id);
+    onSelectSection(clone.id);
   };
 
   const deleteSection = (id: string) => {
     const list = sortSections(config.sections).filter(s => s.id !== id);
     onChange({ ...config, sections: reindex(list) });
-    if (selectedId === id) setSelectedId(list[0]?.id ?? null);
+    if (selectedSectionId === id) onSelectSection(list[0]?.id ?? "");
   };
 
   const sensors = useSensors(
@@ -210,45 +218,34 @@ export function ContentPanel({
     if (over && active.id !== over.id) moveById(String(active.id), String(over.id));
   };
 
-  const fields = selected
-    ? [...SECTION_FIELDS[selected.type], ...COMMON_STYLE_FIELDS].filter(
-        f =>
-          !(
-            f.key === "imageUrl" &&
-            config.templateKey === "minimal"
-          )
-      )
-    : [];
-
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto">
+    <div>
       <div className="flex items-center justify-between px-3.5 py-3">
-        <span className="text-[13.5px] font-black">الأقسام</span>
+        <span className="text-[13.5px] font-black">أقسام المتجر</span>
         <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
           {sections.length}
         </span>
       </div>
 
-      <div className="flex-none">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-          <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-            {sections.map(section => (
-              <SortableRow
-                key={section.id}
-                section={section}
-                active={section.id === selectedId}
-                onSelect={() => setSelectedId(section.id)}
-                onToggle={() => patch(section.id, { enabled: !section.enabled })}
-                onDuplicate={() => duplicateSection(section.id)}
-                onDelete={() => deleteSection(section.id)}
-                onReset={() =>
-                  patch(section.id, { settings: stripSectionStyle(section.settings) })
-                }
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+        <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+          {sections.map(section => (
+            <SectionRow
+              key={section.id}
+              section={section}
+              active={section.id === selectedSectionId}
+              onEdit={() => {
+                onSelectSection(section.id);
+                onEditSection(section.id);
+              }}
+              onToggle={() => patch(section.id, { enabled: !section.enabled })}
+              onDuplicate={() => duplicateSection(section.id)}
+              onDelete={() => deleteSection(section.id)}
+              onReset={() => resetSection(section.id)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
 
       <div className="flex items-center gap-2 p-3">
         <select
@@ -267,323 +264,10 @@ export function ContentPanel({
         </Button>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between px-3.5 py-3">
-          <span className="text-[13.5px] font-black">إعدادات القسم</span>
-          {selected ? (
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-[#e4f3ef] px-2.5 py-0.5 text-[11px] font-bold text-[#0B5D57]">
-                {SECTION_LABELS[selected.type]}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  patch(selected.id, { settings: stripSectionStyle(selected.settings) })
-                }
-                title="إعادة تعيين تنسيق هذا القسم"
-                className="grid size-7 place-items-center rounded-md text-[#0F766E] hover:bg-white"
-              >
-                <RotateCcw className="size-3.5" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-        {!selected ? (
-          <p className="p-4 text-[12.5px] text-[#576B66]">اختر قسمًا لتعديل إعداداته.</p>
-        ) : (
-          <div className="space-y-3 p-3.5">
-            <div className="flex items-center justify-between rounded-xl bg-[#f7faf9] p-3">
-              <span className="text-[12.5px] font-bold">القسم مفعّل</span>
-              <button
-                type="button"
-                onClick={() => patch(selected.id, { enabled: !selected.enabled })}
-                className={`h-6 w-11 rounded-full transition ${
-                  selected.enabled ? "bg-[#0F766E]" : "bg-[#cbd5d1]"
-                }`}
-                aria-label="تفعيل"
-              >
-                <span
-                  className={`block size-5 rounded-full bg-white transition ${
-                    selected.enabled ? "mr-0.5" : "mr-[22px]"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {selected.type === "categories" ? (
-              <div className="rounded-xl border border-[#e7e9e8] p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-[12px] font-black">الفئات المخصّصة</span>
-                  <button
-                    type="button"
-                    onClick={addCategory}
-                    className="rounded-md px-2 py-1 text-[11px] font-extrabold text-[#0B5D57] hover:bg-[#f7faf9]"
-                  >
-                    + إضافة فئة
-                  </button>
-                </div>
-                {items.length === 0 ? (
-                  <p className="text-[11.5px] leading-6 text-[#576B66]">
-                    لا فئات مخصّصة — تُعرض فئات المنتجات تلقائيًا. أضف فئة للتحكم
-                    الكامل بالاسم والصورة.
-                  </p>
-                ) : null}
-                <div className="space-y-2">
-                  {items.map(item => (
-                    <div key={item.id} className="flex items-center gap-2">
-                      <span
-                        className="size-10 shrink-0 rounded-lg border border-[#e7e9e8] bg-[#f3f7f6] bg-cover bg-center"
-                        style={
-                          item.imageUrl
-                            ? { backgroundImage: `url(${item.imageUrl})` }
-                            : undefined
-                        }
-                      />
-                      <input
-                        value={item.name}
-                        onChange={e => updateCategory(item.id, { name: e.target.value })}
-                        className="h-9 flex-1 rounded-lg border border-[#e7e9e8] px-2 text-[12.5px] outline-none focus:border-[#0F766E]"
-                      />
-                      <label className="cursor-pointer rounded-lg border border-[#e7e9e8] px-2 py-1.5 text-[11px] font-bold hover:border-[#0F766E]">
-                        {uploadAsset.isPending ? "…" : "صورة"}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async event => {
-                            const file = event.target.files?.[0];
-                            event.target.value = "";
-                            if (!file) return;
-                            if (file.size > 5 * 1024 * 1024) {
-                              toast.error("حجم الصورة يتجاوز 5MB.");
-                              return;
-                            }
-                            const dataUrl = await new Promise<string>(
-                              (resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(String(reader.result));
-                                reader.onerror = reject;
-                                reader.readAsDataURL(file);
-                              }
-                            );
-                            try {
-                              const out = await uploadAsset.mutateAsync({
-                                fileName: file.name,
-                                dataUrl,
-                              });
-                              updateCategory(item.id, { imageUrl: out.url });
-                              toast.success("تم رفع صورة الفئة.");
-                            } catch (e) {
-                              toast.error(
-                                e instanceof Error ? e.message : "تعذّر رفع الصورة."
-                              );
-                            }
-                          }}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => removeCategory(item.id)}
-                        className="text-[11px] font-bold text-[#b03a2e]"
-                      >
-                        حذف
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {fields.length === 0 ? (
-              <p className="text-[12px] text-[#576B66]">
-                لا توجد إعدادات لهذا القسم — يظهر تلقائيًا من بيانات المتجر.
-              </p>
-            ) : (
-              fields.map(field => {
-                const value = selected.settings[field.key];
-                if (field.type === "image") {
-                  const url = typeof value === "string" ? value : "";
-                  return (
-                    <div key={field.key}>
-                      <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                        {field.label}
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="size-14 shrink-0 rounded-lg border border-[#e7e9e8] bg-[#f3f7f6] bg-cover bg-center"
-                          style={url ? { backgroundImage: `url(${url})` } : undefined}
-                        />
-                        <label className="cursor-pointer rounded-lg border border-[#e7e9e8] px-3 py-2 text-xs font-bold hover:border-[#0F766E]">
-                          {uploadAsset.isPending ? "جارٍ الرفع…" : "تغيير الصورة"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={async event => {
-                              const file = event.target.files?.[0];
-                              event.target.value = "";
-                              if (!file) return;
-                              if (file.size > 5 * 1024 * 1024) {
-                                toast.error("حجم الصورة يتجاوز 5MB.");
-                                return;
-                              }
-                              const dataUrl = await new Promise<string>((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = () => resolve(String(reader.result));
-                                reader.onerror = reject;
-                                reader.readAsDataURL(file);
-                              });
-                              try {
-                                const out = await uploadAsset.mutateAsync({
-                                  fileName: file.name,
-                                  dataUrl,
-                                });
-                                patch(selected.id, {
-                                  settings: { ...selected.settings, [field.key]: out.url },
-                                });
-                                toast.success("تم رفع الصورة.");
-                              } catch (e) {
-                                toast.error(
-                                  e instanceof Error ? e.message : "تعذّر رفع الصورة."
-                                );
-                              }
-                            }}
-                          />
-                        </label>
-                        {url ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              patch(selected.id, {
-                                settings: { ...selected.settings, [field.key]: "" },
-                              })
-                            }
-                            className="text-xs font-bold text-[#b03a2e]"
-                          >
-                            إزالة
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                }
-                if (field.type === "color") {
-                  const current = typeof value === "string" ? value : "";
-                  const swatch = /^#[0-9a-fA-F]{6}$/.test(current) ? current : "#ffffff";
-                  return (
-                    <div key={field.key}>
-                      <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                        {field.label}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={swatch}
-                          onChange={e =>
-                            patch(selected.id, {
-                              settings: { ...selected.settings, [field.key]: e.target.value },
-                            })
-                          }
-                          className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
-                        />
-                        <input
-                          type="text"
-                          value={current}
-                          onChange={e =>
-                            patch(selected.id, {
-                              settings: { ...selected.settings, [field.key]: e.target.value },
-                            })
-                          }
-                          className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-                if (field.type === "select") {
-                  const current = typeof value === "string" ? value : "";
-                  return (
-                    <div key={field.key}>
-                      <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                        {field.label}
-                      </label>
-                      <select
-                        value={current}
-                        onChange={e =>
-                          patch(selected.id, {
-                            settings: { ...selected.settings, [field.key]: e.target.value },
-                          })
-                        }
-                        className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
-                      >
-                        <option value="">افتراضي القالب</option>
-                        {(field.options ?? []).map(o => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                }
-                if (field.type === "boolean") {
-                  return (
-                    <label
-                      key={field.key}
-                      className="flex items-center justify-between rounded-xl border border-[#e7e9e8] p-3 text-[12.5px] font-bold"
-                    >
-                      {field.label}
-                      <input
-                        type="checkbox"
-                        checked={Boolean(value)}
-                        onChange={e =>
-                          patch(selected.id, {
-                            settings: { ...selected.settings, [field.key]: e.target.checked },
-                          })
-                        }
-                        className="size-4 accent-[#0F766E]"
-                      />
-                    </label>
-                  );
-                }
-                return (
-                  <div key={field.key}>
-                    <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
-                      {field.label}
-                    </label>
-                    {field.type === "textarea" ? (
-                      <textarea
-                        rows={3}
-                        value={String(value ?? "")}
-                        onChange={e =>
-                          patch(selected.id, {
-                            settings: { ...selected.settings, [field.key]: e.target.value },
-                          })
-                        }
-                        className="w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
-                      />
-                    ) : (
-                      <input
-                        type={field.type === "number" ? "number" : "text"}
-                        value={String(value ?? "")}
-                        onChange={e => {
-                          const raw = e.target.value;
-                          const next =
-                            field.type === "number" ? (raw === "" ? 0 : Number(raw)) : raw;
-                          patch(selected.id, {
-                            settings: { ...selected.settings, [field.key]: next },
-                          });
-                        }}
-                        className="w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
-                      />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-      </div>
+      <p className="px-3.5 pb-3 text-[11.5px] leading-6 text-[#576B66]">
+        اضغط على أي قسم لفتح إعداداته، أو اضغط على عنصر داخل المعاينة للوصول
+        مباشرة لحقله. إعدادات القسم هي تجاوزات فوق الثيم العام.
+      </p>
     </div>
   );
 }

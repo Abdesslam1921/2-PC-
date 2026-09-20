@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { ColorField } from "@/storefront/editor/ColorField";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -54,6 +55,7 @@ import {
   ADDABLE_SECTION_TYPES,
   COMMON_STYLE_FIELDS,
   SECTION_FIELDS,
+  visibleSectionFields,
   SECTION_LABELS,
 } from "@shared/storefront/sectionFields";
 import type {
@@ -234,7 +236,11 @@ export default function BuilderPage() {
   const selected = sections.find(s => s.id === selectedId) ?? null;
 
   const visibleFields = (type: StorefrontSectionType) =>
-    [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS].filter(f => {
+    visibleSectionFields(
+      type,
+      [...SECTION_FIELDS[type], ...COMMON_STYLE_FIELDS],
+      config?.sections.find(s => s.id === selectedId)?.settings ?? {}
+    ).filter(f => {
       // Minimal's hero is text-only; its content image is not rendered.
       if (f.key === "imageUrl" && config?.templateKey === "minimal") return false;
       return true;
@@ -625,35 +631,15 @@ export default function BuilderPage() {
                   <label className="mb-1.5 block text-[11.5px] font-bold text-[#576B66]">
                     {field.label}
                   </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={swatch}
-                      onChange={e =>
-                        patchSection(selected.id, {
-                          settings: {
-                            ...selected.settings,
-                            [field.key]: e.target.value,
-                          },
-                        })
-                      }
-                      className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
-                    />
-                    <input
-                      type="text"
-                      value={current}
-                      placeholder="#FFFFFF أو oklch(...)"
-                      onChange={e =>
-                        patchSection(selected.id, {
-                          settings: {
-                            ...selected.settings,
-                            [field.key]: e.target.value,
-                          },
-                        })
-                      }
-                      className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
-                    />
-                  </div>
+                  <ColorField
+                    value={current}
+                    onChange={next =>
+                      patchSection(selected.id, {
+                        settings: { ...selected.settings, [field.key]: next },
+                      })
+                    }
+                    ariaLabel={field.label}
+                  />
                 </div>
               );
             }

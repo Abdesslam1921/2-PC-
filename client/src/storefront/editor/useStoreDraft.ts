@@ -7,6 +7,14 @@ import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 const SEED_KEY = "sf-builder-seed";
 
 /**
+ * Per-section style overrides are editable again (section-scoped overrides on
+ * top of the global theme), so loaded configs are used exactly as stored.
+ */
+function normalizeConfig(next: StorefrontConfig): StorefrontConfig {
+  return next;
+}
+
+/**
  * Shared draft state for the unified store editor (content + theme).
  *
  * One global undo/redo stack over the whole config, one autosave pipeline with
@@ -41,7 +49,7 @@ export function useStoreDraft() {
       const seed = JSON.parse(raw) as { config?: StorefrontConfig; version?: number };
       sessionStorage.removeItem(SEED_KEY);
       if (seed?.config) {
-        setConfigState(seed.config);
+        setConfigState(normalizeConfig(seed.config));
         setBaseVersion(seed.version ?? 0);
         initialized.current = true;
         seeded.current = true;
@@ -65,7 +73,7 @@ export function useStoreDraft() {
       setBaseVersion(draft.version ?? 0);
       return;
     }
-    setConfigState(draft.config);
+    setConfigState(normalizeConfig(draft.config));
     setBaseVersion(draft.version ?? 0);
     initialized.current = true;
   }, [managed.data, config?.templateKey]);
@@ -112,7 +120,7 @@ export function useStoreDraft() {
   const replaceConfig = useCallback((next: StorefrontConfig | null) => {
     past.current = [];
     future.current = [];
-    setConfigState(next);
+    setConfigState(next ? normalizeConfig(next) : next);
     setDirty(false);
     setHistVersion(v => v + 1);
   }, []);

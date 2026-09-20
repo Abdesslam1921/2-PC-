@@ -18,20 +18,45 @@ import {
 } from "../storefrontDb";
 import { storagePut } from "../storage";
 import {
-  DEFAULT_BOLD_CONFIG,
-  DEFAULT_BOUTIQUE_CONFIG,
-  DEFAULT_MINIMAL_CONFIG,
-  DEFAULT_MODERN_CONFIG,
   STOREFRONT_TEMPLATE_KEYS,
+  TEMPLATE_DEFAULT_CONFIGS,
   validateStorefrontConfig,
 } from "../../shared/storefront/storefrontConfig";
+import type { StorefrontConfig } from "../../shared/storefront/storefrontConfig";
 
-const TEMPLATE_DEFAULTS = {
-  modern: DEFAULT_MODERN_CONFIG,
-  minimal: DEFAULT_MINIMAL_CONFIG,
-  bold: DEFAULT_BOLD_CONFIG,
-  boutique: DEFAULT_BOUTIQUE_CONFIG,
-} as const;
+const TEMPLATE_DEFAULTS = TEMPLATE_DEFAULT_CONFIGS;
+
+type TemplateKey = (typeof STOREFRONT_TEMPLATE_KEYS)[number];
+
+/**
+ * Seed config for a template.
+ *
+ * The ACTIVE (published) template keeps its live design when the merchant
+ * re-opens it — the built-in defaults here were what made "Edit template"
+ * show a stock design instead of the published one. Any other template seeds
+ * from its built-in defaults, so every non-active template starts clean.
+ */
+async function templateSeedConfig(
+  storeId: number,
+  templateKey: TemplateKey,
+  publishedSnapshotJson?: string | null
+): Promise<{ config: StorefrontConfig; seededFrom: "published" | "defaults" }> {
+  const snapshotJson =
+    publishedSnapshotJson === undefined
+      ? (await getPublishedStorefront(storeId))?.snapshotJson
+      : publishedSnapshotJson;
+  if (snapshotJson) {
+    try {
+      const valid = validateStorefrontConfig(JSON.parse(snapshotJson));
+      if (valid.ok && valid.data && valid.data.templateKey === templateKey) {
+        return { config: valid.data, seededFrom: "published" };
+      }
+    } catch {
+      /* Corrupted snapshot: fall back to defaults instead of failing the edit. */
+    }
+  }
+  return { config: TEMPLATE_DEFAULTS[templateKey], seededFrom: "defaults" };
+}
 
 /** Owner-only guard (admin override is allowed but always audited). */
 function assertOwner(ctx: TrpcContext) {
@@ -47,15 +72,44 @@ function assertOwner(ctx: TrpcContext) {
   return { storeId, isOverride, userId: ctx.user.id, role: ctx.user.role };
 }
 
-/** Seed the template's default draft and publish it immediately. */
+/**
+ * Activate a template: seed the draft with that template's LAST PUBLISHED
+ * design (or its defaults if it was never published) and publish it.
+ *
+ * Activating the template that is already live is a no-op: it must never
+ * overwrite the live design or an in-progress draft with stock defaults.
+ */
 async function seedAndPublishTemplate(input: {
-  templateKey: (typeof STOREFRONT_TEMPLATE_KEYS)[number];
+  templateKey: TemplateKey;
   storeId: number;
   userId: number;
   role: string;
   isOverride: boolean;
 }) {
-  const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[input.templateKey]);
+  const currentPublished = await getPublishedStorefront(input.storeId);
+  if (currentPublished) {
+    try {
+      const current = validateStorefrontConfig(
+        JSON.parse(currentPublished.snapshotJson)
+      );
+      if (current.ok && current.data?.templateKey === input.templateKey) {
+        return {
+          versionNumber: currentPublished.versionNumber,
+          templateKey: input.templateKey,
+          alreadyActive: true,
+        };
+      }
+    } catch {
+      /* Unreadable snapshot: fall through and re-seed the template. */
+    }
+  }
+
+  const seed = await templateSeedConfig(
+    input.storeId,
+    input.templateKey,
+    currentPublished?.snapshotJson ?? null
+  );
+  const valid = validateStorefrontConfig(seed.config);
   if (!valid.ok || !valid.data) {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   }
@@ -73,7 +127,7 @@ async function seedAndPublishTemplate(input: {
     snapshotJson: JSON.stringify(valid.data),
     sourceDraftVersion: existing ? existing.concurrencyVersion + 1 : 1,
     publishedBy: input.userId,
-    note: `enable ${input.templateKey}`,
+    note: `enable ${input.templateKey} (${seed.seededFrom})`,
   });
   await recordStorefrontAuditLog({
     storeId: input.storeId,
@@ -83,9 +137,12 @@ async function seedAndPublishTemplate(input: {
     action: "template_select",
     entityType: "template",
     toVersion: versionNumber,
-    metadataJson: JSON.stringify({ templateKey: input.templateKey }),
+    metadataJson: JSON.stringify({
+      templateKey: input.templateKey,
+      seededFrom: seed.seededFrom,
+    }),
   });
-  return { versionNumber, templateKey: input.templateKey };
+  return { versionNumber, templateKey: input.templateKey, alreadyActive: false };
 }
 
 export const storefrontRouter = router({
@@ -324,8 +381,25 @@ export const storefrontRouter = router({
     }),
 
   /**
-   * Open a template for editing: seeds the DRAFT (never publishes) with that
-   * template's default config if the draft is for a different template.
+   * Preview-only: the validated default config of every approved template.
+   * Read-only, never persisted — used to render real template previews.
+   */
+  templateDefaults: protectedProcedure.query(() => {
+    const out: Record<string, unknown> = {};
+    for (const key of STOREFRONT_TEMPLATE_KEYS) {
+      const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[key]);
+      if (valid.ok && valid.data) out[key] = valid.data;
+    }
+    return out;
+  }),
+
+  /**
+   * Open a template for editing: seeds the DRAFT (never publishes).
+   *
+   * - Draft already for this template  -> return it (keeps unpublished work).
+   * - Otherwise seed from this template's LAST PUBLISHED design, so the editor
+   *   shows what is actually live; built-in defaults only for a template that
+   *   was never published.
    */
   startEditing: protectedProcedure
     .input(z.object({ templateKey: z.enum(STOREFRONT_TEMPLATE_KEYS) }))
@@ -348,10 +422,12 @@ export const storefrontRouter = router({
           templateKey: input.templateKey,
           version: existing.concurrencyVersion,
           changed: false,
+          seededFrom: "draft" as const,
           config: existingConfig,
         };
       }
-      const valid = validateStorefrontConfig(TEMPLATE_DEFAULTS[input.templateKey]);
+      const seed = await templateSeedConfig(storeId, input.templateKey);
+      const valid = validateStorefrontConfig(seed.config);
       if (!valid.ok || !valid.data) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
       }
@@ -369,12 +445,16 @@ export const storefrontRouter = router({
         isOverride,
         action: "draft_template_switch",
         entityType: "draft",
-        metadataJson: JSON.stringify({ templateKey: input.templateKey }),
+        metadataJson: JSON.stringify({
+          templateKey: input.templateKey,
+          seededFrom: seed.seededFrom,
+        }),
       });
       return {
         templateKey: input.templateKey,
         version: saved.version ?? 0,
         changed: true,
+        seededFrom: seed.seededFrom,
         config: valid.data,
       };
     }),

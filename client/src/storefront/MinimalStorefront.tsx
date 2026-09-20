@@ -6,6 +6,13 @@ import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
+import { benefitRows, categoryTiles, footerData } from "@/storefront/sectionData";
+import {
+  FooterInlineLinks,
+  SignatureFlourish,
+  signatureStyle,
+} from "@/storefront/FooterExtras";
+import { storefrontAnchors } from "@/storefront/sectionIcons";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -48,7 +55,7 @@ function getPrice(product: CatalogProduct) {
 const str = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
-const LABEL = "text-[11px] uppercase tracking-[0.22em] text-[var(--sf-color-text-muted,#576B66)]";
+const LABEL = "text-[11px] uppercase tracking-[0.22em] text-[var(--sf-color-accent,#0F766E)]";
 const WRAP = "mx-auto w-full max-w-[var(--sf-container-max,1080px)] px-5 sm:px-8";
 
 export function MinimalStorefront({
@@ -75,6 +82,8 @@ export function MinimalStorefront({
     for (const p of products) if (p.collectionName) set.add(p.collectionName);
     return Array.from(set).slice(0, 3);
   }, [products]);
+
+  const anchors = useMemo(() => storefrontAnchors(config), [config]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -118,7 +127,7 @@ export function MinimalStorefront({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-white text-[var(--sf-color-text,#0C2A26)]">
+    <div dir="rtl" className="min-h-screen bg-[var(--sf-color-background,#FFFFFF)] text-[var(--sf-color-text,#0C2A26)]">
       {sections.map(section => {
         const content = (() => {
           switch (section.type) {
@@ -126,16 +135,21 @@ export function MinimalStorefront({
             return (
               <div
                 key={section.id}
-                className="border-b border-[#E7E9E8] py-3.5 text-center text-[11.5px] uppercase tracking-[0.18em] text-[var(--sf-color-text-muted,#576B66)]"
+                className="border-b border-[var(--sf-color-border,#E7E9E8)] bg-[var(--sf-color-surface,#FFFFFF)] py-3.5 text-center text-[11.5px] uppercase tracking-[0.18em] text-[var(--sf-color-text-muted,#576B66)]"
               >
-                {str(section.settings.text)}
+                <div>{str(section.settings.text)}</div>
+                {str(section.settings.subtitle) ? (
+                  <div className="mt-1 text-[10.5px] normal-case tracking-normal text-[var(--sf-color-text-muted,#576B66)] opacity-90">
+                    {str(section.settings.subtitle)}
+                  </div>
+                ) : null}
               </div>
             );
           case "header":
             return (
               <header
                 key={section.id}
-                className="border-b border-[#E7E9E8] bg-white"
+                className="border-b border-[var(--sf-color-border,#E7E9E8)] bg-[var(--sf-color-surface,#FFFFFF)]"
               >
                 <div className={`${WRAP} flex h-[66px] items-center justify-between gap-4`}>
                   <span className="text-[16px] font-bold tracking-[0.02em]">
@@ -159,7 +173,7 @@ export function MinimalStorefront({
                     </a>
                   </nav>
                   {section.settings.showSearch !== false ? (
-                    <label className="hidden items-center gap-2 border-b border-[#E7E9E8] py-1 text-[12px] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
+                    <label className="hidden items-center gap-2 border-b border-[var(--sf-color-border,#E7E9E8)] py-1 text-[12px] text-[var(--sf-color-text-muted,#576B66)] sm:flex">
                       <Search className="size-4" />
                       <input
                         value={search}
@@ -172,7 +186,7 @@ export function MinimalStorefront({
                   {section.settings.showAccount !== false ? (
                     <button
                       type="button"
-                      className="hidden text-[12px] uppercase tracking-[0.1em] text-[#6B5F52] hover:text-[var(--sf-color-text,#0C2A26)] sm:block"
+                      className="hidden text-[12px] uppercase tracking-[0.1em] text-[var(--sf-color-text-muted,#576B66)] hover:text-[var(--sf-color-text,#0C2A26)] sm:block"
                       aria-label="الحساب"
                     >
                       الحساب
@@ -182,7 +196,7 @@ export function MinimalStorefront({
                     <button
                       type="button"
                       onClick={() => setLocation("/store/cart")}
-                      className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[#0F766E] hover:text-[var(--sf-color-primary,#0F766E)]"
+                      className="border-b border-transparent text-[12px] tracking-[0.1em] transition hover:border-[var(--sf-color-primary-hover,#0B5D57)] hover:text-[var(--sf-color-primary-hover,#0B5D57)]"
                     >
                       السلة ({itemCount})
                     </button>
@@ -206,7 +220,7 @@ export function MinimalStorefront({
                   <div className="mt-10 flex flex-wrap items-center gap-7">
                     <a
                       href="#grid"
-                      className="border-b border-[var(--sf-color-text,#0C2A26)] pb-1 text-[13px] uppercase tracking-[0.12em]"
+                      className="border-b border-[var(--sf-color-primary,#0F766E)] pb-1 text-[13px] uppercase tracking-[0.12em] text-[var(--sf-color-primary,#0F766E)] transition hover:border-[var(--sf-color-primary-hover,#0B5D57)] hover:text-[var(--sf-color-primary-hover,#0B5D57)]"
                     >
                       {str(section.settings.ctaLabel, "تسوق")}
                     </a>
@@ -220,7 +234,7 @@ export function MinimalStorefront({
               <section
                 key={section.id}
                 id="grid"
-                className={`${WRAP} border-t border-[#E7E9E8] py-20`}
+                className={`${WRAP} border-t border-[var(--sf-color-border,#E7E9E8)] py-20`}
               >
                 <div className="mb-11 flex flex-wrap items-baseline justify-between gap-4">
                   <h2 className="text-[22px] font-semibold tracking-[-0.01em] sm:text-[26px]">
@@ -243,11 +257,11 @@ export function MinimalStorefront({
                     .map(product => {
                       const { price, compareAtPrice } = getPrice(product);
                       return (
-                        <div key={product.id} className="group">
+                        <div key={product.id} className="group rounded-[var(--sf-radius-lg,3px)] bg-[var(--sf-color-surface,#FFFFFF)]">
                           <button
                             type="button"
                             onClick={() => setLocation(`/p/${product.id}`)}
-                            className="block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,3px)] bg-[#F4F5F4] transition group-hover:opacity-80"
+                            className="block aspect-[4/5] w-full overflow-hidden rounded-[var(--sf-radius-lg,3px)] bg-[var(--sf-color-surface-muted,#F4F5F4)] transition group-hover:opacity-80"
                           >
                             {product.images[0]?.url ? (
                               <img
@@ -274,7 +288,7 @@ export function MinimalStorefront({
                           <button
                             type="button"
                             onClick={() => add(product)}
-                            className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)]"
+                            className="mt-2 text-[11px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)] transition hover:text-[var(--sf-color-primary-hover,#0B5D57)]"
                           >
                             أضف إلى السلة
                           </button>
@@ -292,7 +306,7 @@ export function MinimalStorefront({
           case "promo":
             return (
               <section key={section.id} className={WRAP}>
-                <div className="border border-[#E7E9E8] px-8 py-14 text-center sm:px-16">
+                <div className="border border-[var(--sf-color-border,#E7E9E8)] bg-[var(--sf-color-surface,#FFFFFF)] px-8 py-14 text-center sm:px-16">
                   <span className={LABEL}>لفترة محدودة</span>
                   <h2 className="mt-4 text-[22px] font-semibold sm:text-[28px]">
                     {str(section.settings.title)}
@@ -302,7 +316,7 @@ export function MinimalStorefront({
                   </p>
                   <a
                     href="#grid"
-                    className="border-b border-[var(--sf-color-text,#0C2A26)] pb-1 text-[13px] uppercase tracking-[0.12em]"
+                    className="border-b border-[var(--sf-color-primary,#0F766E)] pb-1 text-[13px] uppercase tracking-[0.12em] text-[var(--sf-color-primary,#0F766E)] transition hover:border-[var(--sf-color-primary-hover,#0B5D57)] hover:text-[var(--sf-color-primary-hover,#0B5D57)]"
                   >
                     {str(section.settings.ctaLabel, "اكتشف")}
                   </a>
@@ -314,29 +328,30 @@ export function MinimalStorefront({
               <section
                 key={section.id}
                 id="about"
-                className={`${WRAP} mt-20 border-t border-[#E7E9E8] py-16`}
+                className={`${WRAP} mt-20 border-t border-[var(--sf-color-border,#E7E9E8)] py-16`}
               >
                 <h2 className="mb-8 text-[22px] font-semibold sm:text-[26px]">
                   {str(section.settings.title, "لماذا نحن")}
                 </h2>
                 <div className="grid sm:grid-cols-2 sm:gap-x-12">
-                  {[
+                  {benefitRows(section, [
                     ["01", "توصيل سريع", "لجميع الولايات خلال 48–72 ساعة."],
                     ["02", "دفع عند الاستلام", "افحص طلبك قبل الدفع."],
                     ["03", "إرجاع خلال 7 أيام", "استرجاع بسيط بلا تعقيد."],
                     ["04", "دفع آمن", "بياناتك محمية دائمًا."],
-                  ].map(([num, title, text]) => (
+                  ]).map(row => (
                     <div
-                      key={num}
-                      className="flex items-baseline gap-3.5 border-b border-[#E7E9E8] py-5"
+                      key={row.id}
+                      className="flex items-baseline gap-3.5 border-b border-[var(--sf-color-border,#E7E9E8)] py-5"
+                      style={row.bg ? { backgroundColor: row.bg } : undefined}
                     >
                       <span className="text-[11px] tracking-[0.16em] text-[var(--sf-color-text-muted,#576B66)]">
-                        {num}
+                        {row.num}
                       </span>
                       <span>
-                        <b className="block text-[13.5px] font-semibold">{title}</b>
+                        <b className="block text-[13.5px] font-semibold">{row.title}</b>
                         <span className="text-[12.5px] font-light text-[var(--sf-color-text-muted,#576B66)]">
-                          {text}
+                          {row.text}
                         </span>
                       </span>
                     </div>
@@ -367,7 +382,7 @@ export function MinimalStorefront({
                   />
                   <button
                     type="submit"
-                    className="px-2 py-3 text-[12px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)]"
+                    className="px-2 py-3 text-[12px] uppercase tracking-[0.14em] text-[var(--sf-color-primary,#0F766E)] transition hover:text-[var(--sf-color-primary-hover,#0B5D57)]"
                   >
                     {str(section.settings.ctaLabel, "اشترك")}
                   </button>
@@ -378,27 +393,70 @@ export function MinimalStorefront({
             return (
               <footer
                 key={section.id}
-                className="border-t border-[#E7E9E8] py-8"
+                className="border-t border-[var(--sf-color-border,#E7E9E8)] py-8"
               >
-                <div
-                  className={`${WRAP} flex flex-wrap items-center justify-between gap-3.5 text-[12px] text-[var(--sf-color-text-muted,#576B66)]`}
-                >
-                  <span>© {new Date().getFullYear()} {storeName}</span>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2.5 tracking-[0.06em]">
-                    <a href="#grid" className="hover:text-[var(--sf-color-text,#0C2A26)]">
-                      المنتجات
-                    </a>
-                    <span>الإرجاع</span>
-                    <span>اتصل بنا</span>
-                  </div>
-                </div>
+                {(() => {
+                  const footer = footerData(section, anchors);
+                  return (
+                    <div
+                      className={`${WRAP} flex flex-wrap items-center justify-between gap-3.5 text-[12px] text-[var(--sf-color-text-muted,#576B66)]`}
+                    >
+                      <span>© {new Date().getFullYear()} {storeName}</span>
+                      <div className="flex flex-wrap gap-x-6 gap-y-2.5 tracking-[0.06em]">
+                        <FooterInlineLinks
+                          footer={footer}
+                          itemClass="hover:text-[var(--sf-color-text,#0C2A26)]"
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const footer = footerData(section, anchors);
+                  return (
+                    <div
+                      className={`${WRAP} mt-4 space-y-1 text-[12px] text-[var(--sf-color-text-muted,#576B66)]`}
+                    >
+                      {footer.trackOrder ? (
+                        <p>تتبع الطلب: {footer.trackOrder}</p>
+                      ) : null}
+                      {footer.returns ? <p>الإرجاع: {footer.returns}</p> : null}
+                    </div>
+                  );
+                })()}
               </footer>
+            );
+          case "signature":
+            return (
+              <section key={section.id} className={`${WRAP} py-12 text-center`}>
+                {(() => {
+                  const sig = signatureStyle(section);
+                  return (
+                    <>
+                      {sig.showOrnament ? (
+                        <SignatureFlourish className="mb-3" />
+                      ) : null}
+                      <div style={sig.style} className="text-[24px] font-semibold sm:text-[30px]">
+                        {sig.text || storeName}
+                      </div>
+                      {sig.subtitle ? (
+                        <div
+                          style={sig.style}
+                          className="mt-2 text-[12.5px] font-light text-[var(--sf-color-text-muted,#576B66)]"
+                        >
+                          {sig.subtitle}
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </section>
             );
           case "categories":
             return (
               <section
                 key={section.id}
-                className={`${WRAP} border-t border-[#E7E9E8] py-20`}
+                className={`${WRAP} border-t border-[var(--sf-color-border,#E7E9E8)] py-20`}
               >
                 <div className="mb-11">
                   <h2 className="text-[22px] font-semibold tracking-[-0.01em] sm:text-[26px]">
@@ -409,10 +467,7 @@ export function MinimalStorefront({
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-x-[22px] gap-y-[34px] sm:grid-cols-3 lg:grid-cols-4">
-                  {(section.items?.length
-                    ? section.items
-                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
-                  ).map(item => (
+                  {categoryTiles(section, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
@@ -420,11 +475,13 @@ export function MinimalStorefront({
                       className="group text-right"
                     >
                       <span
-                        className="block aspect-[4/5] w-full rounded-[var(--sf-radius-lg,3px)] border border-[#E7E9E8] bg-[#F4F5F4] bg-cover bg-center transition group-hover:opacity-80"
+                        className="block aspect-[4/5] w-full rounded-[var(--sf-radius-lg,3px)] border border-[var(--sf-color-border,#E7E9E8)] bg-[var(--sf-color-surface-muted,#F4F5F4)] bg-cover bg-center transition group-hover:opacity-80"
                         style={
                           item.imageUrl
                             ? { backgroundImage: `url(${item.imageUrl})` }
-                            : undefined
+                            : item.bg
+                              ? { backgroundColor: item.bg }
+                              : undefined
                         }
                       />
                       <span className="mt-3 block text-[13.5px] font-medium">

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
+import { ColorField } from "@/storefront/editor/ColorField";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type SavedTheme = {
@@ -55,11 +56,16 @@ const CATEGORIES: Array<{ id: Category; label: string; icon: string }> = [
 const COLOR_FIELDS: Array<{ token: string; label: string }> = [
   { token: "--sf-color-primary", label: "اللون الأساسي" },
   { token: "--sf-color-primary-hover", label: "الأساسي (عند المرور)" },
+  { token: "--sf-color-primary-foreground", label: "نص الزر على الأساسي" },
   { token: "--sf-color-background", label: "الخلفية" },
   { token: "--sf-color-surface", label: "السطح" },
-  { token: "--sf-color-text", label: "النص" },
+  { token: "--sf-color-surface-raised", label: "السطح البارز (الأشرطة الداكنة)" },
+  { token: "--sf-color-surface-muted", label: "السطح الباهت" },
+  { token: "--sf-color-text", label: "النص الأساسي" },
   { token: "--sf-color-text-muted", label: "النص الباهت" },
+  { token: "--sf-color-text-inverted", label: "النص على السطح الداكن" },
   { token: "--sf-color-accent", label: "التمييز" },
+  { token: "--sf-color-accent-soft", label: "التمييز الفاتح (الإطارات)" },
 ];
 const FONT_OPTIONS = ["Cairo", "Tajawal", "Rubik"];
 
@@ -116,6 +122,35 @@ const DENSITY_PRESETS = [
 ];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Which theme category owns a token, so a preview click can open it. */
+function categoryForToken(token: string): Category | null {
+  if (token.startsWith("--sf-color-")) return "colors";
+  if (token.startsWith("--sf-font-")) return "typography";
+  if (token.startsWith("--sf-radius-")) return "radius";
+  if (token.startsWith("--sf-space-")) return "spacing";
+  if (token.startsWith("--sf-container") || token.startsWith("--sf-grid"))
+    return "layout";
+  if (token.startsWith("--sf-border")) return "borders";
+  if (token.startsWith("--sf-shadow") || token.startsWith("--sf-effect"))
+    return "effects";
+  return null;
+}
+
+/**
+ * Same rule as the theme schema (`colorValueSchema`). The text input keeps its
+ * raw draft locally and only commits values that pass this check — otherwise a
+ * half-typed hex would make the whole theme object invalid, silently dropping
+ * EVERY token override (which looked like "changing one color changed the text
+ * color").
+ */
+const isValidColorValue = (value: string) =>
+  /^#[0-9a-fA-F]{3,8}$/.test(value) ||
+  /^oklch\([^()]*\)$/.test(value) ||
+  /^rgba?\([^()]*\)$/.test(value) ||
+  /^hsla?\([^()]*\)$/.test(value) ||
+  value === "transparent" ||
+  value === "currentColor";
 const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const luminance = (hex: string) => {
   const h = hex.replace("#", "");
@@ -132,49 +167,106 @@ const contrast = (a: string, b: string) => {
 };
 
 /** "Use template default" checkbox: when checked, the token is removed. */
-function DefaultToggle({
+/**
+ * The ONLY reset affordance per field: shown when an override exists (so it
+ * always does something) and replaced by a plain hint of the effective value
+ * when the field already follows the template default.
+ */
+function ResetOverride({
   isDefault,
-  onToggle,
+  onReset,
+  hint,
 }: {
   isDefault: boolean;
-  onToggle: (next: boolean) => void;
+  onReset: () => void;
+  hint: string;
 }) {
+  if (isDefault) {
+    return (
+      <span className="shrink-0 text-[10.5px] font-bold text-[#9fb0ac]">افتراضي: {hint}</span>
+    );
+  }
   return (
-    <label className="flex shrink-0 cursor-pointer items-center gap-1 text-[10.5px] font-bold text-[#576B66]">
-      <input
-        type="checkbox"
-        checked={isDefault}
-        onChange={e => onToggle(e.target.checked)}
-        className="size-3 accent-[#0F766E]"
-      />
+    <button
+      type="button"
+      onClick={onReset}
+      title="رجوع لافتراضي القالب"
+      className="shrink-0 rounded-md px-2 py-1 text-[11px] font-bold text-[#0B5D57] hover:bg-[#f7faf9]"
+    >
       افتراضي
-    </label>
+    </button>
   );
 }
 
 export function ThemePanel({
   config,
   onChange,
+  focusToken,
+  liveColors,
 }: {
   config: StorefrontConfig;
   onChange: (next: StorefrontConfig) => void;
+  /** Theme token clicked inside the preview: open its category and focus it. */
+  focusToken?: { key: string; nonce: number } | null;
+  /** Colors actually rendered by the selected section (preferred over defaults). */
+  liveColors?: Record<string, string>;
 }) {
   const [category, setCategory] = useState<Category>("colors");
   const [savedThemes, setSavedThemes] = useState<SavedTheme[]>(() =>
     readSavedThemes()
   );
   const [themeName, setThemeName] = useState("");
+  const tokenRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [flashToken, setFlashToken] = useState<string | null>(null);
+
+  // Open the owning category, then scroll to + focus the clicked token control.
+  useEffect(() => {
+    if (!focusToken) return;
+    const owner = categoryForToken(focusToken.key);
+    if (owner && owner !== category) {
+      setCategory(owner);
+      return;
+    }
+    const el = tokenRefs.current[focusToken.key];
+    if (!el) return;
+    el.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    el.querySelector<HTMLElement>(
+      "input:not([type=file]), select, textarea"
+    )?.focus({ preventScroll: true });
+    setFlashToken(focusToken.key);
+    const timer = setTimeout(() => setFlashToken(null), 1600);
+    return () => clearTimeout(timer);
+  }, [focusToken, category]);
   const theme = (config.theme ?? {}) as Record<string, unknown>;
   const defaults = useMemo(
     () => templateDefaultTokens(config.templateKey),
     [config.templateKey]
   );
   const colors = (theme.colors ?? {}) as Record<string, string>;
+  const fills = (theme.fills ?? {}) as Record<string, string>;
+  const brandFill = fills["--sf-brand-fill"];
+  /** Solid vs gradient for every brand fill in all templates. */
+  const brandFillIsGradient = brandFill
+    ? brandFill.includes("gradient")
+    : (defaults["--sf-brand-fill"] ?? "").includes("gradient");
+  const setBrandFillMode = (mode: "solid" | "gradient") =>
+    setToken(
+      "fills",
+      "--sf-brand-fill",
+      mode === "gradient"
+        ? "linear-gradient(135deg, var(--sf-color-primary), var(--sf-color-primary-hover))"
+        : "none"
+    );
   const radius = (theme.radius ?? {}) as Record<string, string>;
   const fontFamilies = (theme.fontFamilies ?? {}) as Record<string, string>;
   const spacingTokens = (theme.spacing ?? {}) as Record<string, string>;
   const spacingPad = spacingTokens["--sf-space-section"] ?? "";
-  const effective = (token: string) => colors[token] ?? defaults[token] ?? "#000000";
+  /**
+   * Current value of a token: an explicit choice wins, then the color actually
+   * rendered by the selected section, then the template default.
+   */
+  const effective = (token: string) =>
+    colors[token] ?? liveColors?.[token] ?? defaults[token] ?? "#000000";
 
   const patchTheme = (patch: Record<string, unknown>) =>
     onChange({ ...config, theme: { ...theme, ...patch } });
@@ -250,7 +342,7 @@ export function ThemePanel({
   ];
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div>
       <div className="flex items-center justify-between border-b border-[#e7e9e8] px-3.5 py-3">
         <span className="text-[13.5px] font-black">الثيم</span>
         <button
@@ -262,13 +354,13 @@ export function ThemePanel({
           <RotateCcw className="size-3.5" />
         </button>
       </div>
-      <div className="flex flex-wrap gap-1.5 border-b border-[#e7e9e8] px-3.5 py-3">
+      <div className="flex flex-wrap gap-2 border-b border-[#e7e9e8] px-3.5 py-3">
         {CATEGORIES.map(c => (
           <button
             key={c.id}
             type="button"
             onClick={() => setCategory(c.id)}
-            className={`rounded-full border px-3 py-1.5 text-[11.5px] font-extrabold ${
+            className={`rounded-full border px-4 py-2 text-[13px] font-extrabold ${
               category === c.id
                 ? "border-[#0F766E] bg-[#e4f3ef] text-[#0B5D57]"
                 : "border-[#e7e9e8] bg-white text-[#576B66]"
@@ -279,49 +371,87 @@ export function ThemePanel({
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div>
         {category === "colors" ? (
           <>
             <div className="space-y-3 p-3.5">
               {COLOR_FIELDS.map(field => {
                 const value = effective(field.token);
-                const safe = HEX.test(value) ? value : "#000000";
                 const isDefault = !(field.token in colors);
                 return (
-                  <div key={field.token}>
+                  <div
+                    key={field.token}
+                    ref={el => {
+                      tokenRefs.current[field.token] = el;
+                    }}
+                    className={`rounded-xl p-1 transition ${
+                      flashToken === field.token
+                        ? "bg-[#f0faf8] ring-2 ring-[#0F766E]/50"
+                        : ""
+                    }`}
+                  >
                     <div className="mb-1.5 flex items-center justify-between gap-2">
                       <label className="block text-[11.5px] font-bold text-[#576B66]">
                         {field.label}
                       </label>
-                      <DefaultToggle
-                        isDefault={isDefault}
-                        onToggle={next =>
-                          setToken(
-                            "colors",
-                            field.token,
-                            next ? undefined : defaults[field.token] ?? "#000000"
-                          )
-                        }
-                      />
+                      {isDefault ? (
+                        <span className="shrink-0 text-[10.5px] font-bold text-[#9fb0ac]">
+                          افتراضي: {defaults[field.token] ?? "—"}
+                        </span>
+                      ) : null}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={safe}
-                        onChange={e => setColor(field.token, e.target.value)}
-                        className="h-10 w-12 cursor-pointer rounded-lg border border-[#e7e9e8] bg-white p-1"
-                      />
-                      <input
-                        type="text"
-                        value={value}
-                        onChange={e => setColor(field.token, e.target.value)}
-                        className="flex-1 rounded-[10px] border border-[#e7e9e8] p-2.5 text-[12.5px] outline-none focus:border-[#0F766E]"
-                      />
-                    </div>
+                    <ColorField
+                      value={value}
+                      onChange={next => setColor(field.token, next)}
+                      defaultValue={defaults[field.token]}
+                      ariaLabel={field.label}
+                    />
                   </div>
                 );
               })}
             </div>
+
+            {/* Global fill style: solid vs gradient for every brand surface. */}
+            <div className="border-t border-[#e7e9e8] px-3.5 py-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <span className="text-[12.5px] font-black">تعبئة العلامة</span>
+                <ResetOverride
+                  isDefault={!brandFill}
+                  onReset={() => setToken("fills", "--sf-brand-fill", undefined)}
+                  hint={
+                    (defaults["--sf-brand-fill"] ?? "").includes("gradient")
+                      ? "متدرّج"
+                      : "لون صلب"
+                  }
+                />
+              </div>
+              <div className="inline-flex rounded-[10px] bg-[#f1f3f2] p-1">
+                <button
+                  type="button"
+                  onClick={() => setBrandFillMode("solid")}
+                  className={`rounded-lg px-3.5 py-1.5 text-[12px] font-bold ${
+                    !brandFillIsGradient ? "bg-white text-[#0C2A26]" : "text-[#576B66]"
+                  }`}
+                >
+                  لون صلب
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBrandFillMode("gradient")}
+                  className={`rounded-lg px-3.5 py-1.5 text-[12px] font-bold ${
+                    brandFillIsGradient ? "bg-white text-[#0C2A26]" : "text-[#576B66]"
+                  }`}
+                >
+                  متدرّج
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-6 text-[#576B66]">
+                يتحكم في تعبئة الواجهة/الشريط/الأزرار في القوالب كلها (من
+                «الأساسي» إلى «الأساسي عند المرور»). وللتخصيص لقسم واحد استخدم
+                «خلفية القسم» في المحتوى.
+              </p>
+            </div>
+
             <div className="border-y border-[#e7e9e8] px-3.5 py-3 text-[12.5px] font-black">
               نسبة التباين (WCAG AA)
             </div>
@@ -357,22 +487,16 @@ export function ThemePanel({
               <label className="block text-[11.5px] font-bold text-[#576B66]">
                 خط العناوين
               </label>
-              <DefaultToggle
-                isDefault={!fontFamilies["--sf-font-heading"]}
-                onToggle={next =>
-                  setToken(
-                    "fontFamilies",
-                    "--sf-font-heading",
-                    next ? undefined : "Cairo"
-                  )
-                }
-              />
+              <span className="shrink-0 text-[10.5px] font-bold text-[#9fb0ac]">
+                افتراضي: Cairo
+              </span>
             </div>
             <select
               value={fontFamilies["--sf-font-heading"] ?? ""}
               onChange={e => setFont(e.target.value)}
               className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
             >
+              <option value="">افتراضي</option>
               {FONT_OPTIONS.map(f => (
                 <option key={f} value={f}>
                   {f}
@@ -388,23 +512,23 @@ export function ThemePanel({
               <label className="block text-[11.5px] font-bold text-[#576B66]">
                 انحناء حواف البطاقات (px)
               </label>
-              <DefaultToggle
+              <ResetOverride
                 isDefault={!radius["--sf-radius-lg"]}
-                onToggle={next =>
-                  setToken(
-                    "radius",
-                    "--sf-radius-lg",
-                    next
-                      ? undefined
-                      : `${parseInt(defaults["--sf-radius-lg"] ?? "22", 10)}px`
-                  )
-                }
+                onReset={() => setToken("radius", "--sf-radius-lg", undefined)}
+                hint={`${parseInt(defaults["--sf-radius-lg"] ?? "22", 10)}px`}
               />
             </div>
             <input
               type="number"
-              value={parseInt(radius["--sf-radius-lg"] ?? defaults["--sf-radius-lg"] ?? "22", 10)}
-              onChange={e => setToken("radius", "--sf-radius-lg", `${Number(e.target.value) || 0}px`)}
+              value={radius["--sf-radius-lg"] ? parseInt(radius["--sf-radius-lg"], 10) : ""}
+              placeholder={`افتراضي: ${parseInt(defaults["--sf-radius-lg"] ?? "22", 10)}`}
+              onChange={e =>
+                setToken(
+                  "radius",
+                  "--sf-radius-lg",
+                  e.target.value ? `${Number(e.target.value)}px` : undefined
+                )
+              }
               className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
             />
             <p className="text-[11px] text-[#576B66]">
@@ -425,18 +549,16 @@ export function ThemePanel({
                       <label className="block text-[11.5px] font-bold text-[#576B66]">
                         {ctrl.label}
                       </label>
-                      <DefaultToggle
-                        isDefault={isDefault}
-                        onToggle={next => {
-                          if (next) setToken(ctrl.group, ctrl.token, undefined);
-                        }}
-                      />
+                      <span className="shrink-0 text-[10.5px] font-bold text-[#9fb0ac]">
+                        افتراضي: {defaults[ctrl.token] ?? "—"}
+                      </span>
                     </div>
                     <select
                       value={current}
                       onChange={e => setToken(ctrl.group, ctrl.token, e.target.value || undefined)}
                       className="h-10 w-full rounded-[10px] border border-[#e7e9e8] bg-white px-2 text-[13px] font-bold"
                     >
+                      <option value="">افتراضي</option>
                       {(ctrl.options ?? []).map(o => (
                         <option key={o.value} value={o.value}>
                           {o.label}
@@ -448,21 +570,31 @@ export function ThemePanel({
               }
               const unit = ctrl.type === "ms" ? "ms" : "px";
               return (
-                <div key={ctrl.token}>
+                <div
+                  key={ctrl.token}
+                  ref={el => {
+                    tokenRefs.current[ctrl.token] = el;
+                  }}
+                  className={`rounded-xl p-1 transition ${
+                    flashToken === ctrl.token
+                      ? "bg-[#f0faf8] ring-2 ring-[#0F766E]/50"
+                      : ""
+                  }`}
+                >
                   <div className="mb-1.5 flex items-center justify-between gap-2">
                     <label className="block text-[11.5px] font-bold text-[#576B66]">
                       {ctrl.label}
                     </label>
-                    <DefaultToggle
+                    <ResetOverride
                       isDefault={isDefault}
-                      onToggle={next => {
-                        if (next) setToken(ctrl.group, ctrl.token, undefined);
-                      }}
+                      onReset={() => setToken(ctrl.group, ctrl.token, undefined)}
+                      hint={defaults[ctrl.token] ?? "—"}
                     />
                   </div>
                   <input
                     type="number"
                     value={current ? parseInt(current, 10) : ""}
+                    placeholder={`افتراضي: ${defaults[ctrl.token] ?? ""}`}
                     onChange={e => setToken(ctrl.group, ctrl.token, e.target.value ? `${Number(e.target.value)}${unit}` : undefined)}
                     className="h-10 w-full rounded-[10px] border border-[#e7e9e8] p-2.5 text-[13px] outline-none focus:border-[#0F766E]"
                   />
@@ -479,11 +611,10 @@ export function ThemePanel({
           <div className="space-y-3 p-3.5">
             <div className="flex items-center justify-between gap-2">
               <label className="block text-[11.5px] font-bold text-[#576B66]">الكثافة</label>
-              <DefaultToggle
+              <ResetOverride
                 isDefault={!spacingPad}
-                onToggle={next => {
-                  if (next) setToken("spacing", "--sf-space-section", undefined);
-                }}
+                onReset={() => setToken("spacing", "--sf-space-section", undefined)}
+                hint="افتراضي القالب"
               />
             </div>
             <div className="inline-flex rounded-[10px] bg-[#f1f3f2] p-1">

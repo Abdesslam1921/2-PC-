@@ -6,6 +6,15 @@ import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import { SectionShell, type SectionWrapperComponent } from "@/storefront/SectionShell";
 import { SECTION_LABELS } from "@shared/storefront/sectionFields";
+import { benefitRows, categoryTiles, footerData } from "@/storefront/sectionData";
+import {
+  FooterHelp,
+  FooterSocial,
+  FooterStoreLinks,
+  SignatureFlourish,
+  signatureStyle,
+} from "@/storefront/FooterExtras";
+import { storefrontAnchors } from "@/storefront/sectionIcons";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 type CatalogProduct = {
@@ -76,6 +85,8 @@ export function BoldStorefront({
     return Array.from(set).slice(0, 4);
   }, [products]);
 
+  const anchors = useMemo(() => storefrontAnchors(config), [config]);
+
   const visible = useMemo(() => {
     let list = activeCollection
       ? products.filter(p => p.collectionName === activeCollection)
@@ -106,8 +117,8 @@ export function BoldStorefront({
 
   if (productsQuery.isLoading) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#0C2A26]">
-        <Loader2 className="size-8 animate-spin text-[#5EEAD4]" />
+      <div className="grid min-h-screen place-items-center bg-[var(--sf-color-surface-raised,#0C2A26)]">
+        <Loader2 className="size-8 animate-spin text-[var(--sf-color-accent,#F5B13D)]" />
       </div>
     );
   }
@@ -117,7 +128,7 @@ export function BoldStorefront({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div dir="rtl" className="min-h-screen bg-white text-[var(--sf-color-text,#0C2A26)]">
+    <div dir="rtl" className="min-h-screen bg-[var(--sf-color-background,#FFFFFF)] text-[var(--sf-color-text,#0C2A26)]">
       {sections.map(section => {
         const content = (() => {
           switch (section.type) {
@@ -125,22 +136,27 @@ export function BoldStorefront({
             return (
               <div
                 key={section.id}
-                className="bg-[#0C2A26] py-3 text-center text-[12.5px] font-extrabold text-[var(--sf-color-primary,#F5B13D)]"
+                className="bg-[var(--sf-color-surface-raised,#0C2A26)] py-3 text-center text-[12.5px] font-extrabold text-[var(--sf-color-primary,#F5B13D)]"
               >
-                {str(section.settings.text)}
+                <div>{str(section.settings.text)}</div>
+                {str(section.settings.subtitle) ? (
+                  <div className="mt-0.5 text-[11px] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80">
+                    {str(section.settings.subtitle)}
+                  </div>
+                ) : null}
               </div>
             );
           case "header":
             return (
               <header
                 key={section.id}
-                className="sticky top-0 z-30 border-b-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[#0C2A26] text-white"
+                className="sticky top-0 z-30 border-b-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[var(--sf-color-surface-raised,#0C2A26)] text-[var(--sf-color-text-inverted,#FFFFFF)]"
               >
                 <div className={`${WRAP} flex h-[74px] items-center justify-between gap-3`}>
                   <span className="text-[22px] font-black tracking-[-0.01em]">
                     {storeName}
                   </span>
-                  <nav className="hidden gap-5 text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-[#D7E6E2] sm:flex">
+                  <nav className="hidden gap-5 text-[12.5px] font-extrabold uppercase tracking-[0.06em] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-90 sm:flex">
                     {collections.map(name => (
                       <button
                         key={name}
@@ -156,20 +172,20 @@ export function BoldStorefront({
                   </nav>
                   <div className="flex items-center gap-2.5">
                     {section.settings.showSearch !== false ? (
-                      <label className="hidden items-center gap-2 rounded-full border-2 border-white/30 px-3 py-1.5 text-[12px] text-[#CFE6E1] sm:flex">
+                      <label className="hidden items-center gap-2 rounded-full border-2 border-white/30 px-3 py-1.5 text-[12px] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80 sm:flex">
                         <Search className="size-4" />
                         <input
                           value={search}
                           onChange={e => setSearch(e.target.value)}
                           placeholder="ابحث…"
-                          className="w-24 bg-transparent text-white outline-none placeholder:text-[#9FC0BA]"
+                          className="w-24 bg-transparent text-[var(--sf-color-text-inverted,#FFFFFF)] outline-none placeholder:text-[var(--sf-color-text-inverted,#FFFFFF)]"
                         />
                       </label>
                     ) : null}
                     {section.settings.showAccount !== false ? (
                       <button
                         type="button"
-                        className="hidden size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-white sm:grid"
+                        className="hidden size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-[var(--sf-color-text-inverted,#FFFFFF)] sm:grid"
                         aria-label="الحساب"
                       >
                         <UserRound className="size-5" />
@@ -182,7 +198,7 @@ export function BoldStorefront({
                           .getElementById("bold-grid")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      className="rounded-full border-2 border-[#0C2A26] bg-[var(--sf-color-primary,#F5B13D)] px-4 py-2.5 text-[13px] font-black text-[var(--sf-color-text,#0C2A26)]"
+                      className="rounded-full border-2 border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary,#F5B13D),var(--sf-color-primary,#F5B13D)))] px-4 py-2.5 text-[13px] font-black text-[var(--sf-color-primary-foreground,#FFFFFF)]"
                     >
                       تسوق الآن
                     </button>
@@ -190,7 +206,7 @@ export function BoldStorefront({
                       <button
                         type="button"
                         onClick={() => setLocation("/store/cart")}
-                        className="relative grid size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-white"
+                        className="relative grid size-[46px] place-items-center rounded-2xl border-2 border-white/40 text-[var(--sf-color-text-inverted,#FFFFFF)]"
                         aria-label="السلة"
                       >
                         <ShoppingCart className="size-5" />
@@ -209,7 +225,7 @@ export function BoldStorefront({
             return (
               <section
                 key={section.id}
-                className="relative overflow-hidden bg-[radial-gradient(120%_120%_at_82%_0%,rgba(94,234,212,0.22),transparent_55%),linear-gradient(150deg,#0C2A26,#0B1C19_60%,#050D0C)] text-white"
+                className="relative overflow-hidden bg-[radial-gradient(120%_120%_at_82%_0%,rgba(94,234,212,0.22),transparent_55%),linear-gradient(150deg,var(--sf-color-surface-raised,#0C2A26),color-mix(in_srgb,var(--sf-color-surface-raised,#0C2A26)_72%,black))] text-[var(--sf-color-text-inverted,#FFFFFF)]"
               >
                 {typeof section.settings.imageUrl === "string" &&
                 section.settings.imageUrl ? (
@@ -221,13 +237,13 @@ export function BoldStorefront({
                   />
                 ) : null}
                 <div className={`relative ${WRAP} py-16 sm:py-28`}>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-[var(--sf-color-primary,#F5B13D)] px-4 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[var(--sf-color-text,#0C2A26)]">
+                  <span className="inline-flex items-center gap-2 rounded-full bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#F5B13D)] px-4 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-[var(--sf-color-primary-foreground,#0C2A26)]">
                     🔥 {str(section.settings.eyebrow, "عرض الأسبوع")}
                   </span>
                   <h1 className="mt-5 mb-4 max-w-[15ch] text-[38px] font-black leading-[1.05] tracking-[-0.03em] sm:text-[76px]">
                     {str(section.settings.title, storeName)}
                   </h1>
-                  <p className="mb-7 max-w-[46ch] text-[14px] font-medium leading-8 text-[#CFE6E1] sm:text-[18px]">
+                  <p className="mb-7 max-w-[46ch] text-[14px] font-medium leading-8 text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80 sm:text-[18px]">
                     {str(section.settings.subtitle)}
                   </p>
                   <div className="flex flex-wrap gap-3">
@@ -238,7 +254,7 @@ export function BoldStorefront({
                           .getElementById("bold-grid")
                           ?.scrollIntoView({ behavior: "smooth" })
                       }
-                      className="inline-flex items-center gap-2.5 rounded-full border-[3px] border-[#0C2A26] bg-[var(--sf-color-primary,#F5B13D)] px-8 py-4 text-[16px] font-black text-[var(--sf-color-text,#0C2A26)]"
+                      className="inline-flex items-center gap-2.5 rounded-full border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#F5B13D)] px-8 py-4 text-[16px] font-black text-[var(--sf-color-primary-foreground,#0C2A26)]"
                     >
                       {str(section.settings.ctaLabel, "تسوق المجموعة")}
                       <ArrowLeft className="size-5" />
@@ -246,7 +262,7 @@ export function BoldStorefront({
                     <button
                       type="button"
                       onClick={() => setActiveCollection(null)}
-                      className="inline-flex items-center gap-2.5 rounded-full border-[3px] border-white/50 px-8 py-4 text-[16px] font-black text-white"
+                      className="inline-flex items-center gap-2.5 rounded-full border-[3px] border-white/50 px-8 py-4 text-[16px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]"
                     >
                       شاهد العروض
                     </button>
@@ -266,7 +282,7 @@ export function BoldStorefront({
                   <h2 className="text-[26px] font-black tracking-[-0.02em] sm:text-[40px]">
                     {str(section.settings.title, "الأكثر مبيعًا")}
                   </h2>
-                  <span className="text-[13px] font-black uppercase text-[#0F766E]">
+                  <span className="text-[13px] font-black uppercase text-[var(--sf-color-primary,#F5B13D)]">
                     {visible.length} منتجًا
                   </span>
                 </div>
@@ -295,12 +311,12 @@ export function BoldStorefront({
                       return (
                         <article
                           key={product.id}
-                          className="grid grid-cols-[44%_56%] overflow-hidden rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[#0C2A26] bg-white shadow-[8px_8px_0_0_var(--sf-color-text,#0C2A26)] transition duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[12px_12px_0_0_var(--sf-color-text,#0C2A26)]"
+                          className="grid grid-cols-[44%_56%] overflow-hidden rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[var(--sf-color-surface,#FFFFFF)] shadow-[8px_8px_0_0_var(--sf-color-text,#0C2A26)] transition duration-200 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[12px_12px_0_0_var(--sf-color-text,#0C2A26)]"
                         >
                           <button
                             type="button"
                             onClick={() => setLocation(`/p/${product.id}`)}
-                            className="relative min-h-[190px] bg-[linear-gradient(145deg,#DFF2EE,#BFE6DE)]"
+                            className="relative min-h-[190px] bg-[linear-gradient(145deg,var(--sf-color-surface-muted,#DFF2EE),color-mix(in_srgb,var(--sf-color-primary,#F5B13D)_18%,var(--sf-color-surface-muted,#DFF2EE)))]"
                           >
                             {product.images[0]?.url ? (
                               <img
@@ -311,7 +327,7 @@ export function BoldStorefront({
                               />
                             ) : null}
                             {discount ? (
-                              <span className="absolute right-2.5 top-2.5 rounded-full border-2 border-[#0C2A26] bg-[var(--sf-color-primary,#F5B13D)] px-3 py-1 text-[12px] font-black">
+                              <span className="absolute right-2.5 top-2.5 rounded-full border-2 border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#F5B13D)] px-3 py-1 text-[12px] font-black">
                                 -{discount}%
                               </span>
                             ) : null}
@@ -338,7 +354,7 @@ export function BoldStorefront({
                               type="button"
                               disabled={soldOut}
                               onClick={() => add(product)}
-                              className="mt-auto rounded-full border-[3px] border-[#0C2A26] bg-[#0C2A26] px-4 py-3.5 text-[14px] font-black text-white transition hover:bg-[#0F766E] disabled:opacity-50"
+                              className="mt-auto rounded-full border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[var(--sf-color-surface-raised,#0C2A26)] px-4 py-3.5 text-[14px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)] transition hover:bg-none hover:bg-[var(--sf-color-primary-hover,#E0A22F)] hover:text-[var(--sf-color-primary-foreground,#0C2A26)] disabled:opacity-50"
                             >
                               {soldOut ? "نفد المخزون" : "أضف للسلة فورًا"}
                             </button>
@@ -353,7 +369,7 @@ export function BoldStorefront({
             return (
               <section
                 key={section.id}
-                className="border-y-[3px] border-[#0C2A26] bg-[var(--sf-color-primary,#F5B13D)]"
+                className="border-y-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary),var(--sf-color-primary)))] bg-[var(--sf-color-primary,#F5B13D)]"
               >
                 <div
                   className={`${WRAP} grid gap-4 py-10 sm:grid-cols-[1.5fr_auto] sm:items-center`}
@@ -373,7 +389,7 @@ export function BoldStorefront({
                         .getElementById("bold-grid")
                         ?.scrollIntoView({ behavior: "smooth" })
                     }
-                    className="justify-self-start rounded-full border-[3px] border-[#0C2A26] bg-[#0C2A26] px-7 py-3.5 text-[15px] font-black text-white"
+                    className="justify-self-start rounded-full border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[var(--sf-color-surface-raised,#0C2A26)] px-7 py-3.5 text-[15px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]"
                   >
                     {str(section.settings.ctaLabel, "اكتشف")}
                   </button>
@@ -382,30 +398,31 @@ export function BoldStorefront({
             );
           case "benefits":
             return (
-              <section key={section.id} className="bg-[#0C2A26] text-white">
+              <section key={section.id} className="bg-[var(--sf-color-surface-raised,#0C2A26)] text-[var(--sf-color-text-inverted,#FFFFFF)]">
                 <div className={`${WRAP} py-7`}>
                   {str(section.settings.title) ? (
-                    <h2 className="mb-4 text-center text-[22px] font-black text-[var(--sf-color-primary,#F5B13D)] sm:text-[26px]">
+                    <h2 className="mb-4 text-center text-[22px] font-black text-[var(--sf-color-accent,#F5B13D)] sm:text-[26px]">
                       {str(section.settings.title)}
                     </h2>
                   ) : null}
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {[
-                    ["توصيل 58 ولاية", "خلال 48–72 ساعة"],
-                    ["دفع عند الاستلام", "افحص قبل الدفع"],
-                    ["إرجاع 7 أيام", "استرجاع سهل"],
-                    ["دفع آمن", "بيانات محمية"],
-                  ].map(([title, text]) => (
-                    <div
-                      key={title}
-                      className="rounded-[18px] border-2 border-white/20 p-3.5"
-                    >
-                      <b className="block text-[14px] font-black text-[var(--sf-color-primary,#F5B13D)]">
-                        {title}
-                      </b>
-                      <span className="text-[12px] text-[#CFE6E1]">{text}</span>
-                    </div>
-                  ))}
+                    {benefitRows(section, [
+                      ["01", "توصيل 58 ولاية", "خلال 48–72 ساعة"],
+                      ["02", "دفع عند الاستلام", "افحص قبل الدفع"],
+                      ["03", "إرجاع 7 أيام", "استرجاع سهل"],
+                      ["04", "دفع آمن", "بيانات محمية"],
+                    ]).map(row => (
+                      <div
+                        key={row.id}
+                        className="rounded-[18px] border-2 border-white/20 p-3.5"
+                        style={row.bg ? { backgroundColor: row.bg } : undefined}
+                      >
+                        <b className="block text-[14px] font-black text-[var(--sf-color-accent,#F5B13D)]">
+                          {row.title}
+                        </b>
+                        <span className="text-[12px] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80">{row.text}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
@@ -413,12 +430,12 @@ export function BoldStorefront({
           case "newsletter":
             return (
               <section key={section.id} className={`${WRAP} py-12 sm:py-16`}>
-                <div className="grid gap-4 rounded-[var(--sf-radius-lg,28px)] bg-[#0C2A26] p-7 text-white sm:p-12">
+                <div className="grid gap-4 rounded-[var(--sf-radius-lg,28px)] bg-[var(--sf-color-surface-raised,#0C2A26)] p-7 text-[var(--sf-color-text-inverted,#FFFFFF)] sm:p-12">
                   <div>
                     <h2 className="text-[26px] font-black tracking-[-0.02em] sm:text-[40px]">
                       {str(section.settings.title, "لا تفوّت العروض.")}
                     </h2>
-                    <p className="mt-2 text-[14px] font-medium text-[#CFE6E1]">
+                    <p className="mt-2 text-[14px] font-medium text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80">
                       {str(section.settings.subtitle)}
                     </p>
                   </div>
@@ -429,11 +446,11 @@ export function BoldStorefront({
                     <input
                       type="email"
                       placeholder="بريدك الإلكتروني"
-                      className="h-14 min-w-[220px] flex-1 rounded-full border-[3px] border-white bg-transparent px-5 text-[15px] font-semibold text-white outline-none placeholder:text-[#9FC0BA]"
+                      className="h-14 min-w-[220px] flex-1 rounded-full border-[3px] border-white bg-transparent px-5 text-[15px] font-semibold text-[var(--sf-color-text-inverted,#FFFFFF)] outline-none placeholder:text-[var(--sf-color-text-inverted,#FFFFFF)]"
                     />
                     <button
                       type="submit"
-                      className="h-14 rounded-full border-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[var(--sf-color-primary,#F5B13D)] px-7 text-[15px] font-black text-[var(--sf-color-text,#0C2A26)]"
+                      className="h-14 rounded-full border-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[image:var(--sf-brand-fill,linear-gradient(var(--sf-color-primary,#F5B13D),var(--sf-color-primary,#F5B13D)))] px-7 text-[15px] font-black text-[var(--sf-color-primary-foreground,#FFFFFF)] transition hover:bg-none hover:bg-[var(--sf-color-primary-hover,#E0A22F)]"
                     >
                       {str(section.settings.ctaLabel, "اشترك")}
                     </button>
@@ -445,36 +462,46 @@ export function BoldStorefront({
             return (
               <footer
                 key={section.id}
-                className="mt-12 border-t-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[#0C2A26] text-[#CFE6E1]"
+                className="mt-12 border-t-[3px] border-[var(--sf-color-primary,#F5B13D)] bg-[var(--sf-color-surface-raised,#0C2A26)] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-95"
               >
                 <div className={`${WRAP} grid gap-6 py-10 sm:grid-cols-2 lg:grid-cols-4`}>
-                  <div>
-                    <span className="text-[22px] font-black text-white">
-                      {storeName}
-                    </span>
-                    <p className="mt-3 max-w-[34ch] text-[12.5px] leading-7">
-                      تسوّق بجرأة — توصيل لكل الولايات والدفع عند الاستلام.
-                    </p>
-                  </div>
-                  {[
-                    { h: "المتجر", links: ["جديد", "عروض", "الفئات"] },
-                    { h: "المساعدة", links: ["تتبع الطلب", "الإرجاع", "اتصل بنا"] },
-                    { h: "تابعنا", links: ["فيسبوك", "إنستغرام", "واتساب"] },
-                  ].map(col => (
-                    <div key={col.h}>
-                      <h3 className="mb-3 text-[14px] font-black uppercase tracking-[0.06em] text-[var(--sf-color-primary,#F5B13D)]">
-                        {col.h}
-                      </h3>
-                      {col.links.map(l => (
-                        <span key={l} className="mb-2 block text-[13px]">
-                          {l}
-                        </span>
-                      ))}
-                    </div>
-                  ))}
+                  {(() => {
+                    const footer = footerData(section, anchors);
+                    return (
+                      <>
+                        <div>
+                          <span className="text-[22px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)]">
+                            {storeName}
+                          </span>
+                          <p className="mt-3 max-w-[34ch] text-[12.5px] leading-7">
+                            {footer.about ||
+                              "تسوّق بجرأة — توصيل لكل الولايات والدفع عند الاستلام."}
+                          </p>
+                        </div>
+                        <div>
+                          <h3 className="mb-3 text-[14px] font-black uppercase tracking-[0.06em] text-[var(--sf-color-accent,#F5B13D)]">
+                            المتجر
+                          </h3>
+                          <FooterStoreLinks footer={footer} />
+                        </div>
+                        <div>
+                          <h3 className="mb-3 text-[14px] font-black uppercase tracking-[0.06em] text-[var(--sf-color-accent,#F5B13D)]">
+                            المساعدة
+                          </h3>
+                          <FooterHelp footer={footer} />
+                        </div>
+                        <div>
+                          <h3 className="mb-3 text-[14px] font-black uppercase tracking-[0.06em] text-[var(--sf-color-accent,#F5B13D)]">
+                            تابعنا
+                          </h3>
+                          <FooterSocial footer={footer} />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div
-                  className={`${WRAP} flex flex-wrap justify-between gap-2.5 border-t-2 border-white/15 py-4 text-[12px] text-[#9FC0BA]`}
+                  className={`${WRAP} flex flex-wrap justify-between gap-2.5 border-t-2 border-white/15 py-4 text-[12px] text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-70`}
                 >
                   <span>© {new Date().getFullYear()} {storeName}</span>
                   <span>كل الحقوق محفوظة</span>
@@ -488,25 +515,50 @@ export function BoldStorefront({
                   {str(section.settings.title, "تسوق حسب الفئة")}
                 </h2>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  {(section.items?.length
-                    ? section.items
-                    : collections.map(name => ({ id: name, name, imageUrl: undefined }))
-                  ).map(item => (
+                  {categoryTiles(section, collections).map(item => (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => setSearch(item.name)}
-                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[#0C2A26] bg-[linear-gradient(135deg,#0F766E,#0B5D57)] bg-cover bg-center p-4 text-right text-[16px] font-black text-white shadow-[8px_8px_0_0_#0C2A26]"
+                      className="flex min-h-[120px] items-end rounded-[var(--sf-radius-lg,28px)] border-[3px] border-[var(--sf-color-border-strong,#0C2A26)] bg-[image:var(--sf-brand-fill,linear-gradient(135deg,#0F766E,#0B5D57))] bg-cover bg-center p-4 text-right text-[16px] font-black text-[var(--sf-color-text-inverted,#FFFFFF)] shadow-[8px_8px_0_0_#0C2A26]"
                       style={
                         item.imageUrl
                           ? { backgroundImage: `url(${item.imageUrl})` }
-                          : undefined
+                          : item.bg
+                            ? { background: item.bg }
+                            : undefined
                       }
                     >
                       {item.name}
                     </button>
                   ))}
                 </div>
+              </section>
+            );
+          case "signature":
+            return (
+              <section key={section.id} className={`${WRAP} py-10 text-center`}>
+                {(() => {
+                  const sig = signatureStyle(section);
+                  return (
+                    <>
+                      {sig.showOrnament ? (
+                        <SignatureFlourish className="mb-3" />
+                      ) : null}
+                      <div style={sig.style} className="text-[28px] font-black sm:text-[36px]">
+                        {sig.text || storeName}
+                      </div>
+                      {sig.subtitle ? (
+                        <div
+                          style={sig.style}
+                          className="mt-2 text-[14px] font-semibold text-[var(--sf-color-text-inverted,#FFFFFF)] opacity-80"
+                        >
+                          {sig.subtitle}
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </section>
             );
           default:

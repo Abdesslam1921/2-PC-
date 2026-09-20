@@ -22,6 +22,7 @@ import {
 /** Config groups that map directly to custom properties. `density` is an enum. */
 const CONFIG_TOKEN_GROUPS = [
   "colors",
+  "fills",
   "fontFamilies",
   "fontScale",
   "fontWeights",
