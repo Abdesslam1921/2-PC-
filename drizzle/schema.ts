@@ -1510,3 +1510,33 @@ export const categories = mysqlTable(
 
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = typeof categories.$inferInsert;
+
+/**
+ * Many-to-many memberships: a product can belong to several categories.
+ *
+ * Only ADDITIONAL memberships are stored here — `store_products.categoryId`
+ * remains the product's primary category. Membership is the union of both, so
+ * every existing row keeps working unchanged.
+ */
+export const productCategories = mysqlTable(
+  "product_categories",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    storeId: int("storeId").notNull(),
+    productId: int("productId").notNull(),
+    categoryId: int("categoryId").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    productCategoryUnique: uniqueIndex(
+      "product_categories_product_category_unique"
+    ).on(table.productId, table.categoryId),
+    storeCategoryIdx: index("product_categories_store_category_idx").on(
+      table.storeId,
+      table.categoryId
+    ),
+    productIdx: index("product_categories_product_idx").on(table.productId),
+  })
+);
+
+export type ProductCategory = typeof productCategories.$inferSelect;

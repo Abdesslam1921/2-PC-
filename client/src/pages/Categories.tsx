@@ -120,10 +120,13 @@ export default function Categories() {
     update.mutate({ id, isActive });
 
   const openProducts = (row: { id: number; name: string }) => {
+    // Membership = primary category + additional memberships, so preselect every
+    // product that is really in this category (and keep its primary marked).
     const preselected = (products.data ?? [])
       .filter(
         (product): product is NonNullable<typeof product> =>
-          product != null && product.categoryId === row.id
+          product != null &&
+          (product.categoryIds?.includes(row.id) || product.categoryId === row.id)
       )
       .map(product => product.id);
     setSelectedProducts(preselected);
@@ -454,8 +457,8 @@ export default function Categories() {
               منتجات «{assigning?.name}»
             </DialogTitle>
             <DialogDescription className="text-right">
-              اختر المنتجات التي تنتمي لهذه الفئة. المنتج ينتمي لفئة واحدة —
-              اختياره هنا ينقله من فئته السابقة.
+              اختر كل الفئات التي ينتمي إليها المنتج. المنتج قد ينتمي لعدة فئات
+              في نفس الوقت — والنجمة تعني فئته الأساسية (تُحدَّد من صفحة المنتج).
             </DialogDescription>
           </DialogHeader>
 
@@ -482,10 +485,10 @@ export default function Categories() {
               <ul className="max-h-[46vh] space-y-1 overflow-y-auto rounded-xl border border-[#E7E9E2] p-2">
                 {visibleProducts.map(product => {
                   const checked = selectedProducts.includes(product.id);
-                  const otherCategory =
-                    product.categoryId && product.categoryId !== assigning?.id
-                      ? "منتقل من فئة أخرى"
-                      : null;
+                  const isPrimary = product.categoryId === assigning?.id;
+                  const otherCategories = (product.categoryIds ?? []).filter(
+                    id => id !== assigning?.id
+                  ).length;
                   return (
                     <li key={product.id}>
                       <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-sm hover:bg-[#F7F7F3]">
@@ -506,9 +509,13 @@ export default function Categories() {
                           <span className="block truncate font-bold">
                             {product.title}
                           </span>
-                          {otherCategory ? (
+                          {isPrimary ? (
+                            <span className="text-[11px] font-bold text-[var(--brand)]">
+                              الفئة الأساسية لهذا المنتج
+                            </span>
+                          ) : otherCategories > 0 ? (
                             <span className="text-[11px] text-[#B45309]">
-                              {otherCategory}
+                              أيضًا في {otherCategories} فئة أخرى
                             </span>
                           ) : null}
                         </span>

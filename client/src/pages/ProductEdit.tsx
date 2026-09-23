@@ -417,7 +417,7 @@ export default function ProductEdit() {
               />
             </label>
             <label className="grid gap-2 text-sm font-extrabold text-[#3D4A43]">
-              الفئة
+              الفئة الأساسية
               {creatingCategory ? (
                 <div className="flex items-center gap-2">
                   <input

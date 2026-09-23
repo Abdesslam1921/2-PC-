@@ -629,7 +629,7 @@ export default function ProductCreate() {
                   <TextInput placeholder="ملابس، إكسسوارات..." />
                 </div>
                 <div>
-                  <FieldLabel optional>الفئة</FieldLabel>
+                  <FieldLabel optional>الفئة الأساسية</FieldLabel>
                   {creatingCategory ? (
                     <div className="flex items-center gap-2">
                       <TextInput

@@ -9,6 +9,8 @@ import {
   isNotNull,
   isNull,
   lt,
+  not,
+  notInArray,
   or,
 } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
@@ -16,6 +18,7 @@ import { sql } from "drizzle-orm";
 import {
   abandonedOrders,
   categories,
+  productCategories,
   orderCleanEvents,
   orderCleanSettings,
   sharkCodEvents,
@@ -377,9 +380,31 @@ export async function listStoreProducts(storeId: number) {
     .from(storeProducts)
     .where(eq(storeProducts.storeId, storeId))
     .orderBy(desc(storeProducts.createdAt));
-  return Promise.all(
+  const hydrated = await Promise.all(
     products.map(product => getStoreProductById(storeId, product.id))
   );
+  // Membership per product = primary category + additional junctions, so the
+  // category picker can preselect every category a product really belongs to.
+  const memberships = await db
+    .select({
+      productId: productCategories.productId,
+      categoryId: productCategories.categoryId,
+    })
+    .from(productCategories)
+    .where(eq(productCategories.storeId, storeId));
+  const extraByProduct = new Map<number, number[]>();
+  for (const row of memberships) {
+    const list = extraByProduct.get(row.productId) ?? [];
+    list.push(row.categoryId);
+    extraByProduct.set(row.productId, list);
+  }
+  return hydrated.map(product => {
+    if (!product) return product;
+    const primary = product.categoryId ?? null;
+    const ids = new Set<number>(extraByProduct.get(product.id) ?? []);
+    if (primary != null) ids.add(primary);
+    return { ...product, categoryIds: Array.from(ids) };
+  });
 }
 
 export async function getPublicStoreProduct(
@@ -507,22 +532,24 @@ export async function listCategoriesWithCounts(storeId: number) {
       imageUrl: categories.imageUrl,
       sortOrder: categories.sortOrder,
       isActive: categories.isActive,
-      productCount: sql<number>`count(${storeProducts.id})`,
-      // The storefront only lists categories with at least one PUBLISHED
-      // product, so the dashboard must show both numbers to explain itself.
-      activeProductCount: sql<number>`sum(case when ${storeProducts.status} = 'active' then 1 else 0 end)`,
+      // Union membership (primary category + extra junctions), counted once.
+      productCount: sql<number>`(
+        SELECT COUNT(*) FROM store_products p
+         WHERE p.storeId = ${storeId}
+           AND (p.categoryId = ${categories.id}
+                OR EXISTS (SELECT 1 FROM product_categories pc
+                            WHERE pc.productId = p.id AND pc.categoryId = ${categories.id}))
+      )`,
+      activeProductCount: sql<number>`(
+        SELECT COUNT(*) FROM store_products p
+         WHERE p.storeId = ${storeId} AND p.status = 'active'
+           AND (p.categoryId = ${categories.id}
+                OR EXISTS (SELECT 1 FROM product_categories pc
+                            WHERE pc.productId = p.id AND pc.categoryId = ${categories.id}))
+      )`,
     })
     .from(categories)
-    .leftJoin(storeProducts, eq(storeProducts.categoryId, categories.id))
     .where(eq(categories.storeId, storeId))
-    .groupBy(
-      categories.id,
-      categories.name,
-      categories.slug,
-      categories.imageUrl,
-      categories.sortOrder,
-      categories.isActive
-    )
     .orderBy(categories.sortOrder, categories.name);
   return rows.map(row => ({
     ...row,
@@ -597,7 +624,11 @@ export async function countCategoryProducts(storeId: number, categoryId: number)
     .where(
       and(
         eq(storeProducts.storeId, storeId),
-        eq(storeProducts.categoryId, categoryId)
+        or(
+          eq(storeProducts.categoryId, categoryId),
+          sql`EXISTS (SELECT 1 FROM product_categories pc
+                        WHERE pc.productId = ${storeProducts.id} AND pc.categoryId = ${categoryId})`
+        )
       )
     );
   return Number(row?.count ?? 0);
@@ -606,9 +637,27 @@ export async function countCategoryProducts(storeId: number, categoryId: number)
 export async function deleteCategory(storeId: number, id: number) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة.");
-  await db
-    .delete(categories)
-    .where(and(eq(categories.storeId, storeId), eq(categories.id, id)));
+  await db.transaction(async tx => {
+    // Memberships first (junction rows), then any primary link that might
+    // remain, so deleting a category can never leave a dangling reference.
+    await tx
+      .delete(productCategories)
+      .where(
+        and(
+          eq(productCategories.storeId, storeId),
+          eq(productCategories.categoryId, id)
+        )
+      );
+    await tx
+      .update(storeProducts)
+      .set({ categoryId: null })
+      .where(
+        and(eq(storeProducts.storeId, storeId), eq(storeProducts.categoryId, id))
+      );
+    await tx
+      .delete(categories)
+      .where(and(eq(categories.storeId, storeId), eq(categories.id, id)));
+  });
 }
 
 export async function setCategoryOrder(
@@ -656,9 +705,11 @@ export async function listPublicCategories(storeId?: number | null) {
         eq(categories.isActive, true),
         sql`EXISTS (
           SELECT 1 FROM store_products p
-           WHERE p.categoryId = ${categories.id}
-             AND p.storeId = ${storeId}
+           WHERE p.storeId = ${storeId}
              AND p.status = 'active'
+             AND (p.categoryId = ${categories.id}
+                  OR EXISTS (SELECT 1 FROM product_categories pc
+                              WHERE pc.productId = p.id AND pc.categoryId = ${categories.id}))
         )`
       )
     )
@@ -666,11 +717,15 @@ export async function listPublicCategories(storeId?: number | null) {
 }
 
 /**
- * Replace the product set of one category (bulk, store-scoped).
+ * Replace the membership set of one category (bulk, store-scoped).
  *
- * Products previously linked to this category but missing from the new list are
- * unlinked; listed products are (re)assigned. Only rows of the caller's store
- * can ever be touched.
+ * Membership is primary category + junction rows, so this:
+ *  - drops the additional memberships of this category,
+ *  - clears the primary category of products that were only in it,
+ *  - adds an additional membership for every listed product whose primary is
+ *    a different category (their primary is never overwritten here).
+ *
+ * Products of another store can never be touched.
  */
 export async function setCategoryProducts(input: {
   storeId: number;
@@ -680,25 +735,53 @@ export async function setCategoryProducts(input: {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة.");
   await db.transaction(async tx => {
+    // 1) drop the additional memberships of this category
+    await tx
+      .delete(productCategories)
+      .where(
+        and(
+          eq(productCategories.storeId, input.storeId),
+          eq(productCategories.categoryId, input.categoryId)
+        )
+      );
+
+    // 2) products whose PRIMARY was this category and are no longer selected
+    //    simply lose the primary (they are not moved anywhere).
+    const selected =
+      input.productIds.length > 0
+        ? inArray(storeProducts.id, input.productIds)
+        : undefined;
     await tx
       .update(storeProducts)
       .set({ categoryId: null })
       .where(
         and(
           eq(storeProducts.storeId, input.storeId),
-          eq(storeProducts.categoryId, input.categoryId)
+          eq(storeProducts.categoryId, input.categoryId),
+          selected ? not(selected) : undefined
         )
       );
+
+    // 3) selected products whose primary is a DIFFERENT category get an
+    //    additional membership here; their primary is never overwritten.
     if (input.productIds.length) {
-      await tx
-        .update(storeProducts)
-        .set({ categoryId: input.categoryId })
+      const rows = await tx
+        .select({ id: storeProducts.id, primary: storeProducts.categoryId })
+        .from(storeProducts)
         .where(
           and(
             eq(storeProducts.storeId, input.storeId),
             inArray(storeProducts.id, input.productIds)
           )
         );
+      const extras = rows
+        .filter(row => row.primary !== input.categoryId)
+        .map(row => ({
+          storeId: input.storeId,
+          productId: row.id,
+          categoryId: input.categoryId,
+        }));
+      if (extras.length) await tx.insert(productCategories).values(extras);
     }
   });
 }
@@ -745,7 +828,11 @@ export async function listPublicProductsByCategory(
       and(
         eq(storeProducts.status, "active"),
         eq(storeProducts.storeId, storeId),
-        eq(storeProducts.categoryId, categoryId)
+        or(
+          eq(storeProducts.categoryId, categoryId),
+          sql`EXISTS (SELECT 1 FROM product_categories pc
+                        WHERE pc.productId = ${storeProducts.id} AND pc.categoryId = ${categoryId})`
+        )
       )
     )
     .orderBy(desc(storeProducts.createdAt));
