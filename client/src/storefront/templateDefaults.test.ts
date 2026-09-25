@@ -15,7 +15,7 @@ import {
  * added by the merchant).
  */
 describe("template default lookup", () => {
-  it("adds a الباقات section before the footer when bundles exist", () => {
+  it("adds a الباقات section right after the products grid when bundles exist", () => {
     // A config that predates the offers section.
     const legacy = {
       templateKey: "modern" as const,
@@ -23,10 +23,10 @@ describe("template default lookup", () => {
     };
     const withOffers = ensureOffersSection(legacy);
     const types = withOffers.sections.map(s => s.type);
-    const footerIndex = types.indexOf("footer");
+    const productsIndex = types.indexOf("featured_products");
     expect(types).toContain("offers");
-    // inserted right before the footer, orders stay sequential
-    expect(types[footerIndex - 1]).toBe("offers");
+    // inserted directly below the products grid, orders stay sequential
+    expect(types[productsIndex + 1]).toBe("offers");
     expect(withOffers.sections.map(s => s.order)).toEqual(
       withOffers.sections.map((_, index) => index)
     );

@@ -17,7 +17,6 @@ import { trpc } from "@/lib/trpc";
 import { useOptionalCart } from "@/contexts/CartContext";
 import {
   ArrowRight,
-  BadgePercent,
   Banknote,
   ChevronDown,
   Download,
@@ -90,6 +89,16 @@ export default function ProductLanding() {
           (offer.maxUses === 0 || offer.usedCount < offer.maxUses)
       ) ?? [],
     [product]
+  );
+  // Same pieces without the offer → the struck-through price + the saving.
+  const offerTiers = useMemo(
+    () =>
+      activeOffers.map(offer => ({
+        ...offer,
+        compareAtPrice:
+          price != null ? String(Number(price) * offer.quantity) : null,
+      })),
+    [activeOffers, price]
   );
   const selectedOffer = activeOffers.find(
     offer => offer.id === selectedOfferId
@@ -373,56 +382,6 @@ export default function ProductLanding() {
                   </div>
                 </div>
               )}
-              {!isDigital && activeOffers.length > 0 && (
-                <div className="mt-7 rounded-[24px] border border-[#F0E3CF] bg-[var(--warm-soft)] p-4">
-                  <div className="flex items-center gap-2">
-                    <BadgePercent className="size-5 text-[var(--warm)]" />
-                    <div>
-                      <p className="text-sm font-extrabold text-[#3A352E]">
-                        عروض الكمية — وفّر أكثر
-                      </p>
-                      <p className="mt-1 text-xs text-[#8A7B66]">
-                        اختر العرض المناسب وسيُطبق سعره تلقائيًا في الطلب.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    {activeOffers.map(offer => (
-                      <button
-                        type="button"
-                        key={offer.id}
-                        onClick={() =>
-                          setSelectedOfferId(current =>
-                            current === offer.id ? undefined : offer.id
-                          )
-                        }
-                        className={`btn-press flex items-center justify-between gap-3 rounded-2xl border p-3 text-right ${selectedOffer?.id === offer.id ? "border-[var(--warm)] bg-white shadow-warm" : "border-[#EDE4D4] bg-white hover:border-[#E3C9A4]"}`}
-                      >
-                        <span>
-                          <span className="block text-xs font-extrabold text-[#3F3A32]">
-                            {offer.description}
-                          </span>
-                          <span className="mt-1 block text-[11px] font-bold text-[#8A7B66]">
-                            {offer.quantity} وحدات ·{" "}
-                            {offer.freeDelivery
-                              ? "توصيل مجاني"
-                              : "التوصيل حسب الإعدادات"}{" "}
-                            · متبقٍ{" "}
-                            {offer.maxUses === 0
-                              ? "غير محدود"
-                              : offerRemaining && offer.id === selectedOffer?.id
-                                ? offerRemaining
-                                : Math.max(0, offer.maxUses - offer.usedCount)}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-sm font-extrabold text-[var(--warm)]">
-                          {formatPrice(offer.price, product.currency)}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div className="mt-8">
                 {" "}
                 {available && purchasePrice ? (
@@ -463,6 +422,8 @@ export default function ProductLanding() {
                           selectedImage?.url ?? product.images[0]?.url
                         }
                         maxQuantity={offerRemaining ?? maxQuantity}
+                        offerTiers={offerTiers}
+                        onSelectOffer={setSelectedOfferId}
                         discountPercent={sharkDiscount || undefined}
                         upsellLine={upsellLine}
                         onOrderSuccess={() =>

@@ -102,6 +102,8 @@ const productInput = z.object({
   continueSelling: z.boolean(),
   deliveryPricingMode: z.enum(["fixed", "carrier", "manual"]).default("manual"),
   deliveryCarrierConnectionId: z.number().int().positive().optional(),
+  /** Physical products only: waives the delivery fee for this product. */
+  freeDelivery: z.boolean().default(false),
   media: z.array(mediaInput).max(12),
   variants: z.array(variantInput).max(100),
   /** Omitted = leave the product''s existing quantity offers untouched. */
@@ -254,6 +256,8 @@ function toStoredProductInput(
       input.productKind === "digital"
         ? null
         : (input.deliveryCarrierConnectionId ?? null),
+    freeDelivery:
+      input.productKind === "digital" ? false : input.freeDelivery,
     upsellProductId:
       input.productKind === "digital" ? null : (input.upsellProductId ?? null),
     upsellPrice: emptyToNull(input.upsellPrice),
@@ -417,6 +421,7 @@ export const productsRouter = router({
         deliveryPricingMode: productInput.shape.deliveryPricingMode,
         deliveryCarrierConnectionId:
           productInput.shape.deliveryCarrierConnectionId,
+        freeDelivery: productInput.shape.freeDelivery,
         offers: productInput.shape.offers,
         digitalMaxDownloads: productInput.shape.digitalMaxDownloads,
         digitalLinkValidityHours: productInput.shape.digitalLinkValidityHours,
@@ -459,6 +464,8 @@ export const productsRouter = router({
           payload.deliveryPricingMode === "carrier"
             ? (payload.deliveryCarrierConnectionId ?? null)
             : null,
+        freeDelivery:
+          payload.productKind === "digital" ? false : payload.freeDelivery,
         upsellProductId:
           payload.productKind === "digital"
             ? null

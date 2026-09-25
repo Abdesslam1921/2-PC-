@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/contexts/CartContext";
 import AbandonedOrders from "@/pages/AbandonedOrders";
+import BundleLanding from "@/pages/BundleLanding";
 import Customers from "@/pages/Customers";
 import DigitalProducts from "@/pages/DigitalProducts";
 import CallCenter from "@/pages/CallCenter";
@@ -240,6 +241,7 @@ function Router() {
         )}
       />
       <Route path="/p/:id" component={ProductLanding} />
+      <Route path="/b/:slug" component={BundleLanding} />
       <Route
         path="/orders/:id/edit"
         component={() => (

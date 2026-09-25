@@ -1,4 +1,5 @@
 import { BadgePercent, ShoppingBag, Truck } from "lucide-react";
+import { useLocation } from "wouter";
 import { useCart } from "@/contexts/CartContext";
 import { offerCards, type PublicOffer } from "@/storefront/sectionData";
 import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
@@ -29,6 +30,7 @@ export function StorefrontOffers({
   template: TemplateKey;
 }) {
   const { addItem, applyBundle } = useCart();
+  const [, setLocation] = useLocation();
   const cards = offerCards(offers);
   if (!cards.length) return null;
 
@@ -133,7 +135,19 @@ export function StorefrontOffers({
       {subtitle ? <p className={tone.sub}>{subtitle}</p> : null}
       <div className={tone.grid}>
         {cards.map(card => (
-          <article key={card.id} className={tone.card}>
+          <article
+            key={card.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setLocation(`/b/${card.slug}`)}
+            onKeyDown={event => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setLocation(`/b/${card.slug}`);
+              }
+            }}
+            className={`${tone.card} cursor-pointer transition hover:shadow-lift`}
+          >
             {card.imageUrl ? (
               <img
                 src={card.imageUrl}
@@ -168,9 +182,26 @@ export function StorefrontOffers({
                   </span>
                 ) : null}
               </div>
-              <button type="button" onClick={() => buy(card)} className={tone.button}>
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  setLocation(`/b/${card.slug}`);
+                }}
+                className={tone.button}
+              >
                 <ShoppingBag className="ml-1.5 inline size-4" />
-                اشتري الباقة
+                اطلب الآن
+              </button>
+              <button
+                type="button"
+                onClick={event => {
+                  event.stopPropagation();
+                  buy(card);
+                }}
+                className="mt-2 w-full rounded-full border border-[var(--sf-color-border,#E6EEEB)] py-2 text-[12px] font-bold text-[var(--sf-color-text-muted,#576B66)]"
+              >
+                أضف إلى السلة
               </button>
             </div>
           </article>

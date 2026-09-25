@@ -123,4 +123,89 @@ describe("DirectCodOrderForm", () => {
       screen.getByRole("link", { name: "خروج" }).getAttribute("href")
     ).toBe("/");
   });
+
+  it("shows quantity tiers inside the form and toggles the chosen one", () => {
+    const onSelectOffer = vi.fn();
+    render(
+      <DirectCodOrderForm
+        productId={7}
+        productTitle="حقيبة"
+        price="2400.00"
+        maxQuantity={3}
+        offerTiers={[
+          {
+            id: 5,
+            description: "قطعتان",
+            quantity: 2,
+            price: "4000.00",
+            compareAtPrice: "4800.00",
+            maxUses: 0,
+            usedCount: 0,
+            freeDelivery: false,
+          },
+        ]}
+        onSelectOffer={onSelectOffer}
+      />
+    );
+    expect(screen.getByText("قطعتان")).toBeTruthy();
+    expect(screen.getByText(/2 قطع/)).toBeTruthy();
+    // The real price (2 × 2400) is shown struck through + the amount saved.
+    expect(screen.getByText(/4.?800/)).toBeTruthy();
+    expect(screen.getByText(/وفّر .*دج/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /قطعتان/ }));
+    expect(onSelectOffer).toHaveBeenCalledWith(5);
+  });
+
+  it("badges a tier that carries free delivery", () => {
+    render(
+      <DirectCodOrderForm
+        productId={7}
+        productTitle="حقيبة"
+        price="3000.00"
+        maxQuantity={3}
+        offerId={6}
+        offerTiers={[
+          {
+            id: 6,
+            description: "قطعتان بتوصيل مجاني",
+            quantity: 2,
+            price: "3000.00",
+            compareAtPrice: "4000.00",
+            maxUses: 0,
+            usedCount: 0,
+            freeDelivery: true,
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText("توصيل مجاني")).toBeTruthy();
+    expect(
+      screen.getByText("توصيل مجاني على هذا الطلب — لا تدفع أي رسوم توصيل.")
+    ).toBeTruthy();
+  });
+
+  it("locks the quantity to the chosen tier", () => {
+    render(
+      <DirectCodOrderForm
+        productId={7}
+        productTitle="حقيبة"
+        price="4000.00"
+        maxQuantity={3}
+        offerId={5}
+        offerTiers={[
+          {
+            id: 5,
+            description: "قطعتان",
+            quantity: 2,
+            price: "4000.00",
+            maxUses: 0,
+            usedCount: 0,
+            freeDelivery: false,
+          },
+        ]}
+      />
+    );
+    expect(screen.getByText("2 قطع ضمن العرض المختار")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "زيادة الكمية" })).toBeNull();
+  });
 });

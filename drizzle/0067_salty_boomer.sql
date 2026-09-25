@@ -1,0 +1,1 @@
+ALTER TABLE `store_products` ADD `freeDelivery` boolean DEFAULT false NOT NULL;

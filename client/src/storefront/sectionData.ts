@@ -181,6 +181,8 @@ export interface PublicOffer {
 export interface OfferCard {
   id: number;
   name: string;
+  /** Public bundle slug → its purchase page (/b/<slug>). */
+  slug: string;
   /** Bundle image, else the first product's image (approved fallback). */
   imageUrl?: string;
   items: PublicOfferItem[];
@@ -195,6 +197,7 @@ export function offerCards(offers: PublicOffer[]): OfferCard[] {
   return offers.map(offer => ({
     id: offer.id,
     name: offer.name,
+    slug: offer.slug,
     imageUrl: offer.imageUrl || offer.items[0]?.imageUrl || undefined,
     items: offer.items,
     originalTotal: offer.pricing.originalTotal,

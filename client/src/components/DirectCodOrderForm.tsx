@@ -1,6 +1,8 @@
 import {
   AlertCircle,
+  BadgePercent,
   Banknote,
+  Check,
   CheckCircle2,
   ChevronDown,
   CircleDollarSign,
@@ -51,6 +53,22 @@ type UpsellLine = {
   title?: string;
   imageUrl?: string;
 };
+type BundleOrder = {
+  offerId: number;
+  freeDelivery: boolean;
+  items: Array<{ productId: number; quantity: number }>;
+};
+type OfferTier = {
+  id: number;
+  description: string;
+  quantity: number;
+  price: string | null;
+  /** What the same pieces would cost without the offer (for the saving). */
+  compareAtPrice?: string | null;
+  maxUses: number;
+  usedCount: number;
+  freeDelivery: boolean;
+};
 type DirectCodOrderFormProps = {
   productId: number;
   variantId?: number;
@@ -65,6 +83,11 @@ type DirectCodOrderFormProps = {
   pixelIds?: PixelIds;
   landingPageId?: number;
   discountPercent?: number;
+  /** Quantity-deal tiers shown as selectable options inside the form. */
+  offerTiers?: OfferTier[];
+  onSelectOffer?: (id?: number) => void;
+  /** Bundle purchase page: the order is the bundle's products + its discount. */
+  bundle?: BundleOrder | null;
   upsellLine?: UpsellLine;
   upsellDecisionRequired?: boolean;
   onRequestUpsellDecision?: () => void;
@@ -131,6 +154,9 @@ export function DirectCodOrderForm({
   pixelIds = {},
   landingPageId,
   discountPercent = 0,
+  offerTiers,
+  onSelectOffer,
+  bundle,
   upsellLine,
   upsellDecisionRequired = false,
   onRequestUpsellDecision,
@@ -155,6 +181,13 @@ export function DirectCodOrderForm({
     price && activeDiscountPercent > 0
       ? String(Number(price) * (1 - activeDiscountPercent / 100))
       : price;
+  const selectedTier =
+    offerTiers?.find(tier => tier.id === offerId) ?? null;
+  // Mirrors the server rule: delivery is free only when every line is a
+  // free-delivery offer (an added upsell line clears it).
+  const deliveryFree =
+    (Boolean(selectedTier?.freeDelivery) || Boolean(bundle?.freeDelivery)) &&
+    !upsellLine;
   const [form, setForm] = useState({
     customerName: "",
     customerPhone: "",
@@ -343,7 +376,9 @@ export function DirectCodOrderForm({
               deliveryMethod: "office" | "home";
             },
             options: { enabled: boolean }
-          ) => { data?: { deliveryFee: string; configured?: boolean } };
+          ) => {
+            data?: { deliveryFee: string; configured?: boolean; free?: boolean };
+          };
         };
       };
     }
@@ -356,7 +391,7 @@ export function DirectCodOrderForm({
       deliveryMethod,
     },
     { enabled: Boolean(form.wilaya && form.wilayaCode) }
-  ) ?? { data: { deliveryFee: "0.00", configured: false } };
+  ) ?? { data: { deliveryFee: "0.00", configured: false, free: false } };
   const wilayaCountApi = (
     trpc as unknown as {
       orders?: {
@@ -441,6 +476,10 @@ export function DirectCodOrderForm({
     () => setQuantity(current => Math.max(1, Math.min(current, maxQuantity))),
     [maxQuantity]
   );
+  // A quantity tier is a fixed pack: one application, its own piece count.
+  useEffect(() => {
+    if (offerId) setQuantity(1);
+  }, [offerId]);
   useEffect(() => {
     if (
       !form.customerName &&
@@ -586,18 +625,28 @@ export function DirectCodOrderForm({
       retargetDiscountPercent: discountFromRetarget ? urlDiscount : undefined,
       turnstileToken: turnstileToken || undefined,
       ...attribution,
-      lines: [
-        { productId, variantId, ...(offerId ? { offerId } : {}), quantity },
-        ...(upsellLine
-          ? [
-              {
-                productId: upsellLine.productId,
-                priceOverride: upsellLine.priceOverride,
-                quantity: 1,
-              },
-            ]
-          : []),
-      ],
+      ...(bundle
+        ? {
+            lines: bundle.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity * quantity,
+            })),
+            appliedOffers: [{ offerId: bundle.offerId, times: quantity }],
+          }
+        : {
+            lines: [
+              { productId, variantId, ...(offerId ? { offerId } : {}), quantity },
+              ...(upsellLine
+                ? [
+                    {
+                      productId: upsellLine.productId,
+                      priceOverride: upsellLine.priceOverride,
+                      quantity: 1,
+                    },
+                  ]
+                : []),
+            ],
+          }),
     });
   };
   useEffect(() => {
@@ -648,7 +697,12 @@ export function DirectCodOrderForm({
       </section>
     );
 
-  const deliveryFee = quote.data?.deliveryFee ?? "0.00";
+  // Product-level free delivery comes from the delivery quote itself.
+  const productFreeDelivery = Boolean(quote.data?.free);
+  const deliveryFee =
+    deliveryFree || productFreeDelivery
+      ? "0.00"
+      : (quote.data?.deliveryFee ?? "0.00");
   const mainTotal = effectivePrice ? Number(effectivePrice) * quantity : 0;
   const upsellTotal = upsellLine ? Number(upsellLine.priceOverride) * 1 : 0;
   const totalWithDelivery = effectivePrice
@@ -716,6 +770,12 @@ export function DirectCodOrderForm({
         </div>
       </div>
       <form ref={formRef} onSubmit={submit} className="p-5 sm:p-6">
+        {deliveryFree || productFreeDelivery ? (
+          <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-[#BFE6CF] bg-[#E8F7EE] px-4 py-3 text-sm font-extrabold text-[#0B7A4B]">
+            <Truck className="size-5 shrink-0" />
+            <span>توصيل مجاني على هذا الطلب — لا تدفع أي رسوم توصيل.</span>
+          </div>
+        ) : null}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className={labelClass}>
             <span className="flex items-center gap-1.5">
@@ -921,43 +981,134 @@ export function DirectCodOrderForm({
             </select>
           </label>
         )}
+        {offerTiers && offerTiers.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-[#F0E3CF] bg-[var(--warm-soft)] p-4">
+            <div className="flex items-center gap-2">
+              <BadgePercent className="size-5 text-[var(--warm)]" />
+              <div>
+                <p className="text-sm font-extrabold text-[#3A352E]">
+                  وفّر أكثر
+                </p>
+                <p className="mt-1 text-xs text-[#8A7B66]">
+                  اختر العرض المناسب وسيُطبق سعره تلقائيًا في الطلب.
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2">
+              {offerTiers.map(tier => {
+                const active = offerId === tier.id;
+                return (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => onSelectOffer?.(active ? undefined : tier.id)}
+                    className={`btn-press flex items-center justify-between gap-3 rounded-2xl border p-3 text-right ${active ? "border-[var(--warm)] bg-white shadow-warm" : "border-[#EDE4D4] bg-white hover:border-[#E3C9A4]"}`}
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span
+                        className={`grid size-5 shrink-0 place-items-center rounded-full border ${active ? "border-[var(--warm)] bg-[var(--warm)] text-white" : "border-[#D9CDB8] bg-white text-transparent"}`}
+                      >
+                        <Check className="size-3" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-extrabold text-[#3F3A32]">
+                          {tier.description}
+                        </span>
+                        <span className="mt-1 block text-[11px] font-bold text-[#8A7B66]">
+                          {tier.quantity}{" "}
+                          {tier.quantity === 1 ? "قطعة" : "قطع"} · متبقٍ{" "}
+                          {tier.maxUses === 0
+                            ? "غير محدود"
+                            : Math.max(0, tier.maxUses - tier.usedCount)}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 flex-col items-end gap-1">
+                      {tier.freeDelivery ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F5EE] px-2 py-0.5 text-[10px] font-extrabold text-[#0B7A4B]">
+                          <Truck className="size-3" />
+                          توصيل مجاني
+                        </span>
+                      ) : null}
+                      <span className="flex items-center gap-2">
+                        {tier.compareAtPrice != null &&
+                        Number(tier.compareAtPrice) > Number(tier.price) ? (
+                          <span className="text-[13px] font-bold text-[#5A5248] line-through decoration-2">
+                            {money(tier.compareAtPrice)}
+                          </span>
+                        ) : null}
+                        <span className="text-[15px] font-extrabold text-[var(--warm)]">
+                          {money(tier.price)}
+                        </span>
+                      </span>
+                      {tier.compareAtPrice != null &&
+                      Number(tier.compareAtPrice) > Number(tier.price) ? (
+                        <span className="rounded-full bg-[#FDF1E3] px-2 py-0.5 text-[10px] font-extrabold text-[var(--warm)]">
+                          وفّر{" "}
+                          {money(
+                            String(
+                              Number(tier.compareAtPrice) - Number(tier.price)
+                            )
+                          )}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div className="mt-5 rounded-2xl border border-[#E3EDE7] bg-[var(--brand-soft)] p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-extrabold text-[#2E3833]">الكمية</p>
               <p className="mt-1 text-xs text-[#66716B]">
-                الحد المتاح: {maxQuantity} قطعة
+                {selectedTier
+                  ? `${selectedTier.quantity} ${selectedTier.quantity === 1 ? "قطعة" : "قطع"} ضمن العرض المختار`
+                  : `الحد المتاح: ${maxQuantity} قطعة`}
               </p>
             </div>
-            <div className="flex h-11 items-center rounded-xl border border-[#CBE0D3] bg-white shadow-soft">
-              <button
-                type="button"
-                aria-label="تقليل الكمية"
-                onClick={() => setQuantity(current => Math.max(1, current - 1))}
-                className="grid size-11 place-items-center text-[var(--brand)] transition hover:bg-[var(--brand-soft)]"
-              >
-                <Minus className="size-4" />
-              </button>
-              <span className="w-9 text-center text-sm font-extrabold text-[var(--ink)]">
-                {quantity}
-              </span>
-              <button
-                type="button"
-                aria-label="زيادة الكمية"
-                disabled={quantity >= maxQuantity}
-                onClick={() =>
-                  setQuantity(current => Math.min(maxQuantity, current + 1))
-                }
-                className="grid size-11 place-items-center text-[var(--brand)] transition hover:bg-[var(--brand-soft)] disabled:opacity-35"
-              >
-                <Plus className="size-4" />
-              </button>
-            </div>
+            {selectedTier ? null : (
+              <div className="flex h-11 items-center rounded-xl border border-[#CBE0D3] bg-white shadow-soft">
+                <button
+                  type="button"
+                  aria-label="تقليل الكمية"
+                  onClick={() =>
+                    setQuantity(current => Math.max(1, current - 1))
+                  }
+                  className="grid size-11 place-items-center text-[var(--brand)] transition hover:bg-[var(--brand-soft)]"
+                >
+                  <Minus className="size-4" />
+                </button>
+                <span className="w-9 text-center text-sm font-extrabold text-[var(--ink)]">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  aria-label="زيادة الكمية"
+                  disabled={quantity >= maxQuantity}
+                  onClick={() =>
+                    setQuantity(current => Math.min(maxQuantity, current + 1))
+                  }
+                  className="grid size-11 place-items-center text-[var(--brand)] transition hover:bg-[var(--brand-soft)] disabled:opacity-35"
+                >
+                  <Plus className="size-4" />
+                </button>
+              </div>
+            )}
           </div>
           <div className="mt-3.5 space-y-1.5 border-t border-[#D6E5DC] pt-3.5 text-sm font-bold text-[#4A554F]">
             <p className="flex items-center justify-between">
               <span>رسوم التوصيل</span>
-              <span>{form.wilaya ? money(deliveryFee) : "اختر الولاية"}</span>
+              <span>
+                {!form.wilaya
+                  ? "اختر الولاية"
+                  : deliveryFree || productFreeDelivery
+                    ? "مجاني"
+                    : money(deliveryFee)}
+              </span>
             </p>
             <p className="flex items-center justify-between text-base font-extrabold text-[var(--brand-strong)]">
               <span>الإجمالي</span>

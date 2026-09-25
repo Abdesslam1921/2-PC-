@@ -307,7 +307,9 @@ export default function Offers() {
         description: tier.description.trim(),
         // Per-tier usage limit (0 = unlimited).
         maxUses: Math.max(0, Math.trunc(num(tier.maxUses) || 0)),
-        freeDelivery: tier.freeDelivery,
+        // The modal exposes one "free delivery on the whole order" switch, so
+        // it is the source of truth for every tier (not the stale tier value).
+        freeDelivery: draft.freeDelivery,
       }));
       if (parsed.some(tier => tier.price <= 0)) {
         toast.error("أدخل سعرًا أكبر من صفر لكل طبقة.");

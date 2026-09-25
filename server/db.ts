@@ -229,6 +229,7 @@ type StoreProductInput = {
   continueSelling: boolean;
   deliveryPricingMode: "fixed" | "carrier" | "manual";
   deliveryCarrierConnectionId: number | null;
+  freeDelivery: boolean;
   upsellProductId?: number | null;
   upsellPrice?: string | null;
   upsellDiscountAmount?: string | null;
@@ -278,6 +279,7 @@ export async function createStoreProduct(
     continueSelling: input.continueSelling,
     deliveryPricingMode: input.deliveryPricingMode,
     deliveryCarrierConnectionId: input.deliveryCarrierConnectionId ?? null,
+    freeDelivery: input.freeDelivery,
     upsellProductId: input.upsellProductId ?? null,
     upsellPrice: input.upsellPrice ?? null,
     upsellDiscountAmount: input.upsellDiscountAmount ?? null,
@@ -534,6 +536,8 @@ export interface OfferItemRow {
   quantity: number;
   title: string;
   price: string | null;
+  /** First product image (for bundle cards / the bundle purchase page). */
+  imageUrl: string | null;
   status: "draft" | "active";
   productKind: "physical" | "digital";
   inventory: number;
@@ -592,7 +596,29 @@ async function listOfferItems(
       )
     )
     .orderBy(offerProducts.id);
-  return rows.map(row => ({ ...row, trackInventory: Boolean(row.trackInventory), continueSelling: Boolean(row.continueSelling) }));
+  const productIds = rows.map(row => row.productId);
+  const firstImage = new Map<number, string>();
+  if (productIds.length) {
+    const images = await db
+      .select({
+        productId: storeProductImages.productId,
+        url: storeProductImages.url,
+        position: storeProductImages.position,
+      })
+      .from(storeProductImages)
+      .where(inArray(storeProductImages.productId, productIds))
+      .orderBy(storeProductImages.position);
+    for (const image of images) {
+      if (!firstImage.has(image.productId))
+        firstImage.set(image.productId, image.url);
+    }
+  }
+  return rows.map(row => ({
+    ...row,
+    imageUrl: firstImage.get(row.productId) ?? null,
+    trackInventory: Boolean(row.trackInventory),
+    continueSelling: Boolean(row.continueSelling),
+  }));
 }
 
 export async function getOfferById(storeId: number, id: number) {  const db = await getDb();
@@ -2038,7 +2064,11 @@ export async function createCodOrder(
     const freeDelivery =
       bundles.some(bundle => bundle.freeDelivery) ||
       (resolvedLines.length > 0 &&
-        resolvedLines.every(line => Boolean(line.offer?.freeDelivery)));
+        resolvedLines.every(
+          line =>
+            Boolean(line.offer?.freeDelivery) ||
+            Boolean(line.product?.freeDelivery)
+        ));
     const deliveryFee = freeDelivery ? "0.00" : (rateFee ?? fixedFee ?? "0.00");
     const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const percentDiscountCents = Math.round(
@@ -5342,6 +5372,7 @@ export async function updateStoreProduct(
       continueSelling: input.continueSelling,
       deliveryPricingMode: input.deliveryPricingMode,
       deliveryCarrierConnectionId: input.deliveryCarrierConnectionId ?? null,
+      freeDelivery: input.freeDelivery,
       upsellProductId: input.upsellProductId ?? null,
       upsellPrice: input.upsellPrice ?? null,
       upsellDiscountAmount: input.upsellDiscountAmount ?? null,
@@ -5425,6 +5456,7 @@ export async function duplicateStoreProduct(storeId: number, id: number) {
     continueSelling: source.continueSelling,
     deliveryPricingMode: source.deliveryPricingMode,
     deliveryCarrierConnectionId: source.deliveryCarrierConnectionId,
+    freeDelivery: source.freeDelivery,
     upsellProductId: source.upsellProductId ?? null,
     upsellPrice: source.upsellPrice ?? null,
     upsellDiscountAmount: source.upsellDiscountAmount ?? null,

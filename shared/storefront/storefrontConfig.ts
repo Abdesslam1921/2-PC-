@@ -635,9 +635,31 @@ export function templateDefaultSection(
  * inserted right before the footer and the orders are renumbered, so nothing
  * else shifts. Templates render the section only when an active bundle exists.
  */
+const PRODUCT_GRID_TYPES = ["featured_products", "product_grid"];
+
 export function ensureOffersSection(config: StorefrontConfig): StorefrontConfig {
-  if (config.sections.some(section => section.type === "offers")) return config;
-  const section: StorefrontSection = {
+  const offers = config.sections.find(section => section.type === "offers");
+  const currentIndex = config.sections.findIndex(
+    section => section.type === "offers"
+  );
+  // The merchant asked for the packs section DIRECTLY below the products grid.
+  const withoutOffers = config.sections.filter(
+    section => section.type !== "offers"
+  );
+  const productIndex = withoutOffers.findIndex(section =>
+    PRODUCT_GRID_TYPES.includes(section.type)
+  );
+  const footerIndex = withoutOffers.findIndex(
+    section => section.type === "footer"
+  );
+  const target =
+    productIndex >= 0
+      ? productIndex + 1
+      : footerIndex >= 0
+        ? footerIndex
+        : withoutOffers.length;
+  if (offers && currentIndex === target) return config;
+  const section: StorefrontSection = offers ?? {
     id: "offers",
     type: "offers",
     enabled: true,
@@ -647,12 +669,9 @@ export function ensureOffersSection(config: StorefrontConfig): StorefrontConfig 
       subtitle: "وفّر أكثر عند شراء الباقة",
     },
   };
-  const sections = [...config.sections];
-  const footerIndex = sections.findIndex(item => item.type === "footer");
-  if (footerIndex >= 0) sections.splice(footerIndex, 0, section);
-  else sections.push(section);
+  withoutOffers.splice(target, 0, section);
   return {
     ...config,
-    sections: sections.map((item, index) => ({ ...item, order: index })),
+    sections: withoutOffers.map((item, index) => ({ ...item, order: index })),
   };
 }

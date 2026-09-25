@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { PageIntro } from "@/components/PageIntro";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowRight,
@@ -82,6 +83,7 @@ export default function ProductEdit() {
     digitalLinkValidityHours: "72",
     deliveryPricingMode: "manual" as "fixed" | "carrier" | "manual",
     deliveryCarrierConnectionId: undefined as number | undefined,
+    freeDelivery: false,
     upsellEnabled: false,
     upsellProductId: undefined as number | undefined,
     upsellPrice: "",
@@ -172,6 +174,7 @@ export default function ProductEdit() {
       deliveryPricingMode: product.deliveryPricingMode,
       deliveryCarrierConnectionId:
         product.deliveryCarrierConnectionId ?? undefined,
+      freeDelivery: Boolean(product.freeDelivery),
       upsellEnabled: Boolean(product.upsellProductId),
       upsellProductId: product.upsellProductId ?? undefined,
       upsellPrice: product.upsellPrice ?? "",
@@ -321,6 +324,7 @@ export default function ProductEdit() {
         form.deliveryPricingMode === "carrier"
           ? form.deliveryCarrierConnectionId
           : undefined,
+      freeDelivery: form.productKind === "digital" ? false : form.freeDelivery,
       digitalMaxDownloads:
         form.productKind === "digital"
           ? Number(form.digitalMaxDownloads || 5)
@@ -920,6 +924,18 @@ export default function ProductEdit() {
                       ))}
                   </select>
                 )}
+                <label className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-[#E3E1D8] p-3 text-xs font-extrabold text-[#1F2A25]">
+                  <span>
+                    توصيل مجاني لهذا المنتج
+                    <span className="mt-0.5 block text-[10px] font-medium text-[#79837D]">
+                      يُعفى التوصيل تلقائيًا في استمارة الطلب.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={form.freeDelivery}
+                    onCheckedChange={checked => field("freeDelivery", checked)}
+                  />
+                </label>
               </>
             )}
           </section>

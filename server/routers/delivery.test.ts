@@ -159,6 +159,32 @@ describe("delivery router", () => {
     ).resolves.toEqual({ deliveryFee: "700.00", configured: true });
   });
 
+  it("waives the fee when the product itself has free delivery", async () => {
+    mocks.product.mockResolvedValue({
+      ownerId: 41,
+      storeId: 7,
+      freeDelivery: true,
+    });
+    mocks.get.mockResolvedValue({
+      settings: {
+        fixedOfficeEnabled: false,
+        fixedOfficeFee: null,
+        fixedHomeEnabled: true,
+        fixedHomeFee: "700.00",
+      },
+      wilayaRates: [],
+    });
+    const caller = deliveryRouter.createCaller(ctx);
+    await expect(
+      caller.quoteForProduct({
+        productId: 9,
+        wilaya: "باتنة",
+        wilayaCode: "05",
+        deliveryMethod: "home",
+      })
+    ).resolves.toEqual({ deliveryFee: "0.00", configured: true, free: true });
+  });
+
   it("rejects a wilaya with no delivery mode", async () => {
     const caller = deliveryRouter.createCaller(ctx);
     await expect(

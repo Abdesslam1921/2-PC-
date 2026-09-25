@@ -209,6 +209,9 @@ export const deliveryRouter = router({
     .query(async ({ input }) => {
       const product = await getPublicStoreProduct(input.productId);
       if (!product?.storeId) return { deliveryFee: "0.00", configured: false };
+      // Product-level free delivery overrides every rate source.
+      if (product.freeDelivery)
+        return { deliveryFee: "0.00", configured: true, free: true };
       const settings = await getDeliverySettings(product.storeId);
       const rate = settings.wilayaRates.find(
         item =>

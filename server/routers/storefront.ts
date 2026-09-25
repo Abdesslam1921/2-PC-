@@ -165,9 +165,18 @@ export const storefrontRouter = router({
       console.warn("[storefront] published config failed validation", ctx.store.id);
       return null;
     }
+    /**
+     * A bundle created AFTER the last publish must still surface its "الباقات"
+     * section. Inject it at read time (idempotent; the section renders nothing
+     * while no bundle is available), so the merchant is not forced to re-publish
+     * just to see newly created packs.
+     */
+    const config = (await hasActiveBundle(ctx.store.id))
+      ? ensureOffersSection(valid.data)
+      : valid.data;
     return {
-      templateKey: valid.data.templateKey,
-      config: valid.data,
+      templateKey: config.templateKey,
+      config,
       storeName: ctx.store.name,
       versionNumber: published.versionNumber,
       publishedAt: published.publishedAt,

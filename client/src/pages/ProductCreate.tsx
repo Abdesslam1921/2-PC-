@@ -216,6 +216,7 @@ export default function ProductCreate() {
   >("manual");
   const [deliveryCarrierConnectionId, setDeliveryCarrierConnectionId] =
     useState<number | undefined>();
+  const [freeDelivery, setFreeDelivery] = useState(false);
   const carrierConnections = trpc.delivery?.carriers?.useQuery?.() ?? {
     data: [],
   };
@@ -448,6 +449,7 @@ export default function ProductCreate() {
           deliveryPricingMode === "carrier"
             ? deliveryCarrierConnectionId
             : undefined,
+        freeDelivery,
         media: uploadedMedia,
         // Quantity offers moved to the packs system (/offers), so the form no
         // longer sends `offers` at all — omitting it keeps any legacy data.
@@ -1552,6 +1554,27 @@ export default function ProductCreate() {
                   </select>
                 </label>
               )}
+              <div className="mt-4 flex flex-col gap-4 rounded-2xl bg-[#F5F6F2] p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-extrabold text-[#1F2A25]">
+                    توصيل مجاني لهذا المنتج
+                  </p>
+                  <p className="mt-1 text-xs text-[#79837D]">
+                    يُعفى التوصيل تلقائيًا في استمارة الطلب.
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-label="تفعيل التوصيل المجاني"
+                  aria-checked={freeDelivery}
+                  onClick={() => setFreeDelivery(value => !value)}
+                  className={`relative h-7 w-12 rounded-full transition duration-200 ${freeDelivery ? "bg-[var(--brand)]" : "bg-[#D4D8D0]"}`}
+                >
+                  <span
+                    className={`absolute top-1 size-5 rounded-full bg-white shadow-sm transition duration-200 ${freeDelivery ? "right-6" : "right-1"}`}
+                  />
+                </button>
+              </div>
             </FormCard>
           )}
 

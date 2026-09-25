@@ -136,6 +136,8 @@ export const storeProducts = mysqlTable("store_products", {
     .default("manual")
     .notNull(),
   deliveryCarrierConnectionId: int("deliveryCarrierConnectionId"),
+  /** Product-level free delivery: waives the delivery fee for this product. */
+  freeDelivery: boolean("freeDelivery").default(false).notNull(),
   upsellProductId: int("upsellProductId"),
   upsellPrice: decimal("upsellPrice", { precision: 12, scale: 2 }),
   upsellDiscountAmount: decimal("upsellDiscountAmount", {
