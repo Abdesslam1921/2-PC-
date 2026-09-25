@@ -51,6 +51,7 @@ export const SECTION_LABELS: Record<StorefrontSectionType, string> = {
   product_grid: "شبكة المنتجات",
   promo: "بانر عرض",
   benefits: "المزايا",
+  offers: "الباقات",
   testimonials: "التقييمات",
   newsletter: "النشرة",
   signature: "التوقيع",
@@ -130,6 +131,10 @@ export const SECTION_FIELDS: Record<StorefrontSectionType, SectionField[]> = {
     { key: "ctaLabel", label: "نص الزر", type: "text" },
   ],
   benefits: [{ key: "title", label: "العنوان", type: "text" }],
+  offers: [
+    { key: "title", label: "العنوان", type: "text" },
+    { key: "subtitle", label: "العنوان الفرعي", type: "text" },
+  ],
   testimonials: [],
   newsletter: [
     { key: "title", label: "العنوان", type: "text" },
@@ -198,6 +203,7 @@ export const ADDABLE_SECTION_TYPES: StorefrontSectionType[] = [
   "categories",
   "promo",
   "benefits",
+  "offers",
   "newsletter",
   "signature",
 ];

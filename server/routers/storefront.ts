@@ -17,9 +17,11 @@ import {
   saveStorefrontDraft,
 } from "../storefrontDb";
 import { storagePut } from "../storage";
+import { hasActiveBundle } from "../db";
 import {
   STOREFRONT_TEMPLATE_KEYS,
   TEMPLATE_DEFAULT_CONFIGS,
+  ensureOffersSection,
   validateStorefrontConfig,
 } from "../../shared/storefront/storefrontConfig";
 import type { StorefrontConfig } from "../../shared/storefront/storefrontConfig";
@@ -266,10 +268,19 @@ export const storefrontRouter = router({
           message: "المسودة غير صالحة للنشر.",
         });
       }
+      /**
+       * A merchant who creates a bundle must get a "الباقات" section in the
+       * storefront even if their config predates it (same principle as the
+       * categories tiles). The section renders nothing while no bundle is
+       * active, so it is harmless to always ensure it.
+       */
+      const publishConfig = (await hasActiveBundle(storeId))
+        ? ensureOffersSection(valid.data)
+        : valid.data;
       const { versionNumber } = await createStorefrontVersion({
         ownerId: userId,
         storeId,
-        snapshotJson: JSON.stringify(valid.data),
+        snapshotJson: JSON.stringify(publishConfig),
         sourceDraftVersion: draft.concurrencyVersion,
         publishedBy: userId,
         note: input.note ?? null,

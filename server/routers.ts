@@ -8,6 +8,7 @@ import { landingsRouter } from "./routers/landings";
 import { ordersRouter } from "./routers/orders";
 import { productsRouter } from "./routers/products";
 import { categoriesRouter } from "./routers/categories";
+import { offersRouter } from "./routers/offers";
 import { systemRouter } from "./_core/systemRouter";
 import { sharkCodRouter } from "./routers/sharkCod";
 import { orderCleanRouter } from "./routers/orderClean";
@@ -44,6 +45,7 @@ export const appRouter = router({
   orders: ordersRouter,
   products: productsRouter,
   categories: categoriesRouter,
+  offers: offersRouter,
   digital: digitalRouter,
   profitability: profitabilityRouter,
   mediaBuying: mediaBuyingRouter,

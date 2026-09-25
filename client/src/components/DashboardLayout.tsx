@@ -30,6 +30,7 @@ import {
   FileDown,
   Truck,
   LayoutDashboard,
+  BadgePercent,
   LayoutTemplate,
   LogIn,
   LogOut,
@@ -54,6 +55,7 @@ export const dashboardNavigation = [
   { icon: LayoutDashboard, label: "نظرة عامة", path: "/dashboard" },
   { icon: Package, label: "المنتجات", path: "/products" },
   { icon: FolderTree, label: "الفئات", path: "/categories" },
+  { icon: BadgePercent, label: "العروض", path: "/offers" },
   { icon: FileDown, label: "المنتجات الرقمية", path: "/digital-products" },
   { icon: Truck, label: "التوصيل", path: "/delivery" },
   { icon: Cable, label: "Connecteurs", path: "/connecteurs" },
@@ -81,7 +83,14 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
   },
   {
     title: "الكتالوج والتوصيل",
-    paths: ["/products", "/categories", "/digital-products", "/delivery", "/for-ship"],
+    paths: [
+      "/products",
+      "/categories",
+      "/offers",
+      "/digital-products",
+      "/delivery",
+      "/for-ship",
+    ],
   },
   {
     title: "النمو والتسويق",

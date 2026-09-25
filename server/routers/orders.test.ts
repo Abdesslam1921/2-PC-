@@ -87,7 +87,8 @@ describe("orders.createCod", () => {
         wilaya: "الجزائر",
         wilayaCode: "05",
       }),
-      [{ productId: 7, variantId: 11, quantity: 3 }]
+      [{ productId: 7, variantId: 11, quantity: 3 }],
+      []
     );
     expect(result).toMatchObject({
       orderNumber: "ABD-000012",

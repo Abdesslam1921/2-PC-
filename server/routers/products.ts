@@ -104,7 +104,8 @@ const productInput = z.object({
   deliveryCarrierConnectionId: z.number().int().positive().optional(),
   media: z.array(mediaInput).max(12),
   variants: z.array(variantInput).max(100),
-  offers: z.array(offerInput).max(30).default([]),
+  /** Omitted = leave the product''s existing quantity offers untouched. */
+  offers: z.array(offerInput).max(30).optional(),
   digitalFile: digitalFileInput.optional(),
   digitalMaxDownloads: z.number().int().min(1).max(1000).optional(),
   digitalLinkValidityHours: z.number().int().min(1).max(8760).optional(),
@@ -374,7 +375,7 @@ export const productsRouter = router({
         offers:
           input.productKind === "digital"
             ? []
-            : input.offers.map(offer => ({
+            : (input.offers ?? []).map(offer => ({
                 ...offer,
                 description: offer.description.trim(),
               })),
@@ -476,10 +477,16 @@ export const productsRouter = router({
             ? null
             : (payload.upsellLandingPageId ?? null),
         codTrustScore: payload.codTrustScore?.trim() || null,
-        offers: payload.offers.map(offer => ({
-          ...offer,
-          description: offer.description.trim(),
-        })),
+        // `offers` is omitted by the form now (quantity offers moved to the
+        // packs system), so only an explicit list replaces the stored ones.
+        ...(payload.offers
+          ? {
+              offers: payload.offers.map(offer => ({
+                ...offer,
+                description: offer.description.trim(),
+              })),
+            }
+          : {}),
       });
     }),
   duplicate: protectedProcedure

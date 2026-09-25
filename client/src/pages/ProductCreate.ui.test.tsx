@@ -28,7 +28,21 @@ vi.mock("@/_core/hooks/useAuth", () => ({
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
+    categories: {
+      list: {
+        useQuery: () => ({ data: [], isLoading: false }),
+      },
+      create: {
+        useMutation: () => ({
+          mutate: (_input: unknown, options: any) => options?.onSuccess?.({ id: 1 }),
+          isPending: false,
+        }),
+      },
+    },
     products: {
+      list: {
+        useQuery: () => ({ data: [], isLoading: false }),
+      },
       create: {
         useMutation: (options: any) => ({
           mutateAsync: async (input: any) => {
@@ -44,6 +58,11 @@ vi.mock("@/lib/trpc", () => ({
           },
           isPending: false,
         }),
+      },
+    },
+    landings: {
+      list: {
+        useQuery: () => ({ data: [], isLoading: false }),
       },
     },
   },
@@ -65,7 +84,8 @@ describe("ProductCreate variant interactions", () => {
     const user = userEvent.setup();
     render(<ProductCreate />);
 
-    await user.click(screen.getByRole("switch"));
+    // The form has several switches; target the variants one by its label.
+    await user.click(screen.getByRole("switch", { name: "تفعيل المتغيرات" }));
     expect(screen.getAllByRole("row")).toHaveLength(7);
 
     await user.type(screen.getByPlaceholderText("أضف لونًا"), "أزرق");
@@ -111,18 +131,14 @@ describe("ProductCreate variant interactions", () => {
     );
   });
 
-  it("adds a quantity offer with free delivery", async () => {
-    const user = userEvent.setup();
+  it("no longer builds offers inside the product form (they live in /offers)", () => {
     render(<ProductCreate />);
-    await user.click(screen.getByRole("button", { name: /إضافة عرض/ }));
-    await user.type(
-      screen.getByPlaceholderText("مثال: باقة 2 قطع"),
-      "باقة قطعتين"
-    );
-    expect(screen.getByText("العرض 1")).toBeTruthy();
-    const checkboxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
-    await user.click(checkboxes.at(-1)!);
-    expect(checkboxes.at(-1)?.checked).toBe(true);
+    // The quantity-offer builder, the packs card and the Smart Checkout Upsell
+    // section were all moved to /offers; the product form must not show them.
+    expect(screen.queryByText("العروض والباقات")).toBeNull();
+    expect(screen.queryByText("🔥 Smart Checkout Upsell")).toBeNull();
+    expect(screen.queryByRole("button", { name: /إضافة عرض/ })).toBeNull();
+    expect(mocks.setLocation).not.toHaveBeenCalledWith("/offers");
   });
 
   it("saves owner-only Costs & Profitability settings", async () => {

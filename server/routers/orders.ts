@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   createCodOrder,
+  getOfferDetails,
   deleteArchivedOrder,
   deleteStoreOrder,
   deleteStoreOrdersBulk,
@@ -72,6 +73,19 @@ const checkoutInput = z.object({
   sharkCodDiscountPercent: z.number().int().min(0).max(90).optional(),
   retargetDiscountPercent: z.number().int().min(0).max(90).optional(),
   lines: z.array(lineInput).min(1, "السلة فارغة.").max(20),
+  /**
+   * Bundles applied in the cart (id + how many times). Prices and discounts are
+   * recomputed server-side from the DB — the client never sends amounts.
+   */
+  appliedOffers: z
+    .array(
+      z.object({
+        offerId: z.number().int().positive(),
+        times: z.number().int().min(1).max(10).default(1),
+      })
+    )
+    .max(5)
+    .optional(),
   sessionId: z.string().trim().max(128).optional(),
   turnstileToken: z.string().trim().max(4096).optional(),
   attributionSource: z.string().trim().max(80).optional(),
@@ -142,7 +156,56 @@ export const ordersRouter = router({
             message: `تم إيقاف الطلب لحمايتك من التكرار. ${clean.reason}`,
           });
         }
-        const result = await createCodOrder(input, Array.from(merged.values()));
+        /**
+         * Bundles: availability and quantities are re-checked against the DB.
+         * Any mismatch rejects the whole order with a clear message — the
+         * discount is never silently dropped or changed.
+         */
+        const lines = Array.from(merged.values());
+        const bundles: Array<{
+          offerId: number;
+          name: string;
+          discountAmount: string;
+          freeDelivery: boolean;
+          times: number;
+        }> = [];
+        if (input.appliedOffers?.length && storeId != null) {
+          for (const applied of input.appliedOffers) {
+            const details = await getOfferDetails(storeId, applied.offerId);
+            if (!details) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "أحد العروض في سلتك لم يعد موجودًا.",
+              });
+            }
+            if (details.unavailableReason) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: `تعذّر تطبيق العرض «${details.offer.name}»: ${details.unavailableReason}`,
+              });
+            }
+            for (const item of details.items) {
+              const needed = item.quantity * applied.times;
+              const have = lines
+                .filter(line => line.productId === item.productId)
+                .reduce((sum, line) => sum + line.quantity, 0);
+              if (have < needed) {
+                throw new TRPCError({
+                  code: "BAD_REQUEST",
+                  message: `كمية «${item.title}» في السلة أقل من المطلوب للعرض «${details.offer.name}».`,
+                });
+              }
+            }
+            bundles.push({
+              offerId: applied.offerId,
+              name: details.offer.name,
+              discountAmount: details.pricing.discountAmount.toFixed(2),
+              freeDelivery: details.pricing.freeDelivery,
+              times: applied.times,
+            });
+          }
+        }
+        const result = await createCodOrder(input, lines, bundles);
         if (clean?.verdict === "review")
           await updateStoreOrderStatus(clean.storeId, result.id, "review");
         if (clean?.settingsId)

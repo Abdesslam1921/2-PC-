@@ -10,6 +10,7 @@ import {
   Loader2,
   PackageSearch,
   Plus,
+  BadgePercent,
   Save,
   Trash2,
   Truck,
@@ -95,6 +96,8 @@ export default function ProductEdit() {
   const [costBatches, setCostBatches] = useState<CostBatchDraft[]>([]);
   /** Store categories for the (single) product category picker. */
   const categories = trpc.categories.list.useQuery(undefined, { retry: false });
+  /** Packs that already contain this product (read-only here). */
+  const offersQuery = trpc.offers.list.useQuery(undefined, { retry: false });
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const createCategory = trpc.categories.create.useMutation();
@@ -271,6 +274,10 @@ export default function ProductEdit() {
         receivedAt: new Date().toISOString().slice(0, 10),
       },
     ]);
+  const productOffers = (offersQuery.data ?? []).filter(offer =>
+    offer.items.some(item => item.productId === id)
+  );
+
   const save = () =>
     updateProduct.mutate({
       id,
@@ -314,17 +321,6 @@ export default function ProductEdit() {
         form.deliveryPricingMode === "carrier"
           ? form.deliveryCarrierConnectionId
           : undefined,
-      offers:
-        form.productKind === "digital"
-          ? []
-          : offers.map(offer => ({
-              description: offer.description,
-              quantity: Number(offer.quantity || 1),
-              price: offer.price,
-              maxUses: Number(offer.maxUses || 0),
-              freeDelivery: offer.freeDelivery,
-              enabled: offer.enabled,
-            })),
       digitalMaxDownloads:
         form.productKind === "digital"
           ? Number(form.digitalMaxDownloads || 5)
@@ -864,338 +860,6 @@ export default function ProductEdit() {
                 </label>
               </div>
             </div>
-          )}
-          {form.productKind === "physical" && (
-            <div className="rounded-2xl border border-[#E7E9E2] p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-extrabold text-[#1F2A25]">
-                    العروض
-                  </p>
-                  <p className="mt-1 text-xs text-[#79837D]">
-                    تعديل عروض الكمية والتوصيل المجاني.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addOffer}
-                  className="btn-press rounded-xl border-[#E3E1D8] font-extrabold"
-                >
-                  <Plus className="ml-2 size-4" />
-                  إضافة عرض
-                </Button>
-              </div>
-              {offers.map((offer, index) => (
-                <div
-                  key={offer.id}
-                  className="mt-3 rounded-xl border border-[#ECEEE6] bg-[#FAFAF7] p-3"
-                >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-[var(--brand)]">
-                      العرض {index + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOffers(current =>
-                          current.filter(item => item.id !== offer.id)
-                        )
-                      }
-                      className="btn-press text-[#A63D28] transition hover:text-[#8C3221]"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-4">
-                    <input
-                      className={inputClass}
-                      aria-label={`وصف العرض ${index + 1}`}
-                      value={offer.description}
-                      onChange={event =>
-                        setOffers(current =>
-                          current.map(item =>
-                            item.id === offer.id
-                              ? { ...item, description: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="الوصف"
-                    />
-                    <input
-                      className={inputClass}
-                      aria-label={`كمية العرض ${index + 1}`}
-                      value={offer.quantity}
-                      onChange={event =>
-                        setOffers(current =>
-                          current.map(item =>
-                            item.id === offer.id
-                              ? { ...item, quantity: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="الكمية"
-                    />
-                    <input
-                      className={inputClass}
-                      aria-label={`سعر العرض ${index + 1}`}
-                      value={offer.price}
-                      onChange={event =>
-                        setOffers(current =>
-                          current.map(item =>
-                            item.id === offer.id
-                              ? { ...item, price: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="السعر"
-                    />
-                    <input
-                      className={inputClass}
-                      aria-label={`عدد العروض ${index + 1}`}
-                      value={offer.maxUses}
-                      onChange={event =>
-                        setOffers(current =>
-                          current.map(item =>
-                            item.id === offer.id
-                              ? { ...item, maxUses: event.target.value }
-                              : item
-                          )
-                        )
-                      }
-                      placeholder="عدد العروض"
-                    />
-                  </div>
-                  <label className="mt-2 flex items-center gap-2 text-xs font-bold text-[#5A6660]">
-                    <input
-                      type="checkbox"
-                      checked={offer.freeDelivery}
-                      onChange={event =>
-                        setOffers(current =>
-                          current.map(item =>
-                            item.id === offer.id
-                              ? { ...item, freeDelivery: event.target.checked }
-                              : item
-                          )
-                        )
-                      }
-                      className="accent-[var(--brand)]"
-                    />
-                    توصيل مجاني
-                  </label>
-                </div>
-              ))}
-            </div>
-          )}
-          {form.productKind === "physical" && (
-            <section className="rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft">
-              <div className="flex items-start gap-3">
-                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--warm-soft)] text-[var(--warm)]">
-                  <Banknote className="size-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-[#1F2A25]">
-                    🔥 Smart Checkout Upsell
-                  </h2>
-                  <p className="mt-1 text-xs leading-5 text-[#79837D]">
-                    بعد ما يضغط العميل «اطلب الآن»، أظهر له منتج إضافي بسعر مخفض
-                    قبل تأكيد الطلب.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5 rounded-2xl border border-[#DCE7DF] bg-[var(--brand-soft)] p-4">
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F7]">
-                  <span>
-                    <span className="block text-sm font-extrabold text-[#1F2A25]">
-                      تفعيل عرض الإضافة الذكية
-                    </span>
-                    <span className="mt-1 block text-xs text-[#8A938D]">
-                      أضف منتج إضافي بسعر مخفض قبل تأكيد الطلب.
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={form.upsellEnabled}
-                    onChange={e => field("upsellEnabled", e.target.checked)}
-                    className="size-4 accent-[var(--brand)]"
-                  />
-                </label>
-              </div>
-              {form.upsellEnabled && (
-                <div className="mt-4 space-y-4">
-                  <label className="block text-sm font-extrabold text-[#3D4A43]">
-                    منتج الإضافة
-                    <select
-                      value={form.upsellProductId ?? ""}
-                      onChange={e => {
-                        field(
-                          "upsellProductId",
-                          e.target.value ? Number(e.target.value) : undefined
-                        );
-                        field("upsellLandingPageId", undefined);
-                      }}
-                      className={inputClass}
-                    >
-                      <option value="" disabled>
-                        اختر منتج من الكتالوج
-                      </option>
-                      {upsellCandidates.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.title} — {p.price ? `${p.price} دج` : "بدون سعر"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-sm font-extrabold text-[#3D4A43]">
-                    ماذا يظهر للمشتري في النافذة؟
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {(
-                        [
-                          { value: "product", label: "صفحة المنتج" },
-                          { value: "landing", label: "صفحة الهبوط (فانل)" },
-                        ] as const
-                      ).map(option => (
-                        <button
-                          type="button"
-                          key={option.value}
-                          onClick={() => {
-                            field("upsellViewType", option.value);
-                            if (option.value === "product")
-                              field("upsellLandingPageId", undefined);
-                          }}
-                          className={`btn-press rounded-xl border p-2.5 text-center text-xs font-extrabold transition ${form.upsellViewType === option.value ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]" : "border-[#E3E1D8] bg-white text-[#5B6660] hover:border-[#B9CFC3]"}`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </label>
-                  {form.upsellViewType === "landing" && (
-                    <div>
-                      {upsellLandingOptions.length > 0 ? (
-                        <label className="block text-sm font-extrabold text-[#3D4A43]">
-                          اختر صفحة الهبوط
-                          <select
-                            value={form.upsellLandingPageId ?? ""}
-                            onChange={e =>
-                              field(
-                                "upsellLandingPageId",
-                                e.target.value
-                                  ? Number(e.target.value)
-                                  : undefined
-                              )
-                            }
-                            className={inputClass}
-                          >
-                            <option value="" disabled>
-                              اختر صفحة هبوط معتمدة
-                            </option>
-                            {upsellLandingOptions.map(lp => (
-                              <option key={lp.id} value={lp.id}>
-                                {lp.title}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : (
-                        <p className="rounded-xl bg-[var(--warm-soft)] px-3 py-2.5 text-xs leading-5 text-[#96601F]">
-                          هذا المنتج لا يملك صفحة هبوط معتمدة بعد. أنشئ واحدة من
-                          صفحة الفانل ثم اخترها هنا.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  <label className="block text-sm font-extrabold text-[#3D4A43]">
-                    نوع العرض
-                    <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                      {[
-                        { value: "fixed_price", label: "سعر ثابت (+X دج)" },
-                        {
-                          value: "discount_amount",
-                          label: "خصم مبلغ (وفر X دج)",
-                        },
-                        { value: "discount_percent", label: "خصم نسبة (%)" },
-                      ].map(option => (
-                        <button
-                          type="button"
-                          key={option.value}
-                          onClick={() =>
-                            field(
-                              "upsellDiscountMode",
-                              option.value as
-                                | "fixed_price"
-                                | "discount_amount"
-                                | "discount_percent"
-                            )
-                          }
-                          className={`btn-press rounded-xl border p-2.5 text-center text-xs font-extrabold transition ${form.upsellDiscountMode === option.value ? "border-[var(--warm)] bg-[var(--warm-soft)] text-[#B2611C]" : "border-[#E3E1D8] bg-white text-[#5B6660] hover:border-[#B9CFC3]"}`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </label>
-                  {form.upsellDiscountMode === "fixed_price" && (
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      السعر الإضافي
-                      <div className="relative mt-2">
-                        <input
-                          className={`${inputClass} pl-12`}
-                          inputMode="decimal"
-                          value={form.upsellPrice}
-                          onChange={e => field("upsellPrice", e.target.value)}
-                          placeholder="900.00"
-                        />
-                        <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                          دج
-                        </span>
-                      </div>
-                    </label>
-                  )}
-                  {form.upsellDiscountMode === "discount_amount" && (
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      مبلغ الخصم
-                      <div className="relative mt-2">
-                        <input
-                          className={`${inputClass} pl-12`}
-                          inputMode="decimal"
-                          value={form.upsellDiscountAmount}
-                          onChange={e =>
-                            field("upsellDiscountAmount", e.target.value)
-                          }
-                          placeholder="400.00"
-                        />
-                        <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                          دج
-                        </span>
-                      </div>
-                    </label>
-                  )}
-                  {form.upsellDiscountMode === "discount_percent" && (
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      نسبة الخصم
-                      <div className="relative mt-2">
-                        <input
-                          className={`${inputClass} pl-12`}
-                          inputMode="numeric"
-                          value={form.upsellDiscountPercent}
-                          onChange={e =>
-                            field("upsellDiscountPercent", e.target.value)
-                          }
-                          placeholder="20"
-                        />
-                        <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                          %
-                        </span>
-                      </div>
-                    </label>
-                  )}
-                </div>
-              )}
-            </section>
           )}
         </section>
         <aside className="space-y-4">

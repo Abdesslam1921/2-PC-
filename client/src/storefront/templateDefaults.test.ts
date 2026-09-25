@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEFAULT_MODERN_CONFIG,
   STOREFRONT_TEMPLATE_KEYS,
   TEMPLATE_DEFAULT_CONFIGS,
   templateDefaultConfig,
+  ensureOffersSection,
   templateDefaultSection,
   validateStorefrontConfig,
 } from "@shared/storefront/storefrontConfig";
@@ -13,6 +15,28 @@ import {
  * added by the merchant).
  */
 describe("template default lookup", () => {
+  it("adds a الباقات section before the footer when bundles exist", () => {
+    // A config that predates the offers section.
+    const legacy = {
+      templateKey: "modern" as const,
+      sections: DEFAULT_MODERN_CONFIG.sections.filter(s => s.type !== "offers"),
+    };
+    const withOffers = ensureOffersSection(legacy);
+    const types = withOffers.sections.map(s => s.type);
+    const footerIndex = types.indexOf("footer");
+    expect(types).toContain("offers");
+    // inserted right before the footer, orders stay sequential
+    expect(types[footerIndex - 1]).toBe("offers");
+    expect(withOffers.sections.map(s => s.order)).toEqual(
+      withOffers.sections.map((_, index) => index)
+    );
+    const section = withOffers.sections.find(s => s.type === "offers");
+    expect(section?.settings.title).toBe("الباقات");
+
+    // Idempotent: a config that already has it is returned unchanged.
+    expect(ensureOffersSection(withOffers)).toBe(withOffers);
+  });
+
   it("exposes a default config for every approved template", () => {
     for (const key of STOREFRONT_TEMPLATE_KEYS) {
       expect(templateDefaultConfig(key)?.templateKey).toBe(key);

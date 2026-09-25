@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { StorefrontOffers } from "@/storefront/OfferSection";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Loader2, Search } from "lucide-react";
@@ -79,6 +80,10 @@ export function MinimalStorefront({
   const products = (productsQuery.data ?? []) as unknown as CatalogProduct[];
   /** Real store categories (fail-closed on the server). */
   const categoriesQuery = trpc.categories.publicList.useQuery(undefined, {
+    retry: false,
+  });
+  /** Active + fully available offers (fail-closed on the server). */
+  const offersQuery = trpc.offers.publicList.useQuery(undefined, {
     retry: false,
   });
   const publicCategories = categoriesQuery.data ?? [];
@@ -516,6 +521,15 @@ export function MinimalStorefront({
                   ))}
                 </div>
               </section>
+            );
+          case "offers":
+            return (
+              <StorefrontOffers
+                key={section.id}
+                section={section}
+                offers={offersQuery.data ?? []}
+                template="minimal"
+              />
             );
           default:
             return null;

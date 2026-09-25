@@ -3,6 +3,7 @@ import {
   benefitRows,
   categoryTiles,
   footerData,
+  offerCards,
   phoneHref,
   stripLegacyDefaultCategoriesFromConfig,
   whatsappHref,
@@ -179,18 +180,21 @@ describe("footer editable fields", () => {
 });
 
 describe("footer link destinations", () => {
-  it("points new/categories links at the matching sections", () => {
+  it("points new/offers/categories links at the matching sections", () => {
     const config = {
       templateKey: "modern" as const,
       sections: [
         { id: "cats", type: "categories" as const, enabled: true, order: 0, settings: {} },
-        { id: "grid1", type: "product_grid" as const, enabled: true, order: 1, settings: {} },
+        { id: "offers1", type: "offers" as const, enabled: true, order: 1, settings: {} },
+        { id: "grid1", type: "product_grid" as const, enabled: true, order: 2, settings: {} },
       ],
     };
     expect(storefrontAnchors(config)).toEqual({
       products: "#sf-sec-grid1",
       categories: "#sf-sec-cats",
+      offers: "#sf-sec-offers1",
       hasCategories: true,
+      hasOffers: true,
     });
   });
 
@@ -204,8 +208,62 @@ describe("footer link destinations", () => {
     expect(storefrontAnchors(config)).toEqual({
       products: "#top",
       categories: "#top",
+      offers: "#top",
       hasCategories: false,
+      hasOffers: false,
     });
+  });
+});
+
+describe("storefront offer cards", () => {
+  it("falls back to the first product image and keeps the pricing", () => {
+    const cards = offerCards([
+      {
+        id: 3,
+        name: "باقة الصيف",
+        slug: "summer",
+        imageUrl: null,
+        items: [
+          { productId: 1, quantity: 2, title: "تيشيرت", price: "1000", imageUrl: "/a.jpg" },
+          { productId: 2, quantity: 1, title: "قبعة", price: "500", imageUrl: "/b.jpg" },
+        ],
+        pricing: {
+          originalTotal: 2500,
+          discountAmount: 500,
+          bundlePrice: 2000,
+          savingPercent: 20,
+          freeDelivery: true,
+        },
+      },
+    ]);
+    expect(cards[0].imageUrl).toBe("/a.jpg");
+    expect(cards[0].bundlePrice).toBe(2000);
+    expect(cards[0].freeDelivery).toBe(true);
+    expect(cards[0].items).toHaveLength(2);
+  });
+
+  it("prefers the bundle image when set", () => {
+    const cards = offerCards([
+      {
+        id: 4,
+        name: "باقة",
+        slug: "b",
+        imageUrl: "/bundle.jpg",
+        items: [
+          { productId: 1, quantity: 1, title: "أ", price: "10", imageUrl: "/a.jpg" },
+          { productId: 2, quantity: 1, title: "ب", price: "10", imageUrl: "/b.jpg" },
+        ],
+        pricing: {
+          originalTotal: 20,
+          discountAmount: 0,
+          bundlePrice: 20,
+          savingPercent: 0,
+          freeDelivery: false,
+        },
+      },
+    ]);
+    expect(cards[0].imageUrl).toBe("/bundle.jpg");
+    expect(cards[0].savingPercent).toBe(0);
   });
 });
 

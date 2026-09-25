@@ -8,6 +8,7 @@ import { useCart } from "@/contexts/CartContext";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
+  BadgePercent,
   ArrowRight,
   Banknote,
   Check,
@@ -810,7 +811,20 @@ function CatalogView() {
 
 function CartView() {
   const [, setLocation] = useLocation();
-  const { items, itemCount, subtotal, updateQuantity, removeItem } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotal,
+    // Defaults keep partial test mocks working; the real provider always
+    // supplies these (no bundles → total = subtotal).
+    bundleDiscount = 0,
+    total = subtotal,
+    bundles = [],
+    incompleteBundles = [],
+    removeBundle,
+    updateQuantity,
+    removeItem,
+  } = useCart();
   return (
     <div dir="rtl" className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
       <StoreHeader />
@@ -904,9 +918,42 @@ function CartView() {
                 <span>المنتجات ({itemCount})</span>
                 <span>{formatPrice(String(subtotal))}</span>
               </div>
+              {bundles.length ? (
+                <div className="mt-3 space-y-2">
+                  {bundles.map(bundle => (
+                    <div
+                      key={bundle.offerId}
+                      className="flex items-center justify-between gap-2 text-sm font-bold text-[var(--brand-strong)]"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <BadgePercent className="size-3.5" />
+                        خصم الباقة «{bundle.name}»
+                        {bundle.times > 1 ? ` × ${bundle.times}` : ""}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        −{formatPrice(String(bundle.unitAmount * bundle.times))}
+                        <button
+                          type="button"
+                          onClick={() => removeBundle(bundle.offerId)}
+                          className="text-xs font-bold text-[#b03a2e]"
+                          title="إزالة خصم الباقة"
+                        >
+                          إزالة
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {incompleteBundles.length ? (
+                <p className="mt-3 rounded-xl bg-[#FDF1DC] p-3 text-[11.5px] font-bold leading-6 text-[#B45309]">
+                  باقة غير مكتملة: كميات منتجاتها في السلة أقل من المطلوب. أعد
+                  إضافة الباقة أو أصلح الكميات — الطلب لن يُقبل إلا بعد ذلك.
+                </p>
+              ) : null}
               <div className="mt-4 flex justify-between text-base font-extrabold text-[var(--brand-strong)]">
                 <span>المجموع</span>
-                <span>{formatPrice(String(subtotal))}</span>
+                <span>{formatPrice(String(total))}</span>
               </div>
               <button
                 onClick={() => setLocation("/store/checkout")}

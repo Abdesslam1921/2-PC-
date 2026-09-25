@@ -3,6 +3,7 @@ import {
   decimal,
   index,
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -248,6 +249,11 @@ export const storeOrders = mysqlTable("store_orders", {
     .default("0.00")
     .notNull(),
   total: decimal("total", { precision: 12, scale: 2 }).notNull(),
+  /**
+   * Snapshot of the offers applied to this order (id, name, discount, free
+   * delivery) so reports keep working even if an offer is later edited.
+   */
+  appliedOffers: json("appliedOffers"),
   carrierTracking: varchar("carrierTracking", { length: 120 }),
   carrierStatus: varchar("carrierStatus", { length: 120 }),
   carrierStatusUpdatedAt: timestamp("carrierStatusUpdatedAt"),
@@ -1540,3 +1546,87 @@ export const productCategories = mysqlTable(
 );
 
 export type ProductCategory = typeof productCategories.$inferSelect;
+
+/**
+ * Offers / bundles: a named set of existing products (each with a quantity),
+ * an optional discount (% or fixed amount) and optional free delivery.
+ *
+ * Many-to-many by design: a product can be in several offers and there is no
+ * "primary" offer concept. The bundled price is always computed from the
+ * products' prices minus the discount — never stored manually.
+ */
+export const offers = mysqlTable(
+  "offers",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    ownerId: int("ownerId").notNull(),
+    storeId: int("storeId").notNull(),
+    /** "bundle" = several products + discount, "quantity" = legacy single-product deal. */
+    kind: mysqlEnum("kind", ["bundle", "quantity"]).default("bundle").notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    slug: varchar("slug", { length: 160 }).notNull(),
+    imageUrl: varchar("imageUrl", { length: 1024 }),
+    discountType: mysqlEnum("discountType", ["percent", "amount"]),
+    discountValue: decimal("discountValue", { precision: 12, scale: 2 }),
+    /** Quantity deals only: the fixed total price for that quantity. */
+    fixedPrice: decimal("fixedPrice", { precision: 12, scale: 2 }),
+    /** Quantity deals only (unchanged legacy behaviour: 0 = unlimited). */
+    maxUses: int("maxUses").default(0).notNull(),
+    usedCount: int("usedCount").default(0).notNull(),
+    /**
+     * Original `store_product_offers.id` for migrated quantity deals. The
+     * storefront keeps exposing it as the offer id so carts created before the
+     * migration keep working; it is NEVER compared with `offers.id` (lookups are
+     * always scoped by `kind`).
+     */
+    legacyId: int("legacyId"),
+    /** Free delivery applies to the WHOLE order once the bundle is in it. */
+    freeDelivery: boolean("freeDelivery").default(false).notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    sortOrder: int("sortOrder").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    storeSlugUnique: uniqueIndex("offers_store_slug_unique").on(
+      table.storeId,
+      table.slug
+    ),
+    storeActiveIdx: index("offers_store_active_idx").on(
+      table.storeId,
+      table.isActive
+    ),
+    storeKindIdx: index("offers_store_kind_idx").on(table.storeId, table.kind),
+    kindLegacyIdx: index("offers_kind_legacy_idx").on(
+      table.kind,
+      table.legacyId
+    ),
+  })
+);
+
+export const offerProducts = mysqlTable(
+  "offer_products",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    storeId: int("storeId").notNull(),
+    offerId: int("offerId").notNull(),
+    productId: int("productId").notNull(),
+    quantity: int("quantity").default(1).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    offerProductUnique: uniqueIndex("offer_products_offer_product_unique").on(
+      table.offerId,
+      table.productId
+    ),
+    storeOfferIdx: index("offer_products_store_offer_idx").on(
+      table.storeId,
+      table.offerId
+    ),
+    productIdx: index("offer_products_product_idx").on(table.productId),
+  })
+);
+
+export type Offer = typeof offers.$inferSelect;
+export type InsertOffer = typeof offers.$inferInsert;
+export type OfferProduct = typeof offerProducts.$inferSelect;

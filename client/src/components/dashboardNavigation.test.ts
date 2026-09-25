@@ -26,12 +26,21 @@ describe("dashboard sidebar navigation", () => {
     expect(orphans, `مسارات بلا مجموعة: ${orphans.join(", ")}`).toEqual([]);
   });
 
-  it("keeps the categories entry grouped next to products", () => {
+  it("has a nav entry for every grouped path (otherwise the link renders nothing)", () => {
+    // The sidebar renders `dashboardNavigation.find(entry => entry.path === p)`
+    // for each grouped path, so a grouped path WITHOUT a nav entry silently
+    // disappears — exactly how "العروض" went missing.
+    const missing = groupedPaths.filter(path => !navPaths.includes(path));
+    expect(missing, `مسارات بلا عنصر في القائمة: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("keeps the categories and offers entries grouped next to products", () => {
     const productsGroup = source.match(
       /title:\s*"الكتالوج والتوصيل",\s*paths:\s*\[([^\]]+)\]/
     );
     expect(productsGroup?.[1]).toContain('"/products"');
     expect(productsGroup?.[1]).toContain('"/categories"');
+    expect(productsGroup?.[1]).toContain('"/offers"');
   });
 
   it("has a route registered for every nav path", () => {

@@ -23,6 +23,7 @@ import ProductEdit from "@/pages/ProductEdit";
 import ProductLanding from "@/pages/ProductLanding";
 import Products from "@/pages/Products";
 import Categories from "@/pages/Categories";
+import Offers from "@/pages/Offers";
 import StoreCategory from "@/pages/StoreCategory";
 import Profitability from "@/pages/Profitability";
 import MediaBuying from "@/pages/MediaBuying";
@@ -75,6 +76,14 @@ function Router() {
         component={() => (
           <DashboardPage>
             <Categories />
+          </DashboardPage>
+        )}
+      />
+      <Route
+        path="/offers"
+        component={() => (
+          <DashboardPage>
+            <Offers />
           </DashboardPage>
         )}
       />

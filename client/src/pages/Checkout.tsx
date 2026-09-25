@@ -59,7 +59,17 @@ const clearInvalid = (
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
-  const { items, subtotal, itemCount, clearCart } = useCart();
+  const {
+    items,
+    subtotal,
+    itemCount,
+    // Defensive defaults: with no bundles the discount is zero and the total is
+    // the subtotal, so a partial mock can never crash the summary.
+    bundleDiscount = 0,
+    total = subtotal,
+    bundles = [],
+    clearCart,
+  } = useCart();
   const isDigitalCart =
     items.length > 0 && items.every(item => item.productKind === "digital");
   const isMixedCart =
@@ -124,6 +134,16 @@ export default function Checkout() {
           offerId: item.offerId,
           quantity: item.quantity,
         })),
+        /**
+         * Bundles: only ids + how many times. The server recomputes the amounts
+         * and rejects the order if availability or quantities changed.
+         */
+        appliedOffers: bundles.length
+          ? bundles.map(bundle => ({
+              offerId: bundle.offerId,
+              times: bundle.times,
+            }))
+          : undefined,
       });
   };
   const pending = createPhysicalOrder.isPending || createDigitalOrder.isPending;
@@ -488,6 +508,15 @@ export default function Checkout() {
                 <span>المنتجات</span>
                 <span>{formatPrice(subtotal)}</span>
               </div>
+              {bundleDiscount > 0 ? (
+                <div className="flex justify-between font-bold text-[var(--brand-strong)]">
+                  <span>
+                    خصم العروض
+                    {bundles.length > 1 ? ` (${bundles.length})` : ""}
+                  </span>
+                  <span>−{formatPrice(bundleDiscount)}</span>
+                </div>
+              ) : null}
               <div className="flex justify-between text-[#66716B]">
                 <span>{isDigitalCart ? "التسليم" : "التوصيل"}</span>
                 <span>
@@ -496,7 +525,7 @@ export default function Checkout() {
               </div>
               <div className="flex justify-between pt-1 text-base font-extrabold text-[var(--brand-strong)]">
                 <span>الإجمالي</span>
-                <span>{formatPrice(subtotal)}</span>
+                <span>{formatPrice(total)}</span>
               </div>
             </div>
             <p className="mt-5 flex gap-2 text-xs leading-6 text-[#66716B]">

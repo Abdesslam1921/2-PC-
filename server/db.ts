@@ -1,5 +1,13 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
+  computeOfferPricing,
+  offerUnavailableReason,
+  type OfferPricing,
+} from "../shared/offers";
+
+export { computeOfferPricing, offerUnavailableReason };
+export type { OfferPricing };
+import {
   and,
   asc,
   desc,
@@ -19,6 +27,8 @@ import {
   abandonedOrders,
   categories,
   productCategories,
+  offerProducts,
+  offers,
   orderCleanEvents,
   orderCleanSettings,
   sharkCodEvents,
@@ -344,6 +354,60 @@ export async function createStoreProduct(
   return product;
 }
 
+/**
+ * Quantity deals of one product, in the legacy shape the cart/landing expect.
+ *
+ * Sourced from the unified `offers` table (kind='quantity') after migration
+ * 0066 moved the legacy rows. `id` is the LEGACY id when available so carts
+ * created before the migration keep matching; lookups stay scoped by `kind`.
+ */
+export async function listQuantityOffersForProduct(
+  storeId: number | null | undefined,
+  productId: number,
+  options: { onlyUsable?: boolean } = {}
+) {
+  const db = await getDb();
+  // Fail-closed: without a store there is nothing safe to expose.
+  if (!db || storeId == null) return [];
+  const conditions = [
+    eq(offers.kind, "quantity"),
+    eq(offers.storeId, storeId),
+    eq(offerProducts.productId, productId),
+  ];
+  if (options.onlyUsable) {
+    conditions.push(eq(offers.isActive, true));
+    conditions.push(
+      or(eq(offers.maxUses, 0), lt(offers.usedCount, offers.maxUses))!
+    );
+  }
+  const rows = await db
+    .select({
+      id: offers.id,
+      legacyId: offers.legacyId,
+      name: offers.name,
+      quantity: offerProducts.quantity,
+      fixedPrice: offers.fixedPrice,
+      maxUses: offers.maxUses,
+      usedCount: offers.usedCount,
+      freeDelivery: offers.freeDelivery,
+      isActive: offers.isActive,
+    })
+    .from(offers)
+    .innerJoin(offerProducts, eq(offerProducts.offerId, offers.id))
+    .where(and(...conditions))
+    .orderBy(offers.sortOrder, offers.name);
+  return rows.map(row => ({
+    id: row.legacyId ?? row.id,
+    description: row.name,
+    quantity: row.quantity,
+    price: row.fixedPrice ?? "0.00",
+    maxUses: row.maxUses,
+    usedCount: row.usedCount,
+    freeDelivery: row.freeDelivery,
+    enabled: row.isActive,
+  }));
+}
+
 export async function getStoreProductById(storeId: number, id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -363,11 +427,8 @@ export async function getStoreProductById(storeId: number, id: number) {
       .select()
       .from(storeProductVariants)
       .where(eq(storeProductVariants.productId, product.id)),
-    db
-      .select()
-      .from(storeProductOffers)
-      .where(eq(storeProductOffers.productId, product.id))
-      .orderBy(asc(storeProductOffers.quantity)),
+    // Quantity deals live in the unified offers table (`kind='quantity'`).
+    listQuantityOffersForProduct(product.storeId, product.id),
   ]);
   return { ...product, images, variants, offers };
 }
@@ -436,20 +497,10 @@ export async function getPublicStoreProduct(
       .select()
       .from(storeProductVariants)
       .where(eq(storeProductVariants.productId, product.id)),
-    db
-      .select()
-      .from(storeProductOffers)
-      .where(
-        and(
-          eq(storeProductOffers.productId, product.id),
-          eq(storeProductOffers.enabled, true),
-          or(
-            eq(storeProductOffers.maxUses, 0),
-            lt(storeProductOffers.usedCount, storeProductOffers.maxUses)
-          )
-        )
-      )
-      .orderBy(asc(storeProductOffers.quantity)),
+    // Same legacy payload shape, now sourced from the unified offers table.
+    listQuantityOffersForProduct(product.storeId, product.id, {
+      onlyUsable: true,
+    }),
   ]);
   const {
     costPerItem: _costPerItem,
@@ -472,6 +523,383 @@ export async function getPublicStoreProduct(
     images,
     variants,
   };
+}
+
+/* ---------------------------------------------------------------------------
+ * Offers / bundles
+ * ------------------------------------------------------------------------- */
+
+export interface OfferItemRow {
+  productId: number;
+  quantity: number;
+  title: string;
+  price: string | null;
+  status: "draft" | "active";
+  productKind: "physical" | "digital";
+  inventory: number;
+  trackInventory: boolean;
+  continueSelling: boolean;
+}
+
+/** Offers with their items, pricing and (for the dashboard) the reason. */
+export async function listOffersWithDetails(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(offers)
+    .where(eq(offers.storeId, storeId))
+    .orderBy(offers.sortOrder, offers.name);
+  return Promise.all(
+    rows.map(async offer => {
+      const items = await listOfferItems(storeId, offer.id);
+      const pricing = computeOfferPricing(offer, items);
+      return {
+        ...offer,
+        items,
+        pricing,
+        unavailableReason: offerUnavailableReason(offer, items, pricing),
+      };
+    })
+  );
+}
+
+async function listOfferItems(
+  storeId: number,
+  offerId: number
+): Promise<OfferItemRow[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      productId: offerProducts.productId,
+      quantity: offerProducts.quantity,
+      title: storeProducts.title,
+      price: storeProducts.price,
+      status: storeProducts.status,
+      productKind: storeProducts.productKind,
+      inventory: storeProducts.inventory,
+      trackInventory: storeProducts.trackInventory,
+      continueSelling: storeProducts.continueSelling,
+    })
+    .from(offerProducts)
+    .innerJoin(storeProducts, eq(storeProducts.id, offerProducts.productId))
+    .where(
+      and(
+        eq(offerProducts.storeId, storeId),
+        eq(offerProducts.offerId, offerId),
+        eq(storeProducts.storeId, storeId)
+      )
+    )
+    .orderBy(offerProducts.id);
+  return rows.map(row => ({ ...row, trackInventory: Boolean(row.trackInventory), continueSelling: Boolean(row.continueSelling) }));
+}
+
+export async function getOfferById(storeId: number, id: number) {  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(offers)
+    .where(and(eq(offers.storeId, storeId), eq(offers.id, id)))
+    .limit(1);
+  return row;
+}
+
+/**
+ * Upsell bridge (Option 1: write-through).
+ *
+ * Updates ONLY the product's upsell columns, so the existing consumers
+ * (CheckoutUpsellPopup, the order pricing and the landing page) keep working
+ * unchanged — the editing place moved to /offers, the meaning did not.
+ */
+export async function setProductUpsell(input: {
+  storeId: number;
+  productId: number;
+  patch: {
+    upsellProductId: number | null;
+    upsellPrice: string | null;
+    upsellDiscountAmount: string | null;
+    upsellDiscountPercent: number | null;
+    /** Omitted when clearing: the column keeps its value but is unused then. */
+    upsellViewType?: "product" | "landing";
+    upsellLandingPageId: number | null;
+  };
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db
+    .update(storeProducts)
+    .set(input.patch)
+    .where(
+      and(
+        eq(storeProducts.storeId, input.storeId),
+        eq(storeProducts.id, input.productId)
+      )
+    );
+}
+
+/** Sum of the given (store-scoped) products' prices × quantities. */
+export async function sumProductsPrice(
+  storeId: number,
+  items: Array<{ productId: number; quantity: number }>
+): Promise<number> {
+  const db = await getDb();
+  if (!db || !items.length) return 0;
+  const rows = await db
+    .select({ id: storeProducts.id, price: storeProducts.price })
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.storeId, storeId),
+        inArray(
+          storeProducts.id,
+          items.map(item => item.productId)
+        )
+      )
+    );
+  const priceById = new Map(rows.map(row => [row.id, Number(row.price ?? 0)]));
+  return items.reduce(
+    (sum, item) => sum + (priceById.get(item.productId) ?? 0) * item.quantity,
+    0
+  );
+}
+
+/** One offer with items, pricing and availability (dashboard + checkout). */
+export async function getOfferDetails(storeId: number, id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const offer = await getOfferById(storeId, id);
+  if (!offer) return undefined;
+  const items = await listOfferItems(storeId, id);
+  const pricing = computeOfferPricing(offer, items);
+  return {
+    offer,
+    items,
+    pricing,
+    unavailableReason: offerUnavailableReason(offer, items, pricing),
+  };
+}
+
+export async function createOffer(input: {
+  ownerId: number;
+  storeId: number;
+  kind?: "bundle" | "quantity";
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
+  discountType?: "percent" | "amount" | null;
+  discountValue?: string | null;
+  fixedPrice?: string | null;
+  maxUses?: number;
+  freeDelivery?: boolean;
+  isActive?: boolean;
+  sortOrder?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  const [{ id }] = await db
+    .insert(offers)
+    .values({
+      ownerId: input.ownerId,
+      storeId: input.storeId,
+      kind: input.kind ?? "bundle",
+      name: input.name,
+      slug: input.slug,
+      imageUrl: input.imageUrl ?? null,
+      discountType: input.discountType ?? null,
+      discountValue: input.discountValue ?? null,
+      fixedPrice: input.fixedPrice ?? null,
+      maxUses: input.maxUses ?? 0,
+      freeDelivery: input.freeDelivery ?? false,
+      isActive: input.isActive ?? true,
+      sortOrder: input.sortOrder ?? 0,
+    })
+    .$returningId();
+  return id;
+}
+
+export async function updateOffer(input: {
+  storeId: number;
+  id: number;
+  patch: Partial<{
+    name: string;
+    slug: string;
+    imageUrl: string | null;
+    discountType: "percent" | "amount" | null;
+    discountValue: string | null;
+    fixedPrice: string | null;
+    maxUses: number;
+    freeDelivery: boolean;
+    isActive: boolean;
+    sortOrder: number;
+  }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db
+    .update(offers)
+    .set(input.patch)
+    .where(and(eq(offers.storeId, input.storeId), eq(offers.id, input.id)));
+}
+
+/** Replaces the product set of an offer (quantities included). */
+export async function setOfferProducts(input: {
+  storeId: number;
+  offerId: number;
+  items: Array<{ productId: number; quantity: number }>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db.transaction(async tx => {
+    await tx
+      .delete(offerProducts)
+      .where(
+        and(
+          eq(offerProducts.storeId, input.storeId),
+          eq(offerProducts.offerId, input.offerId)
+        )
+      );
+    if (!input.items.length) return;
+    // Only PHYSICAL products of this store can be attached: digital products
+    // use a different checkout flow, so they never belong to a bundle.
+    const owned = await tx
+      .select({ id: storeProducts.id, kind: storeProducts.productKind })
+      .from(storeProducts)
+      .where(
+        and(
+          eq(storeProducts.storeId, input.storeId),
+          inArray(
+            storeProducts.id,
+            input.items.map(item => item.productId)
+          )
+        )
+      );
+    const ownedIds = new Set(
+      owned.filter(row => row.kind !== "digital").map(row => row.id)
+    );
+    const values = input.items
+      .filter(item => ownedIds.has(item.productId))
+      .map(item => ({
+        storeId: input.storeId,
+        offerId: input.offerId,
+        productId: item.productId,
+        quantity: Math.min(Math.max(Math.trunc(item.quantity) || 1, 1), 99),
+      }));
+    if (values.length) await tx.insert(offerProducts).values(values);
+  });
+}
+
+export async function deleteOffer(storeId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await db.transaction(async tx => {
+    await tx
+      .delete(offerProducts)
+      .where(
+        and(eq(offerProducts.storeId, storeId), eq(offerProducts.offerId, id))
+      );
+    await tx
+      .delete(offers)
+      .where(and(eq(offers.storeId, storeId), eq(offers.id, id)));
+  });
+}
+
+export async function setOfferOrder(storeId: number, orderedIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة.");
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      db
+        .update(offers)
+        .set({ sortOrder: index })
+        .where(and(eq(offers.storeId, storeId), eq(offers.id, id)))
+    )
+  );
+}
+
+/** True when the store has at least one active bundle (used at publish time). */
+export async function hasActiveBundle(storeId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(offers)
+    .where(
+      and(
+        eq(offers.storeId, storeId),
+        eq(offers.kind, "bundle"),
+        eq(offers.isActive, true)
+      )
+    );
+  return Number(row?.count ?? 0) > 0;
+}
+
+/**
+ * Public offers of one store: active, fully available, priced above zero.
+ *
+ * Fail-closed like every other public query: without a resolved store the
+ * answer is an empty list, never another tenant's offers.
+ */
+export async function listPublicOffers(storeId?: number | null) {
+  const db = await getDb();
+  if (!db) return [];
+  if (storeId == null) return [];
+  const rows = await db
+    .select()
+    .from(offers)
+    .where(
+      and(
+        eq(offers.storeId, storeId),
+        eq(offers.isActive, true),
+        // Quantity deals belong to the product page, not to the offers section.
+        eq(offers.kind, "bundle")
+      )
+    )
+    .orderBy(offers.sortOrder, offers.name);
+  const detailed = await Promise.all(
+    rows.map(async offer => {
+      const items = await listOfferItems(storeId, offer.id);
+      const pricing = computeOfferPricing(offer, items);
+      return {
+        id: offer.id,
+        name: offer.name,
+        slug: offer.slug,
+        imageUrl: offer.imageUrl,
+        items,
+        pricing,
+        unavailableReason: offerUnavailableReason(offer, items, pricing),
+      };
+    })
+  );
+  return detailed.filter(offer => offer.unavailableReason === null);
+}
+
+/** One public offer by slug inside a single store (fail-closed). */
+export async function getPublicOfferBySlug(
+  slug: string,
+  storeId?: number | null
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  if (storeId == null) return undefined;
+  const [offer] = await db
+    .select()
+    .from(offers)
+    .where(
+      and(
+        eq(offers.storeId, storeId),
+        eq(offers.slug, slug),
+        eq(offers.isActive, true),
+        // Only bundles have a public page; quantity deals live on the product.
+        eq(offers.kind, "bundle")
+      )
+    )
+    .limit(1);
+  if (!offer) return undefined;
+  const items = await listOfferItems(storeId, offer.id);
+  const pricing = computeOfferPricing(offer, items);
+  if (offerUnavailableReason(offer, items, pricing) !== null) return undefined;
+  return { ...offer, items, pricing };
 }
 
 export async function listPublicStoreProducts(storeId?: number | null) {
@@ -1354,7 +1782,19 @@ function resolveCostSnapshot(
 
 export async function createCodOrder(
   customer: CodOrderCustomerInput,
-  lines: CodOrderLineInput[]
+  lines: CodOrderLineInput[],
+  /**
+   * Bundle discounts already re-computed from the DB by the router. They
+   * compete with the percent discounts (the largest one wins) and can make the
+   * whole order's delivery free.
+   */
+  bundles: Array<{
+    offerId: number;
+    name: string;
+    discountAmount: string;
+    freeDelivery: boolean;
+    times: number;
+  }> = []
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
@@ -1596,13 +2036,30 @@ export async function createCodOrder(
           ? settings.fixedHomeFee
           : null;
     const freeDelivery =
-      resolvedLines.length > 0 &&
-      resolvedLines.every(line => Boolean(line.offer?.freeDelivery));
+      bundles.some(bundle => bundle.freeDelivery) ||
+      (resolvedLines.length > 0 &&
+        resolvedLines.every(line => Boolean(line.offer?.freeDelivery)));
     const deliveryFee = freeDelivery ? "0.00" : (rateFee ?? fixedFee ?? "0.00");
     const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const discountCents = Math.round(
+    const percentDiscountCents = Math.round(
       (subtotalCents * activeDiscountPercent) / 100
     );
+    // No stacking: the bundle discount competes with the percent discounts and
+    // only the largest one is applied.
+    const bundleDiscountCents = bundles.reduce(
+      (sum, bundle) => sum + toCents(bundle.discountAmount) * bundle.times,
+      0
+    );
+    const discountCents = Math.max(percentDiscountCents, bundleDiscountCents);
+    const appliedOffers = bundles.length
+      ? bundles.map(bundle => ({
+          offerId: bundle.offerId,
+          name: bundle.name,
+          discountAmount: bundle.discountAmount,
+          freeDelivery: bundle.freeDelivery,
+          times: bundle.times,
+        }))
+      : null;
     const subtotal = fromCents(subtotalCents);
     const discountAmount = fromCents(discountCents);
     const total = fromCents(
@@ -1629,6 +2086,7 @@ export async function createCodOrder(
       discountAmount,
       deliveryFee,
       deliveryCostSnapshot: deliveryFee,
+      appliedOffers,
       total,
       attributionSource: customer.attributionSource?.trim() || null,
       fbclid: customer.fbclid?.trim() || null,
@@ -1697,17 +2155,18 @@ export async function createCodOrder(
 
     for (const line of resolvedLines) {
       if (line.offer) {
+        // Quantity deals live in the unified offers table now; `line.offer.id`
+        // is the legacy id, so the row is resolved by (kind, legacyId) — never
+        // by the offers primary key.
         const update = await tx
-          .update(storeProductOffers)
+          .update(offers)
           .set({ usedCount: line.offer.usedCount + line.quantity })
           .where(
             and(
-              eq(storeProductOffers.id, line.offer.id),
-              eq(storeProductOffers.usedCount, line.offer.usedCount),
-              or(
-                eq(storeProductOffers.maxUses, 0),
-                lt(storeProductOffers.usedCount, storeProductOffers.maxUses)
-              )
+              eq(offers.kind, "quantity"),
+              eq(offers.legacyId, line.offer.id),
+              eq(offers.usedCount, line.offer.usedCount),
+              or(eq(offers.maxUses, 0), lt(offers.usedCount, offers.maxUses))
             )
           );
         if (

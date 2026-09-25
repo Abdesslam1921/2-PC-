@@ -23,6 +23,7 @@ import {
   PackageCheck,
   Plus,
   Save,
+  BadgePercent,
   Settings2,
   ShieldCheck,
   Sparkles,
@@ -448,17 +449,8 @@ export default function ProductCreate() {
             ? deliveryCarrierConnectionId
             : undefined,
         media: uploadedMedia,
-        offers:
-          productKind === "digital"
-            ? []
-            : offers.map(offer => ({
-                description: offer.description,
-                quantity: Number(offer.quantity || 1),
-                price: offer.price,
-                maxUses: Number(offer.maxUses || 0),
-                freeDelivery: offer.freeDelivery,
-                enabled: true,
-              })),
+        // Quantity offers moved to the packs system (/offers), so the form no
+        // longer sends `offers` at all — omitting it keeps any legacy data.
         digitalFile: uploadedDigitalFile,
         digitalMaxDownloads:
           productKind === "digital"
@@ -1233,6 +1225,7 @@ export default function ProductCreate() {
                 </div>
                 <button
                   role="switch"
+                  aria-label="تفعيل المتغيرات"
                   aria-checked={hasVariants}
                   onClick={() => setHasVariants(value => !value)}
                   className={`relative h-7 w-12 rounded-full transition duration-200 ${hasVariants ? "bg-[var(--brand)]" : "bg-[#D4D8D0]"}`}
@@ -1510,114 +1503,6 @@ export default function ProductCreate() {
             </FormCard>
           )}
 
-          {productKind === "physical" && (
-            <FormCard
-              title="العروض"
-              description="أنشئ عرض كمية يحدد الوصف، الكمية، سعر العرض، عدد مرات توفره والتوصيل المجاني."
-              icon={CircleDollarSign}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs leading-5 text-[#79837D]">
-                  اترك عدد العروض 0 ليبقى العرض متاحًا بلا حد، أو حدد عدد
-                  الاستخدامات قبل انتهائه.
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addOffer}
-                  className="btn-press shrink-0 rounded-xl border-[#E3E1D8] font-extrabold"
-                >
-                  <Plus className="ml-2 size-4" />
-                  إضافة عرض
-                </Button>
-              </div>
-              {offers.length > 0 && (
-                <div className="mt-4 space-y-3">
-                  {offers.map((offer, index) => (
-                    <div
-                      key={offer.id}
-                      className="rounded-2xl border border-[#E7E9E2] bg-[#FAF9F5] p-4"
-                    >
-                      <div className="mb-3 flex items-center justify-between">
-                        <SmallBadge>العرض {index + 1}</SmallBadge>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOffers(current =>
-                              current.filter(item => item.id !== offer.id)
-                            )
-                          }
-                          className="btn-press text-xs font-extrabold text-[#A63D28]"
-                        >
-                          حذف
-                        </button>
-                      </div>
-                      <div className="grid gap-3 md:grid-cols-4">
-                        <TextInput
-                          aria-label={`وصف العرض ${index + 1}`}
-                          value={offer.description}
-                          onChange={event =>
-                            updateOffer(
-                              offer.id,
-                              "description",
-                              event.target.value
-                            )
-                          }
-                          placeholder="مثال: باقة 2 قطع"
-                        />
-                        <TextInput
-                          aria-label={`كمية العرض ${index + 1}`}
-                          value={offer.quantity}
-                          onChange={event =>
-                            updateOffer(
-                              offer.id,
-                              "quantity",
-                              event.target.value
-                            )
-                          }
-                          inputMode="numeric"
-                          placeholder="الكمية"
-                        />
-                        <TextInput
-                          aria-label={`سعر العرض ${index + 1}`}
-                          value={offer.price}
-                          onChange={event =>
-                            updateOffer(offer.id, "price", event.target.value)
-                          }
-                          inputMode="decimal"
-                          placeholder="سعر العرض"
-                        />
-                        <TextInput
-                          aria-label={`عدد العروض ${index + 1}`}
-                          value={offer.maxUses}
-                          onChange={event =>
-                            updateOffer(offer.id, "maxUses", event.target.value)
-                          }
-                          inputMode="numeric"
-                          placeholder="عدد العروض · 0 بلا حد"
-                        />
-                      </div>
-                      <label className="mt-3 flex items-center gap-2 text-xs font-bold text-[#4A554F]">
-                        <input
-                          type="checkbox"
-                          checked={offer.freeDelivery}
-                          onChange={event =>
-                            updateOffer(
-                              offer.id,
-                              "freeDelivery",
-                              event.target.checked
-                            )
-                          }
-                          className="size-4 accent-[var(--brand)]"
-                        />
-                        توصيل مجاني لهذا العرض
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </FormCard>
-          )}
 
           {productKind === "physical" && (
             <FormCard
@@ -1758,209 +1643,6 @@ export default function ProductCreate() {
             </FormCard>
           )}
 
-          {productKind === "physical" && (
-            <FormCard
-              title="🔥 Smart Checkout Upsell"
-              description="بعد ما يضغط العميل «اطلب الآن»، أظهر له منتج إضافي بسعر مخفض قبل تأكيد الطلب."
-              icon={Sparkles}
-            >
-              <div className="space-y-4">
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F5]">
-                  <span>
-                    <span className="block text-sm font-extrabold text-[#1F2A25]">
-                      تفعيل عرض الإضافة الذكية
-                    </span>
-                    <span className="mt-1 block text-xs text-[#8A938D]">
-                      أضف منتج إضافي بسعر مخفض قبل تأكيد الطلب.
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={upsellEnabled}
-                    onChange={event => setUpsellEnabled(event.target.checked)}
-                    className="size-4 accent-[var(--brand)]"
-                  />
-                </label>
-
-                {upsellEnabled && (
-                  <div className="space-y-4">
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      المنتج المرفق
-                      <select
-                        value={upsellProductId}
-                        onChange={event => {
-                          setUpsellProductId(
-                            event.target.value ? Number(event.target.value) : ""
-                          );
-                          setUpsellLandingPageId("");
-                        }}
-                        className={inputClass}
-                      >
-                        <option value="" disabled>
-                          اختر منتج من الكتالوج
-                        </option>
-                        {upsellCandidates.map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.title} — {p.price ? `${p.price} دج` : "بدون سعر"}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      ماذا يظهر للمشتري في النافذة؟
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                        {(
-                          [
-                            { value: "product", label: "صفحة المنتج" },
-                            { value: "landing", label: "صفحة الهبوط (فانل)" },
-                          ] as const
-                        ).map(option => (
-                          <button
-                            type="button"
-                            key={option.value}
-                            onClick={() => {
-                              setUpsellViewType(option.value);
-                              if (option.value === "product")
-                                setUpsellLandingPageId("");
-                            }}
-                            className={`btn-press rounded-xl border p-2.5 text-center text-xs font-extrabold transition ${upsellViewType === option.value ? "border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]" : "border-[#E3E1D8] bg-white text-[#5B6660] hover:border-[#B9CFC3]"}`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </label>
-
-                    {upsellViewType === "landing" && (
-                      <div>
-                        {upsellLandingOptions.length > 0 ? (
-                          <label className="block text-sm font-extrabold text-[#3D4A43]">
-                            اختر صفحة الهبوط
-                            <select
-                              value={upsellLandingPageId}
-                              onChange={event =>
-                                setUpsellLandingPageId(
-                                  event.target.value
-                                    ? Number(event.target.value)
-                                    : ""
-                                )
-                              }
-                              className={inputClass}
-                            >
-                              <option value="" disabled>
-                                اختر صفحة هبوط معتمدة
-                              </option>
-                              {upsellLandingOptions.map(lp => (
-                                <option key={lp.id} value={lp.id}>
-                                  {lp.title}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ) : (
-                          <p className="rounded-xl bg-[var(--warm-soft)] px-3 py-2.5 text-xs leading-5 text-[#96601F]">
-                            هذا المنتج لا يملك صفحة هبوط معتمدة بعد. أنشئ واحدة
-                            من صفحة الفانل ثم اخترها هنا.
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    <label className="block text-sm font-extrabold text-[#3D4A43]">
-                      نوع العرض
-                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                        {[
-                          { value: "fixed_price", label: "سعر ثابت (+X دج)" },
-                          {
-                            value: "discount_amount",
-                            label: "خصم مبلغ (وفر X دج)",
-                          },
-                          { value: "discount_percent", label: "خصم نسبة (%)" },
-                        ].map(option => (
-                          <button
-                            type="button"
-                            key={option.value}
-                            onClick={() =>
-                              setUpsellDiscountMode(
-                                option.value as
-                                  | "fixed_price"
-                                  | "discount_amount"
-                                  | "discount_percent"
-                              )
-                            }
-                            className={`btn-press rounded-xl border p-2.5 text-center text-xs font-extrabold transition ${upsellDiscountMode === option.value ? "border-[var(--warm)] bg-[var(--warm-soft)] text-[#B2611C]" : "border-[#E3E1D8] bg-white text-[#5B6660] hover:border-[#B9CFC3]"}`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </label>
-
-                    {upsellDiscountMode === "fixed_price" && (
-                      <label className="block text-sm font-extrabold text-[#3D4A43]">
-                        السعر الإضافي
-                        <div className="relative mt-2">
-                          <input
-                            className={`${inputClass} pl-12`}
-                            inputMode="decimal"
-                            value={upsellPrice}
-                            onChange={event =>
-                              setUpsellPrice(event.target.value)
-                            }
-                            placeholder="900.00"
-                          />
-                          <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                            دج
-                          </span>
-                        </div>
-                      </label>
-                    )}
-
-                    {upsellDiscountMode === "discount_amount" && (
-                      <label className="block text-sm font-extrabold text-[#3D4A43]">
-                        مبلغ الخصم
-                        <div className="relative mt-2">
-                          <input
-                            className={`${inputClass} pl-12`}
-                            inputMode="decimal"
-                            value={upsellDiscountAmount}
-                            onChange={event =>
-                              setUpsellDiscountAmount(event.target.value)
-                            }
-                            placeholder="400.00"
-                          />
-                          <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                            دج
-                          </span>
-                        </div>
-                      </label>
-                    )}
-
-                    {upsellDiscountMode === "discount_percent" && (
-                      <label className="block text-sm font-extrabold text-[#3D4A43]">
-                        نسبة الخصم
-                        <div className="relative mt-2">
-                          <input
-                            className={`${inputClass} pl-12`}
-                            inputMode="numeric"
-                            value={upsellDiscountPercent}
-                            onChange={event =>
-                              setUpsellDiscountPercent(event.target.value)
-                            }
-                            placeholder="20"
-                          />
-                          <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                            %
-                          </span>
-                        </div>
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            </FormCard>
-          )}
         </div>
 
         <aside className="space-y-5 2xl:sticky 2xl:top-24 2xl:h-fit">

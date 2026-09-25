@@ -151,6 +151,60 @@ export function categoryTiles(
   return collections.map(name => ({ id: name, name }));
 }
 
+export interface PublicOfferItem {
+  productId: number;
+  quantity: number;
+  title: string;
+  price: string | null;
+  imageUrl?: string | null;
+  /** Stock data, used to cap the cart line exactly like a normal add. */
+  inventory?: number;
+  trackInventory?: boolean;
+  continueSelling?: boolean;
+}
+
+export interface PublicOffer {
+  id: number;
+  name: string;
+  slug: string;
+  imageUrl?: string | null;
+  items: PublicOfferItem[];
+  pricing: {
+    originalTotal: number;
+    discountAmount: number;
+    bundlePrice: number;
+    savingPercent: number;
+    freeDelivery: boolean;
+  };
+}
+
+export interface OfferCard {
+  id: number;
+  name: string;
+  /** Bundle image, else the first product's image (approved fallback). */
+  imageUrl?: string;
+  items: PublicOfferItem[];
+  originalTotal: number;
+  bundlePrice: number;
+  discountAmount: number;
+  savingPercent: number;
+  freeDelivery: boolean;
+}
+/** Cards shown by the storefront offers section (server already filtered). */
+export function offerCards(offers: PublicOffer[]): OfferCard[] {
+  return offers.map(offer => ({
+    id: offer.id,
+    name: offer.name,
+    imageUrl: offer.imageUrl || offer.items[0]?.imageUrl || undefined,
+    items: offer.items,
+    originalTotal: offer.pricing.originalTotal,
+    bundlePrice: offer.pricing.bundlePrice,
+    discountAmount: offer.pricing.discountAmount,
+    savingPercent: offer.pricing.savingPercent,
+    freeDelivery: offer.pricing.freeDelivery,
+  }));
+}
+
 const text = (value: unknown, fallback = "") =>
   typeof value === "string" ? value : fallback;
 
@@ -164,12 +218,13 @@ export interface FooterData {
   whatsapp: string;
   productsHref: string;
   categoriesHref: string;
+  offersHref: string;
 }
 
 /** Footer content: editable help answers, contact number and social links. */
 export function footerData(
   section: StorefrontSection,
-  anchors: { products: string; categories: string }
+  anchors: { products: string; categories: string; offers: string }
 ): FooterData {
   const s = section.settings;
   return {
@@ -182,6 +237,7 @@ export function footerData(
     whatsapp: text(s.whatsapp),
     productsHref: anchors.products,
     categoriesHref: anchors.categories,
+    offersHref: anchors.offers,
   };
 }
 

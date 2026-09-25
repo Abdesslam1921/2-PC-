@@ -46,9 +46,12 @@ export function storefrontAnchors(config: StorefrontConfig) {
     enabled.find(s => s.type === "product_grid") ??
     enabled.find(s => s.type === "featured_products");
   const categories = enabled.find(s => s.type === "categories");
+  const offers = enabled.find(s => s.type === "offers");
   return {
     products: products ? `#sf-sec-${products.id}` : "#top",
     categories: categories ? `#sf-sec-${categories.id}` : "#top",
+    offers: offers ? `#sf-sec-${offers.id}` : "#top",
     hasCategories: Boolean(categories),
+    hasOffers: Boolean(offers),
   };
 }

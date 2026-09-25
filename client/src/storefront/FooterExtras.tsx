@@ -15,7 +15,7 @@ type Tone = {
   mutedClass?: string;
 };
 
-/** Store links: "جديد" → products, "الفئات" → categories, "عروض" pending. */
+/** Store links: "جديد" → products, "عروض" → offers section, "الفئات" → categories. */
 export function FooterStoreLinks({
   footer,
   itemClass = "mb-2 block text-[13px]",
@@ -26,7 +26,9 @@ export function FooterStoreLinks({
       <a href={footer.productsHref} className={itemClass}>
         جديد
       </a>
-      <span className={mutedClass}>عروض</span>
+      <a href={footer.offersHref} className={itemClass}>
+        عروض
+      </a>
       <a href={footer.categoriesHref} className={itemClass}>
         الفئات
       </a>
@@ -102,7 +104,9 @@ export function FooterInlineLinks({
       <a href={footer.productsHref} className={itemClass}>
         جديد
       </a>
-      <span className="opacity-60">عروض</span>
+      <a href={footer.offersHref} className={itemClass}>
+        عروض
+      </a>
       <a href={footer.categoriesHref} className={itemClass}>
         الفئات
       </a>

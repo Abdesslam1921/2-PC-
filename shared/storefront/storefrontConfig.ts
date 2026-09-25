@@ -26,6 +26,7 @@ export const STOREFRONT_SECTION_TYPES = [
   "product_grid",
   "promo",
   "benefits",
+  "offers",
   "testimonials",
   "newsletter",
   "signature",
@@ -197,17 +198,24 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
     },
     {
+      id: "offers",
+      type: "offers",
+      enabled: true,
+      order: 4,
+      settings: { title: "الباقات", subtitle: "وفّر أكثر عند شراء الباقة" },
+    },
+    {
       id: "featured_products",
       type: "featured_products",
       enabled: true,
-      order: 4,
+      order: 5,
       settings: { title: "منتجات مميزة", subtitle: "الأكثر طلبًا", limit: 8 },
     },
     {
       id: "promo",
       type: "promo",
       enabled: true,
-      order: 5,
+      order: 6,
       settings: {
         title: "عرض الأسبوع: حتى 30% على المختارات",
         body: "لفترة محدودة — اكتشف القطع المميزة قبل نهاية العرض.",
@@ -218,7 +226,7 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       id: "benefits",
       type: "benefits",
       enabled: true,
-      order: 6,
+      order: 7,
       settings: {},
       items: [
         { id: "benefit-delivery", name: "توصيل سريع", text: "لجميع الولايات.", icon: "truck" },
@@ -231,7 +239,7 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       id: "newsletter",
       type: "newsletter",
       enabled: true,
-      order: 7,
+      order: 8,
       settings: {
         title: "انضم إلى نشرتنا البريدية",
         subtitle: "عروض حصرية وتنبيهات المنتجات الجديدة.",
@@ -242,14 +250,14 @@ export const DEFAULT_MODERN_CONFIG: StorefrontConfig = {
       id: "footer",
       type: "footer",
       enabled: true,
-      order: 8,
+      order: 9,
       settings: {},
     },
     {
       id: "signature",
       type: "signature",
       enabled: true,
-      order: 9,
+      order: 10,
       settings: { text: "", subtitle: "", font: "greatvibes" },
     },
   ],
@@ -302,17 +310,24 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
     },
     {
+      id: "offers",
+      type: "offers",
+      enabled: true,
+      order: 4,
+      settings: { title: "الباقات", subtitle: "وفّر أكثر عند شراء الباقة" },
+    },
+    {
       id: "product_grid",
       type: "product_grid",
       enabled: true,
-      order: 4,
+      order: 5,
       settings: { title: "المجموعة", subtitle: "", limit: 12 },
     },
     {
       id: "promo",
       type: "promo",
       enabled: true,
-      order: 5,
+      order: 6,
       settings: {
         title: "خصم حتى 30% على مختارات الموسم",
         body: "تخفيضات هادئة على قطع مختارة — بلا فوضى، وبلا عدّاد ضغط.",
@@ -323,7 +338,7 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       id: "benefits",
       type: "benefits",
       enabled: true,
-      order: 6,
+      order: 7,
       settings: {},
       items: [
         { id: "benefit-delivery", name: "توصيل سريع", text: "لجميع الولايات خلال 48–72 ساعة.", icon: "truck" },
@@ -336,7 +351,7 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       id: "newsletter",
       type: "newsletter",
       enabled: true,
-      order: 7,
+      order: 8,
       settings: {
         title: "رسائل قليلة، بلا إزعاج.",
         subtitle: "إشعار واحد عند إصدار مجموعة جديدة.",
@@ -347,14 +362,14 @@ export const DEFAULT_MINIMAL_CONFIG: StorefrontConfig = {
       id: "footer",
       type: "footer",
       enabled: true,
-      order: 8,
+      order: 9,
       settings: {},
     },
     {
       id: "signature",
       type: "signature",
       enabled: true,
-      order: 9,
+      order: 10,
       settings: { text: "", subtitle: "", font: "greatvibes" },
     },
   ],
@@ -406,17 +421,24 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
     },
     {
+      id: "offers",
+      type: "offers",
+      enabled: true,
+      order: 4,
+      settings: { title: "الباقات", subtitle: "وفّر أكثر عند شراء الباقة" },
+    },
+    {
       id: "product_grid",
       type: "product_grid",
       enabled: true,
-      order: 4,
+      order: 5,
       settings: { title: "الأكثر مبيعًا", subtitle: "", limit: 8 },
     },
     {
       id: "promo",
       type: "promo",
       enabled: true,
-      order: 5,
+      order: 6,
       settings: {
         title: "يبدأ العرض الآن.",
         body: "حتى 40% على مختارات كاملة — الكمية محدودة، والطلب أسرع من الأمس.",
@@ -427,7 +449,7 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       id: "benefits",
       type: "benefits",
       enabled: true,
-      order: 6,
+      order: 7,
       settings: {},
       items: [
         { id: "benefit-delivery", name: "توصيل 58 ولاية", text: "خلال 48–72 ساعة", icon: "truck" },
@@ -440,7 +462,7 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       id: "newsletter",
       type: "newsletter",
       enabled: true,
-      order: 7,
+      order: 8,
       settings: {
         title: "لا تفوّت العروض.",
         subtitle: "اشترك ليصلك كل جديد وأقوى التخفيضات أولًا بأول.",
@@ -451,14 +473,14 @@ export const DEFAULT_BOLD_CONFIG: StorefrontConfig = {
       id: "footer",
       type: "footer",
       enabled: true,
-      order: 8,
+      order: 9,
       settings: {},
     },
     {
       id: "signature",
       type: "signature",
       enabled: true,
-      order: 9,
+      order: 10,
       settings: { text: "", subtitle: "", font: "greatvibes" },
     },
   ],
@@ -510,17 +532,24 @@ export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
       settings: { title: "تسوق حسب الفئة", subtitle: "اختر ما يناسبك من مجموعاتنا" },
     },
     {
+      id: "offers",
+      type: "offers",
+      enabled: true,
+      order: 4,
+      settings: { title: "الباقات", subtitle: "وفّر أكثر عند شراء الباقة" },
+    },
+    {
       id: "product_grid",
       type: "product_grid",
       enabled: true,
-      order: 4,
+      order: 5,
       settings: { title: "قطع مختارة بعناية", subtitle: "المجموعة", limit: 9 },
     },
     {
       id: "promo",
       type: "promo",
       enabled: true,
-      order: 5,
+      order: 6,
       settings: {
         title: "تغليف فاخر مجانًا لكل طلب",
         body: "نُرفق بطاقة مكتوبة بخط اليد مع كل قطعة مختارة — لأن الهدية تبدأ من التفاصيل.",
@@ -531,7 +560,7 @@ export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
       id: "benefits",
       type: "benefits",
       enabled: true,
-      order: 6,
+      order: 7,
       settings: {},
       items: [
         { id: "benefit-delivery", name: "توصيل فاخر", text: "تغليف أنيق لكل الولايات.", icon: "truck" },
@@ -544,7 +573,7 @@ export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
       id: "newsletter",
       type: "newsletter",
       enabled: true,
-      order: 7,
+      order: 8,
       settings: {
         title: "رسائل راقية فقط",
         subtitle: "إشعار واحد عند إصدار مجموعة جديدة.",
@@ -555,14 +584,14 @@ export const DEFAULT_BOUTIQUE_CONFIG: StorefrontConfig = {
       id: "footer",
       type: "footer",
       enabled: true,
-      order: 8,
+      order: 9,
       settings: {},
     },
     {
       id: "signature",
       type: "signature",
       enabled: true,
-      order: 9,
+      order: 10,
       settings: { text: "", subtitle: "", font: "greatvibes" },
     },
   ],
@@ -596,4 +625,34 @@ export function templateDefaultSection(
     config.sections.find(s => s.type === section.type) ??
     null
   );
+}
+
+/**
+ * Make sure the storefront has a "الباقات" (offers) section.
+ *
+ * Called at publish time when the merchant already has active bundles but the
+ * config predates the section (older drafts / published versions). It is
+ * inserted right before the footer and the orders are renumbered, so nothing
+ * else shifts. Templates render the section only when an active bundle exists.
+ */
+export function ensureOffersSection(config: StorefrontConfig): StorefrontConfig {
+  if (config.sections.some(section => section.type === "offers")) return config;
+  const section: StorefrontSection = {
+    id: "offers",
+    type: "offers",
+    enabled: true,
+    order: 0,
+    settings: {
+      title: "الباقات",
+      subtitle: "وفّر أكثر عند شراء الباقة",
+    },
+  };
+  const sections = [...config.sections];
+  const footerIndex = sections.findIndex(item => item.type === "footer");
+  if (footerIndex >= 0) sections.splice(footerIndex, 0, section);
+  else sections.push(section);
+  return {
+    ...config,
+    sections: sections.map((item, index) => ({ ...item, order: index })),
+  };
 }
