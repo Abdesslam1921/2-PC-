@@ -184,6 +184,21 @@ describe("DirectCodOrderForm", () => {
     ).toBeTruthy();
   });
 
+  it("announces free delivery immediately for a free-delivery product", () => {
+    render(
+      <DirectCodOrderForm
+        productId={7}
+        productTitle="حقيبة"
+        price="2400.00"
+        maxQuantity={3}
+        productFreeDelivery
+      />
+    );
+    expect(
+      screen.getByText("توصيل مجاني على هذا الطلب — لا تدفع أي رسوم توصيل.")
+    ).toBeTruthy();
+  });
+
   it("locks the quantity to the chosen tier", () => {
     render(
       <DirectCodOrderForm

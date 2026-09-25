@@ -424,6 +424,7 @@ export default function ProductLanding() {
                         maxQuantity={offerRemaining ?? maxQuantity}
                         offerTiers={offerTiers}
                         onSelectOffer={setSelectedOfferId}
+                        productFreeDelivery={Boolean(product.freeDelivery)}
                         discountPercent={sharkDiscount || undefined}
                         upsellLine={upsellLine}
                         onOrderSuccess={() =>

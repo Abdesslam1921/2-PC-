@@ -88,6 +88,8 @@ type DirectCodOrderFormProps = {
   onSelectOffer?: (id?: number) => void;
   /** Bundle purchase page: the order is the bundle's products + its discount. */
   bundle?: BundleOrder | null;
+  /** Product-level free delivery — shown immediately, before a wilaya is picked. */
+  productFreeDelivery?: boolean;
   upsellLine?: UpsellLine;
   upsellDecisionRequired?: boolean;
   onRequestUpsellDecision?: () => void;
@@ -157,6 +159,7 @@ export function DirectCodOrderForm({
   offerTiers,
   onSelectOffer,
   bundle,
+  productFreeDelivery = false,
   upsellLine,
   upsellDecisionRequired = false,
   onRequestUpsellDecision,
@@ -186,7 +189,9 @@ export function DirectCodOrderForm({
   // Mirrors the server rule: delivery is free only when every line is a
   // free-delivery offer (an added upsell line clears it).
   const deliveryFree =
-    (Boolean(selectedTier?.freeDelivery) || Boolean(bundle?.freeDelivery)) &&
+    (Boolean(selectedTier?.freeDelivery) ||
+      Boolean(bundle?.freeDelivery) ||
+      productFreeDelivery) &&
     !upsellLine;
   const [form, setForm] = useState({
     customerName: "",
@@ -697,10 +702,10 @@ export function DirectCodOrderForm({
       </section>
     );
 
-  // Product-level free delivery comes from the delivery quote itself.
-  const productFreeDelivery = Boolean(quote.data?.free);
+  // Free delivery confirmed only by the quote (server-side flag).
+  const quoteFreeDelivery = Boolean(quote.data?.free);
   const deliveryFee =
-    deliveryFree || productFreeDelivery
+    deliveryFree || quoteFreeDelivery
       ? "0.00"
       : (quote.data?.deliveryFee ?? "0.00");
   const mainTotal = effectivePrice ? Number(effectivePrice) * quantity : 0;
@@ -770,7 +775,7 @@ export function DirectCodOrderForm({
         </div>
       </div>
       <form ref={formRef} onSubmit={submit} className="p-5 sm:p-6">
-        {deliveryFree || productFreeDelivery ? (
+        {deliveryFree || quoteFreeDelivery ? (
           <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-[#BFE6CF] bg-[#E8F7EE] px-4 py-3 text-sm font-extrabold text-[#0B7A4B]">
             <Truck className="size-5 shrink-0" />
             <span>توصيل مجاني على هذا الطلب — لا تدفع أي رسوم توصيل.</span>
@@ -1105,7 +1110,7 @@ export function DirectCodOrderForm({
               <span>
                 {!form.wilaya
                   ? "اختر الولاية"
-                  : deliveryFree || productFreeDelivery
+                  : deliveryFree || quoteFreeDelivery
                     ? "مجاني"
                     : money(deliveryFee)}
               </span>
