@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   removeOne: vi.fn(),
   removeMany: vi.fn(),
+  updateStatus: vi.fn(),
   invalidate: vi.fn(),
   pendingOrderId: null as number | null,
 }));
@@ -76,6 +77,13 @@ vi.mock("@/lib/trpc", () => ({
               items: [{ productId: 7, title: "منتج تجريبي", quantity: 1 }],
             },
           ],
+        }),
+      },
+      updateStatus: {
+        useMutation: () => ({
+          mutate: mocks.updateStatus,
+          isPending: false,
+          variables: undefined,
         }),
       },
       deleteArchived: {
@@ -161,5 +169,18 @@ describe("ForShip", () => {
         .getByRole("button", { name: "مزامنة" })
         .querySelector(".animate-spin")
     ).toBeNull();
+  });
+
+  it("edits an order status manually from ProShip", () => {
+    render(<ForShip />);
+    const row12 = screen.getByText("ABD-000012").closest("tr") as HTMLElement;
+    fireEvent.change(
+      within(row12).getByLabelText("تعديل حالة الطلب ABD-000012"),
+      { target: { value: "delivered" } }
+    );
+    expect(mocks.updateStatus).toHaveBeenCalledWith({
+      orderId: 12,
+      fulfillmentStatus: "delivered",
+    });
   });
 });

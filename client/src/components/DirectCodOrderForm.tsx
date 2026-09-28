@@ -486,13 +486,9 @@ export function DirectCodOrderForm({
     if (offerId) setQuantity(1);
   }, [offerId]);
   useEffect(() => {
-    if (
-      !form.customerName &&
-      !form.customerPhone &&
-      !form.wilaya &&
-      !form.municipality
-    )
-      return;
+    // Record an abandoned order ONLY once a phone number exists: the list is
+    // used by the call center for follow-up, so phone-less rows are noise.
+    if (!form.customerPhone.trim()) return;
     const timer = window.setTimeout(
       () =>
         saveAbandoned.mutate({

@@ -3063,6 +3063,9 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     )
     .limit(1);
   if (!product) throw new Error("المنتج غير متاح.");
+  // Phone-first rule: never store a phone-less abandoned cart.
+  if (!input.customerPhone?.trim())
+    return { saved: false, reason: "no_phone" } as const;
   const [abandonedSetting] = await db
     .select({ enabled: storeConnecteurs.enabled })
     .from(storeConnecteurs)
@@ -3404,11 +3407,13 @@ export async function updateStoreOrderStatus(
   storeId: number,
   orderId: number,
   fulfillmentStatus:
+    | "new"
     | "review"
     | "confirmed"
     | "processing"
     | "at_carrier"
     | "shipped"
+    | "delivered"
     | "returned"
     | "cancelled"
     | "customer_unresponsive"
@@ -4645,7 +4650,12 @@ export async function updateOrderCarrierData(
     shippingLabelUrl?: string;
     carrierMunicipality?: string;
     carrierConnectionId?: number;
-    fulfillmentStatus?: "at_carrier" | "delivered" | "returned" | "cancelled";
+    fulfillmentStatus?:
+      | "at_carrier"
+      | "shipped"
+      | "delivered"
+      | "returned"
+      | "cancelled";
   }
 ) {
   const db = await getDb();

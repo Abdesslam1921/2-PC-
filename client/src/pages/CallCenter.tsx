@@ -383,7 +383,7 @@ function AgentDashboard() {
             }`}
           >
             <Truck className="ml-2 size-4" />
-            فورشيب · تتبع الشحن
+            بروشيب · تتبع الشحن
           </Button>
         </div>
         {activeTab === "orders" ? (
@@ -492,7 +492,7 @@ function AgentDashboard() {
             <div className="mb-4 flex items-center gap-2">
               <Truck className="size-5 text-[var(--brand)]" />
               <h2 className="font-extrabold text-[#1F2A25]">
-                فورشيب - تتبع الطلبات المشحونة
+                بروشيب - تتبع الطلبات المشحونة
               </h2>
             </div>
             <AgentForShip
@@ -573,7 +573,7 @@ function CallCenterAdmin() {
             </h1>
             <p className="mt-2 text-sm text-[#79837D]">
               أنشئ حسابات لفريق تأكيد الطلبات، اختر لكل عميل «صلاحيات كاملة»
-              على كل الطلبات وفورشيب، أو خصّص له منتجات مسموحة فقط.
+              على كل الطلبات وبروشيب، أو خصّص له منتجات مسموحة فقط.
             </p>
             <p className="mt-2 text-xs leading-6 text-[#8A938D]">
               تصله إشعارات الطلبات والحالات على بريده عند ربط Google ومنح صلاحية
@@ -953,7 +953,7 @@ function CallCenterAdmin() {
               </p>
               <p className="mt-1 text-xs leading-5 text-[#79837D]">
                 اختر صلاحية العميل: صلاحيات كاملة على كل طلبات المتجر (الطلبات،
-                تغيير الحالات، تتبع فورشيب)، أو تقييده بمنتجات محددة فقط.
+                تغيير الحالات، تتبع بروشيب)، أو تقييده بمنتجات محددة فقط.
               </p>
               <div className="mt-3 grid gap-2">
                 <label
@@ -971,7 +971,7 @@ function CallCenterAdmin() {
                   <span>
                     <b className="text-[#1F2A25]">صلاحيات كاملة (كل الطلبات)</b>
                     <small className="mt-1 block font-normal text-[#79837D]">
-                      يرى العميل كل طلبات المتجر ويغيّر حالاتها ويتتبع فورشيب
+                      يرى العميل كل طلبات المتجر ويغيّر حالاتها ويتتبع بروشيب
                       بدون تقييد بالمنتجات.
                     </small>
                   </span>

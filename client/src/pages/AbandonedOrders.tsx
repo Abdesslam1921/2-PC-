@@ -33,17 +33,24 @@ export default function AbandonedOrders() {
                 <div className="grid size-11 place-items-center rounded-2xl bg-[var(--warm-soft)] text-[var(--warm)]">
                   <ClipboardList className="size-5" />
                 </div>
-                <span className="rounded-full bg-[var(--warm-soft)] px-2.5 py-1 text-[11px] font-extrabold text-[#A8641F]">
-                  بانتظار الإكمال
+                <span className="rounded-full bg-[#A63D28] px-3 py-1 text-[11px] font-black text-white">
+                  متروك
                 </span>
               </div>
-              <p className="mt-5 flex items-center gap-2 text-sm font-extrabold text-[#1F2A25]">
-                <UserRound className="size-4 text-[var(--brand)]" />
-                {item.customerName || "عميل بدون اسم"}
-              </p>
-              <p className="mt-2 flex items-center gap-2 text-xs font-bold text-[#79837D]">
+              <p className="mt-5 flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-[#8A938D]">
                 <Phone className="size-3.5" />
-                {item.customerPhone || "لم يدخل الهاتف بعد"}
+                رقم الهاتف
+              </p>
+              <a
+                href={item.customerPhone ? `tel:${item.customerPhone}` : undefined}
+                dir="ltr"
+                className="mt-1 block text-2xl font-black tracking-wide text-[var(--brand)] transition hover:text-[var(--brand-strong)]"
+              >
+                {item.customerPhone || "—"}
+              </a>
+              <p className="mt-3 flex items-center gap-2 text-sm font-extrabold text-[#1F2A25]">
+                <UserRound className="size-4 text-[#8A938D]" />
+                {item.customerName || "عميل بدون اسم"}
               </p>
               <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
                 <div className="rounded-xl bg-[#F7F8F3] p-3">

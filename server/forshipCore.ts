@@ -236,3 +236,34 @@ export const ECOTRACK_STATUS_MAP: Record<string, ResolvedStatusMap> = {
   encassed: { mapsTo: "delivered", isFinal: true },
   payed: { mapsTo: "delivered", isFinal: true },
 };
+
+/**
+ * Ecotrack raw label → the STORE's own fulfillment status.
+ *
+ * Intermediate labels map to `at_carrier`/`shipped` too, so a manual sync
+ * reflects the carrier's real stage. This is what makes the hybrid rule work:
+ * a status different from the carrier's is applied even after a manual edit.
+ */
+export const ECOTRACK_LABEL_TO_FULFILLMENT: Record<
+  string,
+  "at_carrier" | "shipped" | "delivered" | "returned"
+> = {
+  order_information_received_by_carrier: "at_carrier",
+  picked: "at_carrier",
+  accepted_by_carrier: "at_carrier",
+  return_asked: "at_carrier",
+  return_in_transit: "at_carrier",
+  dispatched_to_driver: "shipped",
+  attempt_delivery: "shipped",
+  return_received: "returned",
+  livred: "delivered",
+  encassed: "delivered",
+  payed: "delivered",
+};
+
+export function carrierLabelToFulfillment(
+  label: string | null | undefined
+): "at_carrier" | "shipped" | "delivered" | "returned" | undefined {
+  if (!label) return undefined;
+  return ECOTRACK_LABEL_TO_FULFILLMENT[label.toLowerCase()];
+}

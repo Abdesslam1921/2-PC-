@@ -119,6 +119,7 @@ export default function Orders() {
   const [errorCopied, setErrorCopied] = useState(false);
   const [connectionId, setConnectionId] = useState<number | null>(null);
   const ordersQuery = trpc.orders.list.useQuery();
+  const abandonedQuery = trpc.orders.abandonedList.useQuery();
   const messageOrdersQuery = trpc.messageOrder.list.useQuery();
   const updateMessageOrderStatus = trpc.messageOrder.updateStatus.useMutation({
     onSuccess: async () => {
@@ -380,6 +381,46 @@ export default function Orders() {
           {updateStatus.error.message}
         </p>
       )}
+      {abandonedQuery.data?.length ? (
+        <div className="home-card mb-6 overflow-hidden border-[#F3D2CB]">
+          <div className="border-b border-[#F6E3DD] bg-[#FDF3F0] p-4">
+            <h3 className="flex flex-wrap items-center gap-2 text-sm font-extrabold text-[#A63D28]">
+              <span className="rounded-full bg-[#A63D28] px-2 py-0.5 text-[10px] font-black text-white">
+                متروك
+              </span>
+              الطلبات المتروكة ({abandonedQuery.data.length})
+            </h3>
+            <p className="mt-1 text-xs text-[#8A6A5E]">
+              سلات بدأ الزبون تعبئتها ولم تُكتمل — ليست طلبات حقيقية.
+            </p>
+          </div>
+          <div className="divide-y divide-[#F6EDE9]">
+            {abandonedQuery.data.map(item => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center justify-between gap-3 p-4"
+              >
+                <div className="flex-1">
+                  <a
+                    href={item.customerPhone ? `tel:${item.customerPhone}` : undefined}
+                    dir="ltr"
+                    className="block text-sm font-black tracking-wide text-[var(--brand)]"
+                  >
+                    {item.customerPhone || "—"}
+                  </a>
+                  <p className="mt-1 text-xs font-bold text-[#79837D]">
+                    {item.customerName || "عميل بدون اسم"} ·{" "}
+                    {item.wilaya || "بدون ولاية"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-[#FDF1E3] px-2.5 py-1 text-[10px] font-extrabold text-[var(--warm)]">
+                  متروك
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {messageOrdersQuery.data?.length ? (
         <div className="home-card mb-6 overflow-hidden">
           <div className="border-b border-[#ECEDE6] bg-[var(--brand-soft)] p-4">

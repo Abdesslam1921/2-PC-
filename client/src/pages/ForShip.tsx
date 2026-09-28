@@ -28,6 +28,19 @@ const labels: Record<string, string> = {
   phone_cancelled: "الهاتف ملغى",
   fake: "مزيفة",
 };
+type FulfillmentStatus =
+  | "new"
+  | "review"
+  | "confirmed"
+  | "processing"
+  | "at_carrier"
+  | "shipped"
+  | "delivered"
+  | "returned"
+  | "cancelled"
+  | "customer_unresponsive"
+  | "phone_cancelled"
+  | "fake";
 const finalStatuses = new Set([
   "delivered",
   "returned",
@@ -102,6 +115,14 @@ export default function ForShip() {
       toast.success(
         `تمت المزامنة: ${result.synced} طلبًا · ${result.delivered} تم التسليم · ${result.returned} مرتجع · ${result.cancelled} ملغى.`
       );
+      await utils.orders.list.invalidate();
+    },
+    onError: error => toast.error(error.message),
+  });
+  /** Manual status edit from ProShip (hybrid sync: wins until the next sync). */
+  const updateStatus = trpc.orders.updateStatus.useMutation({
+    onSuccess: async () => {
+      toast.success("تم تحديث حالة الطلب يدويًا.");
       await utils.orders.list.invalidate();
     },
     onError: error => toast.error(error.message),
@@ -259,7 +280,7 @@ export default function ForShip() {
     <div dir="rtl">
       <PageIntro
         eyebrow="التشغيل والشحن"
-        title="ForShip"
+        title="ProShip"
         description="تتبع الطلبات لدى شركة الشحن بكل حالاتها، مع إبقاء كوموند ليفري وكوموند روتور منفصلتين لحساب الربح الحقيقي."
         action={
           <div className="flex items-center gap-2 rounded-full bg-[var(--brand-soft)] px-4 py-2 text-xs font-extrabold text-[var(--brand)]">
@@ -405,10 +426,30 @@ export default function ForShip() {
                       >
                         {carrierLabel(order.carrierStatus)}
                       </span>
+                      <select
+                        aria-label={`تعديل حالة الطلب ${order.orderNumber}`}
+                        value={order.fulfillmentStatus}
+                        onChange={event =>
+                          updateStatus.mutate({
+                            orderId: order.id,
+                            fulfillmentStatus: event.target
+                              .value as FulfillmentStatus,
+                          })
+                        }
+                        disabled={
+                          updateStatus.isPending &&
+                          updateStatus.variables?.orderId === order.id
+                        }
+                        className="mt-2 h-9 w-full min-w-[150px] rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:opacity-50"
+                      >
+                        {Object.entries(labels).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
                       <p className="mt-1 text-[11px] text-[#8A938D]">
-                        حالة المتجر:{" "}
-                        {labels[order.fulfillmentStatus] ??
-                          order.fulfillmentStatus}
+                        حالة الشركة: {carrierLabel(order.carrierStatus)}
                       </p>
                     </td>
                     <td className="px-5 py-4 text-xs font-bold text-[#79837D]">

@@ -63,7 +63,7 @@ export const dashboardNavigation = [
   { icon: PanelsTopLeft, label: "الفانل", path: "/funnels" },
   { icon: LayoutTemplate, label: "القوالب", path: "/templates" },
   { icon: ShoppingBag, label: "الطلبات", path: "/orders" },
-  { icon: Truck, label: "ForShip · تتبع الشحن", path: "/for-ship" },
+  { icon: Truck, label: "ProShip · تتبع الشحن", path: "/for-ship" },
   { icon: ClipboardList, label: "الطلبات المتروكة", path: "/abandoned-orders" },
   {
     icon: CircleDollarSign,

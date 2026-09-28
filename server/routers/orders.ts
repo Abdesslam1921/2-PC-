@@ -355,11 +355,13 @@ export const ordersRouter = router({
       z.object({
         orderId: z.number().int().positive(),
         fulfillmentStatus: z.enum([
+          "new",
           "review",
           "confirmed",
           "processing",
           "at_carrier",
           "shipped",
+          "delivered",
           "returned",
           "cancelled",
           "customer_unresponsive",

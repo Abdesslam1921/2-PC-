@@ -28,6 +28,7 @@ import {
 import { storagePut } from "../storage";
 import { ensureShipmentForOrder } from "../forshipDb";
 import { syncStoreEcotrackStatuses } from "../ecotrackSync";
+import { carrierLabelToFulfillment } from "../forshipCore";
 import {
   protectedProcedure,
   publicProcedure,
@@ -479,21 +480,21 @@ export const deliveryRouter = router({
           credentials,
           order.carrierTracking
         );
-        const mappedStatus =
-          result.status === "livred" ||
-          result.status === "encassed" ||
-          result.status === "payed"
-            ? "delivered"
-            : result.status === "return_received"
-              ? "returned"
-              : undefined;
+        const mappedStatus = carrierLabelToFulfillment(result.status);
+        // Hybrid rule: apply the carrier's state only when it differs.
+        const nextFulfillment =
+          mappedStatus && mappedStatus !== order.fulfillmentStatus
+            ? mappedStatus
+            : undefined;
         const updated = await updateOrderCarrierData(
           getStoreId(ctx),
           order.id,
           {
             carrierStatus: result.status ?? undefined,
             carrierStatusUpdatedAt: new Date(),
-            ...(mappedStatus ? { fulfillmentStatus: mappedStatus } : {}),
+            ...(nextFulfillment
+              ? { fulfillmentStatus: nextFulfillment }
+              : {}),
           }
         );
         return {

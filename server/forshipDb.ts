@@ -130,6 +130,28 @@ export async function getMerchantCarrierCredential(
   }
 }
 
+/**
+ * True when this merchant's carrier pushes webhooks. The automatic polling
+ * scheduler then skips it (the webhook keeps the status fresh), while the
+ * manual "sync" button always stays available.
+ */
+export async function merchantCarrierHasWebhook(
+  merchantId: number,
+  provider: string
+): Promise<boolean> {
+  try {
+    const carrier = await resolveCarrierByProvider(provider);
+    if (carrier.supportsWebhook) return true;
+    const credential = await getMerchantCarrierCredential(
+      merchantId,
+      carrier.id
+    );
+    return Boolean(credential?.webhookRegistered);
+  } catch {
+    return false;
+  }
+}
+
 export async function saveMerchantCarrierCredential(
   merchantId: number,
   carrierId: number,
