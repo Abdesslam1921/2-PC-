@@ -8,6 +8,7 @@ import {
   PackageCheck,
   Phone,
   Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   Search,
@@ -18,6 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { EmptyState } from "@/components/EmptyState";
 import { PageIntro } from "@/components/PageIntro";
 import { Button } from "@/components/ui/button";
@@ -296,8 +298,18 @@ export default function Orders() {
         title="الطلبات"
         description="تابع طلبات الدفع عند الاستلام، ارفع مجموعة إلى Ecotrack، ثم نزّل البوالص من مكان واحد."
         action={
-          <div className="rounded-xl bg-[var(--brand-soft)] px-4 py-2 text-xs font-extrabold text-[var(--brand-strong)]">
-            {ordersQuery.data?.length ?? 0} طلب محفوظ
+          <div className="flex flex-col items-stretch gap-2 sm:items-end">
+            <div className="-mt-1 rounded-xl bg-[var(--brand-soft)] px-4 py-2 text-center text-xs font-extrabold text-[var(--brand-strong)]">
+              {ordersQuery.data?.length ?? 0} طلب محفوظ
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setManualOpen(true)}
+              className="btn-press h-10 rounded-xl border-[#D8E4DC] bg-white px-4 text-xs font-extrabold text-[var(--brand-strong)]"
+            >
+              <Plus className="ml-1.5 size-4" />
+              إنشاء طلب يدوي
+            </Button>
           </div>
         }
       />
@@ -363,13 +375,6 @@ export default function Orders() {
             <Send className="ml-2 size-4" />
           )}
           رفع المحدد إلى Ecotrack
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => setManualOpen(true)}
-          className="btn-press h-11 rounded-xl border-[#D8E4DC] bg-white px-4 text-xs font-extrabold text-[var(--brand-strong)]"
-        >
-          طلب يدوي
         </Button>
       </div>
       {bulkError && (
@@ -720,13 +725,14 @@ export default function Orders() {
           }
         />
       )}
-      {manualOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-        >
-          <div className="home-card w-full max-w-lg bg-white p-5">
+      {manualOpen &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[100] overflow-y-auto bg-black/40 px-4 py-6 backdrop-blur-sm"
+          >
+            <div className="mx-auto max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[20px] border border-[#E7E9E2] bg-white p-5 shadow-lift">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-black text-[#0C2A26]">
                 طلب يدوي
@@ -833,9 +839,10 @@ export default function Orders() {
             >
               {createManual.isPending ? "جارٍ الحفظ..." : "حفظ الطلب"}
             </Button>
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
