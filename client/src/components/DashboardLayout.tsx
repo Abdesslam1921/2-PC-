@@ -24,7 +24,6 @@ import {
   Bell,
   ChevronLeft,
   CircleHelp,
-  ClipboardList,
   CircleDollarSign,
   Cable,
   FileDown,
@@ -64,7 +63,6 @@ export const dashboardNavigation = [
   { icon: LayoutTemplate, label: "القوالب", path: "/templates" },
   { icon: ShoppingBag, label: "الطلبات", path: "/orders" },
   { icon: Truck, label: "ProShip · تتبع الشحن", path: "/for-ship" },
-  { icon: ClipboardList, label: "الطلبات المتروكة", path: "/abandoned-orders" },
   {
     icon: CircleDollarSign,
     label: "Profitability Engine",
@@ -79,7 +77,7 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
   { title: "الرئيسية", paths: ["/dashboard"] },
   {
     title: "المبيعات",
-    paths: ["/orders", "/abandoned-orders", "/customers", "/call-center"],
+    paths: ["/orders", "/customers", "/call-center"],
   },
   {
     title: "الكتالوج والتوصيل",

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   createCodOrder,
+  createManualOrder,
   getOfferDetails,
   deleteArchivedOrder,
   deleteStoreOrder,
@@ -12,9 +13,7 @@ import {
   getPublicSharkCodSettings,
   getPublicStoreProduct,
   getTodayWilayaOrderCount,
-  listAbandonedOrders,
   listStoreOrders,
-  markAbandonedOrderConvertedForProduct,
   recordOrderCleanEvent,
   recordSharkCodEvent,
   setOrderConfirmationAttribution,
@@ -303,9 +302,6 @@ export const ordersRouter = router({
         });
       }
     }),
-  abandonedList: protectedProcedure.query(async ({ ctx }) =>
-    listAbandonedOrders(getStoreId(ctx))
-  ),
   saveAbandoned: publicProcedure
     .input(
       z.object({
@@ -320,20 +316,27 @@ export const ordersRouter = router({
       })
     )
     .mutation(async ({ input }) => upsertAbandonedOrder(input)),
-  markAbandonedConverted: publicProcedure
+  createManual: protectedProcedure
     .input(
       z.object({
         productId: z.number().int().positive(),
-        sessionId: z.string().trim().min(8).max(128),
+        quantity: z.number().int().min(1).max(50).default(1),
+        customerName: z.string().trim().min(2).max(180),
+        customerPhone: z
+          .string()
+          .trim()
+          .regex(/^0[567][0-9]{8}$/),
+        wilaya: z.string().trim().min(2).max(120),
+        municipality: z.string().trim().max(160).optional(),
+        address: z.string().trim().max(2000).optional(),
+        fulfillmentStatus: z
+          .enum(["new", "confirmed", "abandoned"])
+          .optional(),
       })
     )
-    .mutation(async ({ input }) => {
-      await markAbandonedOrderConvertedForProduct(
-        input.productId,
-        input.sessionId
-      );
-      return { success: true } as const;
-    }),
+    .mutation(async ({ ctx, input }) =>
+      createManualOrder(getStoreId(ctx), input)
+    ),
   setConfirmationAttribution: protectedProcedure
     .input(
       z.object({
@@ -367,6 +370,7 @@ export const ordersRouter = router({
           "customer_unresponsive",
           "phone_cancelled",
           "fake",
+          "abandoned",
         ]),
       })
     )
@@ -491,6 +495,7 @@ export const ordersRouter = router({
             "customer_unresponsive",
             "phone_cancelled",
             "fake",
+            "abandoned",
           ])
           .optional(),
       })

@@ -253,17 +253,11 @@ export function DirectCodOrderForm({
   const turnstileRef = useRef<HTMLDivElement>(null);
   const optionalOrderApi = trpc.orders as unknown as {
     saveAbandoned?: { useMutation: () => { mutate: (input: unknown) => void } };
-    markAbandonedConverted?: {
-      useMutation: () => { mutate: (input: unknown) => void };
-    };
   };
   const saveAbandoned = optionalOrderApi.saveAbandoned?.useMutation() ?? {
     mutate: (_input: unknown) => undefined,
   };
-  const markAbandonedConverted =
-    optionalOrderApi.markAbandonedConverted?.useMutation() ?? {
-      mutate: (_input: unknown) => undefined,
-    };
+
   const optionalConnecteursApi = trpc as unknown as {
     connecteurs?: {
       track?: { useMutation: () => { mutate: (input: unknown) => void } };
@@ -312,7 +306,6 @@ export function DirectCodOrderForm({
             phone: form.customerPhone,
           })
         );
-      markAbandonedConverted.mutate({ productId, sessionId });
       setConfirmed(nextConfirmation);
       onOrderSuccess?.();
     },

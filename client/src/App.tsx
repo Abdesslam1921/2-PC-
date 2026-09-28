@@ -1,7 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/contexts/CartContext";
-import AbandonedOrders from "@/pages/AbandonedOrders";
 import BundleLanding from "@/pages/BundleLanding";
 import Customers from "@/pages/Customers";
 import DigitalProducts from "@/pages/DigitalProducts";
@@ -255,14 +254,6 @@ function Router() {
         component={() => (
           <DashboardPage>
             <Orders />
-          </DashboardPage>
-        )}
-      />
-      <Route
-        path="/abandoned-orders"
-        component={() => (
-          <DashboardPage>
-            <AbandonedOrders />
           </DashboardPage>
         )}
       />

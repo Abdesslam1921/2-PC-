@@ -234,6 +234,7 @@ export const storeOrders = mysqlTable("store_orders", {
     "customer_unresponsive",
     "phone_cancelled",
     "fake",
+    "abandoned",
   ])
     .default("new")
     .notNull(),

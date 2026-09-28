@@ -38,7 +38,8 @@ type OrderForm = {
     | "cancelled"
     | "customer_unresponsive"
     | "phone_cancelled"
-    | "fake";
+    | "fake"
+    | "abandoned";
 };
 
 export default function OrderEdit() {

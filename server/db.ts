@@ -24,7 +24,6 @@ import {
 import { drizzle } from "drizzle-orm/mysql2";
 import { sql } from "drizzle-orm";
 import {
-  abandonedOrders,
   categories,
   productCategories,
   offerProducts,
@@ -2137,17 +2136,26 @@ export async function createCodOrder(
       .update(storeOrders)
       .set({ orderNumber })
       .where(eq(storeOrders.id, orderId));
-    if (customer.sessionId && storeId != null)
-      await tx
-        .update(abandonedOrders)
-        .set({ status: "converted" })
+    if (storeId != null) {
+      // The same phone just placed a real order → drop its abandoned draft rows.
+      const abandonedDrafts = await tx
+        .select({ id: storeOrders.id })
+        .from(storeOrders)
         .where(
           and(
-            eq(abandonedOrders.storeId, storeId),
-            eq(abandonedOrders.sessionId, customer.sessionId),
-            eq(abandonedOrders.status, "open")
+            eq(storeOrders.storeId, storeId),
+            eq(storeOrders.customerPhone, customer.customerPhone),
+            eq(storeOrders.fulfillmentStatus, "abandoned")
           )
         );
+      const draftIds = abandonedDrafts.map(row => row.id);
+      if (draftIds.length) {
+        await tx
+          .delete(storeOrderItems)
+          .where(inArray(storeOrderItems.orderId, draftIds));
+        await tx.delete(storeOrders).where(inArray(storeOrders.id, draftIds));
+      }
+    }
     if (retargetDiscountPercent > 0) {
       await tx.insert(trackingRetargetSends).values({
         ownerId,
@@ -3049,11 +3057,7 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
   const [product] = await db
-    .select({
-      id: storeProducts.id,
-      ownerId: storeProducts.ownerId,
-      storeId: storeProducts.storeId,
-    })
+    .select()
     .from(storeProducts)
     .where(
       and(
@@ -3064,8 +3068,8 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     .limit(1);
   if (!product) throw new Error("المنتج غير متاح.");
   // Phone-first rule: never store a phone-less abandoned cart.
-  if (!input.customerPhone?.trim())
-    return { saved: false, reason: "no_phone" } as const;
+  const phone = input.customerPhone?.trim();
+  if (!phone) return { saved: false, reason: "no_phone" } as const;
   const [abandonedSetting] = await db
     .select({ enabled: storeConnecteurs.enabled })
     .from(storeConnecteurs)
@@ -3078,89 +3082,185 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     .limit(1);
   if (abandonedSetting && !abandonedSetting.enabled)
     return { saved: false, disabled: true } as const;
+
+  /**
+   * The abandoned cart IS an order row with the "abandoned" status, so the
+   * dashboard shows and acts on it in the very same orders table.
+   */
+  const quantity = Math.max(1, Math.trunc(input.quantity || 1));
+  const unitPrice = product.price ?? "0.00";
+  const subtotal = (Number(unitPrice) * quantity).toFixed(2);
+  const name = input.customerName?.trim() || "عميل بدون اسم";
+  const wilaya = input.wilaya?.trim() || "غير محددة";
+  const municipality = input.municipality?.trim() || null;
   const [existing] = await db
-    .select({ id: abandonedOrders.id })
-    .from(abandonedOrders)
+    .select({ id: storeOrders.id })
+    .from(storeOrders)
     .where(
       and(
-        eq(abandonedOrders.ownerId, product.ownerId),
-        eq(abandonedOrders.productId, input.productId),
-        eq(abandonedOrders.sessionId, input.sessionId),
-        eq(abandonedOrders.status, "open")
+        eq(storeOrders.storeId, product.storeId ?? -1),
+        eq(storeOrders.customerPhone, phone),
+        eq(storeOrders.fulfillmentStatus, "abandoned")
+      )
+    )
+    .orderBy(desc(storeOrders.id))
+    .limit(1);
+  if (existing) {
+    await db
+      .update(storeOrders)
+      .set({
+        customerName: name,
+        wilaya,
+        municipality,
+        subtotal,
+        total: subtotal,
+      })
+      .where(eq(storeOrders.id, existing.id));
+    return { saved: true, orderId: existing.id } as const;
+  }
+
+  const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const created = await db.insert(storeOrders).values({
+    ownerId: product.ownerId,
+    storeId: product.storeId ?? null,
+    orderNumber: temporaryNumber,
+    customerName: name,
+    customerPhone: phone,
+    wilaya,
+    municipality,
+    deliveryMethod: "home",
+    address: "",
+    paymentMethod: "cod",
+    paymentStatus: "pending",
+    fulfillmentStatus: "abandoned",
+    subtotal,
+    discountAmount: "0.00",
+    deliveryFee: "0.00",
+    deliveryCostSnapshot: "0.00",
+    total: subtotal,
+  });
+  const orderId = Number(created[0]?.insertId);
+  if (!orderId) throw new Error("تعذر حفظ الطلب المتروك.");
+  await db
+    .update(storeOrders)
+    .set({ orderNumber: `ABD-${String(orderId).padStart(6, "0")}` })
+    .where(eq(storeOrders.id, orderId));
+  const cost = resolveCostSnapshot(product);
+  await db.insert(storeOrderItems).values({
+    orderId,
+    productId: product.id,
+    title: product.title,
+    sku: product.sku ?? null,
+    unitPrice,
+    quantity,
+    lineTotal: subtotal,
+    productCostSnapshot: cost.productCost,
+    packagingCostSnapshot: cost.packagingCost,
+    procurementDeliveryCostSnapshot: cost.procurementDeliveryCost,
+    returnCostSnapshot: cost.returnCost,
+    returnDeliveryFreeSnapshot: cost.returnDeliveryFree,
+  });
+  return { saved: true, orderId } as const;
+}
+
+export type ManualOrderInput = {
+  productId: number;
+  quantity: number;
+  customerName: string;
+  customerPhone: string;
+  wilaya: string;
+  municipality?: string;
+  address?: string;
+  fulfillmentStatus?: "new" | "confirmed" | "abandoned";
+};
+
+/** Merchant-created order ("طلب يدوي"), stored as a normal order row. */
+export async function createManualOrder(
+  storeId: number,
+  input: ManualOrderInput
+) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
+  const [product] = await db
+    .select()
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.id, input.productId),
+        eq(storeProducts.storeId, storeId)
       )
     )
     .limit(1);
-  const values = {
-    customerName: input.customerName?.trim() || null,
-    customerPhone: input.customerPhone?.trim() || null,
-    wilaya: input.wilaya?.trim() || null,
+  if (!product) throw new Error("المنتج غير متاح.");
+  const quantity = Math.max(1, Math.trunc(input.quantity || 1));
+  const unitPrice = product.price ?? "0.00";
+  const subtotal = (Number(unitPrice) * quantity).toFixed(2);
+  const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const created = await db.insert(storeOrders).values({
+    ownerId: product.ownerId,
+    storeId,
+    orderNumber: temporaryNumber,
+    customerName: input.customerName.trim(),
+    customerPhone: input.customerPhone.trim(),
+    wilaya: input.wilaya.trim(),
     municipality: input.municipality?.trim() || null,
-    quantity: input.quantity,
-    landingPageId: input.landingPageId ?? null,
-  };
-  if (existing)
-    await db
-      .update(abandonedOrders)
-      .set(values)
-      .where(eq(abandonedOrders.id, existing.id));
-  else
-    await db.insert(abandonedOrders).values({
-      ownerId: product.ownerId,
-      storeId: product.storeId ?? null,
-      productId: product.id,
-      sessionId: input.sessionId,
-      status: "open",
-      ...values,
-    });
-  return { saved: true } as const;
+    deliveryMethod: "home",
+    address: input.address?.trim() || "",
+    paymentMethod: "cod",
+    paymentStatus: "pending",
+    fulfillmentStatus: input.fulfillmentStatus ?? "new",
+    subtotal,
+    discountAmount: "0.00",
+    deliveryFee: "0.00",
+    deliveryCostSnapshot: "0.00",
+    total: subtotal,
+  });
+  const orderId = Number(created[0]?.insertId);
+  if (!orderId) throw new Error("تعذر إنشاء الطلب.");
+  const orderNumber = `ABD-${String(orderId).padStart(6, "0")}`;
+  await db
+    .update(storeOrders)
+    .set({ orderNumber })
+    .where(eq(storeOrders.id, orderId));
+  const cost = resolveCostSnapshot(product);
+  await db.insert(storeOrderItems).values({
+    orderId,
+    productId: product.id,
+    title: product.title,
+    sku: product.sku ?? null,
+    unitPrice,
+    quantity,
+    lineTotal: subtotal,
+    productCostSnapshot: cost.productCost,
+    packagingCostSnapshot: cost.packagingCost,
+    procurementDeliveryCostSnapshot: cost.procurementDeliveryCost,
+    returnCostSnapshot: cost.returnCost,
+    returnDeliveryFreeSnapshot: cost.returnDeliveryFree,
+  });
+  return { orderId, orderNumber } as const;
 }
 
-export async function markAbandonedOrderConverted(
+/** Drop the abandoned draft rows once the same phone places a real order. */
+export async function clearAbandonedOrdersForPhone(
   storeId: number,
-  sessionId: string
+  customerPhone: string
 ) {
   const db = await getDb();
   if (!db) return;
-  await db
-    .update(abandonedOrders)
-    .set({ status: "converted" })
+  const rows = await db
+    .select({ id: storeOrders.id })
+    .from(storeOrders)
     .where(
       and(
-        eq(abandonedOrders.storeId, storeId),
-        eq(abandonedOrders.sessionId, sessionId),
-        eq(abandonedOrders.status, "open")
+        eq(storeOrders.storeId, storeId),
+        eq(storeOrders.customerPhone, customerPhone),
+        eq(storeOrders.fulfillmentStatus, "abandoned")
       )
     );
-}
-
-export async function markAbandonedOrderConvertedForProduct(
-  productId: number,
-  sessionId: string
-) {
-  const db = await getDb();
-  if (!db) return;
-  const [product] = await db
-    .select({ storeId: storeProducts.storeId })
-    .from(storeProducts)
-    .where(eq(storeProducts.id, productId))
-    .limit(1);
-  if (product?.storeId)
-    await markAbandonedOrderConverted(product.storeId, sessionId);
-}
-
-export async function listAbandonedOrders(storeId: number) {
-  const db = await getDb();
-  if (!db) return [];
-  return db
-    .select()
-    .from(abandonedOrders)
-    .where(
-      and(
-        eq(abandonedOrders.storeId, storeId),
-        eq(abandonedOrders.status, "open")
-      )
-    )
-    .orderBy(desc(abandonedOrders.createdAt));
+  const ids = rows.map(row => row.id);
+  if (!ids.length) return;
+  await db.delete(storeOrderItems).where(inArray(storeOrderItems.orderId, ids));
+  await db.delete(storeOrders).where(inArray(storeOrders.id, ids));
 }
 
 export async function listStoreOrders(storeId: number) {
@@ -3419,6 +3519,7 @@ export async function updateStoreOrderStatus(
     | "customer_unresponsive"
     | "phone_cancelled"
     | "fake"
+    | "abandoned"
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
@@ -4964,12 +5065,12 @@ export async function getDashboardStats(storeId: number) {
       .from(storeProducts)
       .where(eq(storeProducts.storeId, storeId)),
     db
-      .select({ id: abandonedOrders.id })
-      .from(abandonedOrders)
+      .select({ id: storeOrders.id })
+      .from(storeOrders)
       .where(
         and(
-          eq(abandonedOrders.storeId, storeId),
-          eq(abandonedOrders.status, "open")
+          eq(storeOrders.storeId, storeId),
+          eq(storeOrders.fulfillmentStatus, "abandoned")
         )
       ),
   ]);
@@ -5162,12 +5263,12 @@ export async function getCroAuditSnapshot(
       .from(landingPages)
       .where(eq(landingPages.storeId, storeId)),
     db
-      .select({ id: abandonedOrders.id })
-      .from(abandonedOrders)
+      .select({ id: storeOrders.id })
+      .from(storeOrders)
       .where(
         and(
-          eq(abandonedOrders.storeId, storeId),
-          eq(abandonedOrders.status, "open")
+          eq(storeOrders.storeId, storeId),
+          eq(storeOrders.fulfillmentStatus, "abandoned")
         )
       ),
     db
