@@ -15,17 +15,14 @@ import {
   Box,
   CircleDollarSign,
   Copy,
-  ImagePlus,
   Layers3,
   PackageCheck,
   Plus,
   Save,
   Settings2,
-  ShieldCheck,
   Trash2,
   Truck,
   Upload,
-  Warehouse,
 } from "lucide-react";
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -199,8 +196,6 @@ export default function ProductCreate() {
     );
   };
   const [description, setDescription] = useState("");
-  const [codTrustScore, setCodTrustScore] = useState("");
-  const [codTrustScoreEnabled, setCodTrustScoreEnabled] = useState(false);
   const [basePrice, setBasePrice] = useState("");
   const [compareAtPrice, setCompareAtPrice] = useState("");
   const [costPerItem, setCostPerItem] = useState("");
@@ -424,7 +419,6 @@ export default function ProductCreate() {
       await createProduct.mutateAsync({
         title: title.trim(),
         description: description.trim(),
-        codTrustScore: codTrustScoreEnabled ? codTrustScore.trim() || undefined : undefined,
         productType: productKind === "digital" ? "منتج رقمي" : "",
         productKind,
         currency,
@@ -547,8 +541,8 @@ export default function ProductCreate() {
       />
 
       <p className="dash-hint">
-        أربعة أقسام جنبًا إلى جنب حتى لا تطول الصفحة. الحقول كما هي. COD Trust
-        Score يُنقل إلى التطبيقات.
+        أربعة أعمدة للمنتج المادي: المعلومات مع الصور والتسعير والمخزون، ثم
+        المتغيرات، ثم التوصيل، ثم التكاليف. المنتج الرقمي مربع واحد.
       </p>
 
       <div className="dash-kind mb-4">
@@ -569,7 +563,9 @@ export default function ProductCreate() {
         ))}
       </div>
 
-      <div className="dash-create-stack mt-4">
+      <div
+        className={`dash-create-stack mt-4${productKind === "digital" ? " is-digital" : ""}`}
+      >
           <FormCard
             compact
             className="dash-area-info"
@@ -649,57 +645,15 @@ export default function ProductCreate() {
                 </div>
               </div>
             </div>
-          </FormCard>
-
-          <FormCard
-            title="🛡️ COD Trust Score"
-            description="Average delivery time by Wilaya — رسالة الثقة التي تظهر للعملاء عند الطلب."
-            icon={ShieldCheck}
-          >
-            <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E9E2] bg-[#F5F6F2] p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-extrabold text-[#1F2A25]">
-                  تفعيل رسالة ثقة COD؟
-                </p>
-                <p className="mt-1 text-xs text-[#79837D]">
-                  عندما تفعّل هذه الميزة، تظهر للعملاء في صفحة الطلب رسالة تعرض
-                  عدد الأشخاص من ولايتهم الذين طلبوا هذا المنتج اليوم.
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={codTrustScoreEnabled}
-                onClick={() => setCodTrustScoreEnabled(value => !value)}
-                className={`relative h-7 w-12 shrink-0 rounded-full transition duration-200 ${codTrustScoreEnabled ? "bg-[var(--brand)]" : "bg-[#D4D8D0]"}`}
-              >
-                <span
-                  className={`absolute top-1 size-5 rounded-full bg-white shadow-sm transition duration-200 ${codTrustScoreEnabled ? "right-6" : "right-1"}`}
-                />
-              </button>
-            </div>
-            {codTrustScoreEnabled && (
-              <div className="mt-4">
-                <FieldLabel optional>نص ثقة COD</FieldLabel>
-                <TextInput
-                  value={codTrustScore}
-                  onChange={event => setCodTrustScore(event.target.value)}
-                  placeholder="مثال: 7 أشخاص من ولايتك طلبوا هذا المنتج اليوم"
-                  maxLength={255}
-                />
-                <p className="mt-1.5 text-[11px] leading-5 text-[#79837D]">
-                  يُعرض هذا النص للعملاء في صفحة الطلب لتعزيز ثقتهم.
-                </p>
-              </div>
-            )}
-          </FormCard>
 
           {productKind === "digital" && (
-            <FormCard
-              title="ملف المنتج الرقمي"
-              description="ارفع الملف الذي سيحصل عليه العميل بعد تأكيد الدفع. يتم حفظه في التخزين الآمن ولا يظهر رابط المصدر في الكتالوج العام."
-              icon={FileArchive}
-            >
+            <div className="mt-5">
+              <h3 className="mb-1 text-[12.5px] font-extrabold text-[#1F2A25]">
+                ملف المنتج الرقمي
+              </h3>
+              <p className="mb-3 text-[11px] leading-5 text-[#79837D]">
+                ارفع الملف الذي سيحصل عليه العميل بعد تأكيد الدفع. يتم حفظه في التخزين الآمن ولا يظهر رابط المصدر في الكتالوج العام.
+              </p>
               <input
                 ref={digitalFileInputRef}
                 type="file"
@@ -778,14 +732,16 @@ export default function ProductCreate() {
                   />
                 </div>
               </div>
-            </FormCard>
+            </div>
           )}
 
-          <FormCard
-            title="صور المنتج والمتغيرات"
-            description="أضف صور المنتج ثم اسند صورة مختلفة لكل متغير في القسم التالي. تدعم هذه النسخة صور المنتج كمعاينة محلية."
-            icon={ImagePlus}
-          >
+            <div className="mt-5">
+              <h3 className="mb-1 text-[12.5px] font-extrabold text-[#1F2A25]">
+                صور المنتج والمتغيرات
+              </h3>
+              <p className="mb-3 text-[11px] leading-5 text-[#79837D]">
+                أضف صور المنتج ثم اسند صورة مختلفة لكل متغير في القسم التالي. تدعم هذه النسخة صور المنتج كمعاينة محلية.
+              </p>
             <input
               ref={mediaInputRef}
               type="file"
@@ -837,6 +793,160 @@ export default function ProductCreate() {
                   </div>
                 ))}
               </div>
+            )}
+            </div>
+
+            <div className="mt-5">
+              <h3 className="mb-1 text-[12.5px] font-extrabold text-[#1F2A25]">
+                التسعير
+              </h3>
+              <p className="mb-3 text-[11px] leading-5 text-[#79837D]">
+                أدخل السعر الحالي وسعر المقارنة لإظهار التخفيض عند الحاجة.
+              </p>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <FieldLabel>السعر بعد التخفيض</FieldLabel>
+                <div className="relative">
+                  <TextInput
+                    value={basePrice}
+                    onChange={event => setBasePrice(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="pl-12"
+                  />
+                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
+                    {currencySymbol}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <FieldLabel optional>السعر قبل التخفيض</FieldLabel>
+                <div className="relative">
+                  <TextInput
+                    value={compareAtPrice}
+                    onChange={event => setCompareAtPrice(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="pl-12"
+                  />
+                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
+                    {currencySymbol}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <FieldLabel optional>تكلفة القطعة</FieldLabel>
+                <div className="relative">
+                  <TextInput
+                    value={costPerItem}
+                    onChange={event => setCostPerItem(event.target.value)}
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    className="pl-12"
+                  />
+                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
+                    {currencySymbol}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {compareAtPrice && basePrice && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2.5 text-xs font-medium text-[var(--brand)]">
+                <CircleDollarSign className="size-4" />
+                سيظهر السعر {compareAtPrice} دج كسعر مقارنة بجانب السعر الحالي{" "}
+                {basePrice} دج.
+              </div>
+            )}
+            </div>
+
+            {productKind === "physical" && (
+            <div className="mt-5">
+              <h3 className="mb-1 text-[12.5px] font-extrabold text-[#1F2A25]">
+                المخزون
+              </h3>
+              <p className="mb-3 text-[11px] leading-5 text-[#79837D]">
+                تابع الكمية المتاحة أو اترك البيع مستمرًا حتى نفاد المنتج.
+              </p>
+              <div className="grid gap-5 md:grid-cols-3">
+                <div>
+                  <FieldLabel optional>رمز SKU الأساسي</FieldLabel>
+                  <TextInput
+                    value={sku}
+                    onChange={event => setSku(event.target.value)}
+                    placeholder="مثال: TS-001"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>الكمية المتاحة</FieldLabel>
+                  <TextInput
+                    value={inventory}
+                    onChange={event => setInventory(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>تنبيه عند انخفاض الكمية</FieldLabel>
+                  <TextInput
+                    value={lowStockThreshold}
+                    onChange={event => setLowStockThreshold(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="5"
+                  />
+                </div>
+                <div>
+                  <FieldLabel>
+                    إظهار المخزون للعملاء عند الوصول إلى
+                  </FieldLabel>
+                  <TextInput
+                    value={showStockThreshold}
+                    onChange={event => setShowStockThreshold(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 rounded-xl bg-[var(--warm-soft)] px-3 py-2.5 text-xs leading-5 text-[#96601F]">
+                سيظهر تنبيه مخزون منخفض عندما تصبح الكمية المتاحة مساوية أو أقل
+                من {lowStockThreshold || "0"} قطعة. سيظهر المخزون للعملاء عند
+                الوصول إلى {showStockThreshold || "0"} قطعة أو أقل. يمكنك تحديد حد
+                مستقل لكل متغير.
+              </div>
+              <div className="mt-5 space-y-3">
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F5]">
+                  <span>
+                    <span className="block text-sm font-extrabold text-[#1F2A25]">
+                      تتبع المخزون
+                    </span>
+                    <span className="mt-1 block text-xs text-[#8A938D]">
+                      حدّث الكمية مع كل عملية بيع عندما يصبح الربط حيًا.
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={trackInventory}
+                    onChange={event => setTrackInventory(event.target.checked)}
+                    className="size-4 accent-[var(--brand)]"
+                  />
+                </label>
+                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F5]">
+                  <span>
+                    <span className="block text-sm font-extrabold text-[#1F2A25]">
+                      استمر في البيع عند نفاد المخزون
+                    </span>
+                    <span className="mt-1 block text-xs text-[#8A938D]">
+                      للطلبات المسبقة أو المنتجات المتوفرة قريبًا.
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={continueSelling}
+                    onChange={event => setContinueSelling(event.target.checked)}
+                    className="size-4 accent-[var(--brand)]"
+                  />
+                </label>
+              </div>
+            </div>
             )}
           </FormCard>
 
@@ -1128,67 +1238,6 @@ export default function ProductCreate() {
               </div>
             </FormCard>
           )}
-
-          <FormCard
-            title="التسعير"
-            description="أدخل السعر الحالي وسعر المقارنة لإظهار التخفيض عند الحاجة."
-            icon={CircleDollarSign}
-          >
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <FieldLabel>السعر بعد التخفيض</FieldLabel>
-                <div className="relative">
-                  <TextInput
-                    value={basePrice}
-                    onChange={event => setBasePrice(event.target.value)}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="pl-12"
-                  />
-                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                    {currencySymbol}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <FieldLabel optional>السعر قبل التخفيض</FieldLabel>
-                <div className="relative">
-                  <TextInput
-                    value={compareAtPrice}
-                    onChange={event => setCompareAtPrice(event.target.value)}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="pl-12"
-                  />
-                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                    {currencySymbol}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <FieldLabel optional>تكلفة القطعة</FieldLabel>
-                <div className="relative">
-                  <TextInput
-                    value={costPerItem}
-                    onChange={event => setCostPerItem(event.target.value)}
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    className="pl-12"
-                  />
-                  <span className="absolute left-3 top-3 text-xs font-extrabold text-[#8A938D]">
-                    {currencySymbol}
-                  </span>
-                </div>
-              </div>
-            </div>
-            {compareAtPrice && basePrice && (
-              <div className="mt-4 flex items-center gap-2 rounded-xl bg-[var(--brand-soft)] px-3 py-2.5 text-xs font-medium text-[var(--brand)]">
-                <CircleDollarSign className="size-4" />
-                سيظهر السعر {compareAtPrice} دج كسعر مقارنة بجانب السعر الحالي{" "}
-                {basePrice} دج.
-              </div>
-            )}
-          </FormCard>
 
           {productKind === "physical" && (
           <FormCard
@@ -1558,94 +1607,6 @@ export default function ProductCreate() {
                     className={`absolute top-1 size-5 rounded-full bg-white shadow-sm transition duration-200 ${freeDelivery ? "right-6" : "right-1"}`}
                   />
                 </button>
-              </div>
-            </FormCard>
-          )}
-
-          {productKind === "physical" && (
-            <FormCard
-              title="المخزون"
-              description="تابع الكمية المتاحة أو اترك البيع مستمرًا حتى نفاد المنتج."
-              icon={Warehouse}
-            >
-              <div className="grid gap-5 md:grid-cols-3">
-                <div>
-                  <FieldLabel optional>رمز SKU الأساسي</FieldLabel>
-                  <TextInput
-                    value={sku}
-                    onChange={event => setSku(event.target.value)}
-                    placeholder="مثال: TS-001"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>الكمية المتاحة</FieldLabel>
-                  <TextInput
-                    value={inventory}
-                    onChange={event => setInventory(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>تنبيه عند انخفاض الكمية</FieldLabel>
-                  <TextInput
-                    value={lowStockThreshold}
-                    onChange={event => setLowStockThreshold(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="5"
-                  />
-                </div>
-                <div>
-                  <FieldLabel>
-                    إظهار المخزون للعملاء عند الوصول إلى
-                  </FieldLabel>
-                  <TextInput
-                    value={showStockThreshold}
-                    onChange={event => setShowStockThreshold(event.target.value)}
-                    inputMode="numeric"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <div className="mt-3 rounded-xl bg-[var(--warm-soft)] px-3 py-2.5 text-xs leading-5 text-[#96601F]">
-                سيظهر تنبيه مخزون منخفض عندما تصبح الكمية المتاحة مساوية أو أقل
-                من {lowStockThreshold || "0"} قطعة. سيظهر المخزون للعملاء عند
-                الوصول إلى {showStockThreshold || "0"} قطعة أو أقل. يمكنك تحديد حد
-                مستقل لكل متغير.
-              </div>
-              <div className="mt-5 space-y-3">
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F5]">
-                  <span>
-                    <span className="block text-sm font-extrabold text-[#1F2A25]">
-                      تتبع المخزون
-                    </span>
-                    <span className="mt-1 block text-xs text-[#8A938D]">
-                      حدّث الكمية مع كل عملية بيع عندما يصبح الربط حيًا.
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={trackInventory}
-                    onChange={event => setTrackInventory(event.target.checked)}
-                    className="size-4 accent-[var(--brand)]"
-                  />
-                </label>
-                <label className="flex cursor-pointer items-center justify-between rounded-xl border border-[#E7E9E2] px-4 py-3 transition duration-200 hover:bg-[#FAF9F5]">
-                  <span>
-                    <span className="block text-sm font-extrabold text-[#1F2A25]">
-                      استمر في البيع عند نفاد المخزون
-                    </span>
-                    <span className="mt-1 block text-xs text-[#8A938D]">
-                      للطلبات المسبقة أو المنتجات المتوفرة قريبًا.
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={continueSelling}
-                    onChange={event => setContinueSelling(event.target.checked)}
-                    className="size-4 accent-[var(--brand)]"
-                  />
-                </label>
               </div>
             </FormCard>
           )}

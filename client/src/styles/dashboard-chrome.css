@@ -432,6 +432,12 @@
   .dash-create-stack > :not(.dash-area-info):not(.dash-area-variants):not(.dash-area-delivery):not(.dash-area-costs) {
     grid-column: 1 / -1;
   }
+  .dash-create-stack.is-digital {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dash-create-stack.is-digital > .dash-area-info {
+    grid-column: 1;
+  }
 }
 
 .dash-create-card {
