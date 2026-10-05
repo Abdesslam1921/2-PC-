@@ -309,8 +309,8 @@ export default function AgentForShip({
       </div>
       {rows.length ? (
         <div className="animate-fade-up overflow-hidden rounded-[20px] border border-[#E7E9E2] bg-white shadow-soft">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-right">
+          <div>
+            <table className="w-full table-fixed text-right">
               <thead className="border-b border-[#EEF0E9] bg-[#FAF9F5] text-xs font-extrabold text-[#8A938D]">
                 <tr>
                   <th className="px-5 py-4">الطلب</th>

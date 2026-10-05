@@ -490,8 +490,8 @@ export default function Orders() {
         </div>
       ) : orders.length ? (
         <div className="home-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-right">
+          <div>
+            <table className="w-full table-fixed text-right">
               <thead className="border-b border-[#EEEFE8] bg-[#FAFAF7] text-xs font-extrabold text-[#8A938D]">
                 <tr>
                   <th className="px-5 py-4">رفع</th>
@@ -616,7 +616,7 @@ export default function Orders() {
                             )
                           }
                           aria-label={`تحديث حالة ${order.orderNumber}`}
-                          className="h-9 min-w-36 rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:cursor-not-allowed disabled:bg-[#F5F6F2]"
+                          className="h-9 w-full max-w-full rounded-xl border border-[#E3E1D8] bg-white px-2 text-[11px] font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:cursor-not-allowed disabled:bg-[#F5F6F2]"
                         >
                           <option value="new" disabled>
                             جديد

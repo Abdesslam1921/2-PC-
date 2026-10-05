@@ -41,6 +41,7 @@ describe("dashboard sidebar navigation", () => {
     expect(productsGroup?.[1]).toContain('"/products"');
     expect(productsGroup?.[1]).toContain('"/categories"');
     expect(productsGroup?.[1]).toContain('"/offers"');
+    expect(productsGroup?.[1]).toContain('"/call-center"');
   });
 
   it("has a route registered for every nav path", () => {

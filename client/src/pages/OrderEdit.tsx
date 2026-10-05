@@ -263,8 +263,8 @@ export default function OrderEdit() {
             <Package className="size-4 text-[var(--brand)]" />
             بنود الطلب
           </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[400px] border-collapse text-right">
+          <div>
+            <table className="w-full table-fixed border-collapse text-right">
               <thead>
                 <tr className="border-b border-[#E7E9E2] text-[11px] font-extrabold text-[#8A938D]">
                   <th className="px-3 py-2">المنتج</th>

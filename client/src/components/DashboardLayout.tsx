@@ -38,6 +38,7 @@ import {
   Package,
   PhoneCall,
   PanelsTopLeft,
+  Plus,
   Settings,
   ShoppingBag,
   Sparkles,
@@ -77,7 +78,7 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
   { title: "الرئيسية", paths: ["/dashboard"] },
   {
     title: "المبيعات",
-    paths: ["/orders", "/customers", "/call-center"],
+    paths: ["/orders"],
   },
   {
     title: "الكتالوج والتوصيل",
@@ -86,22 +87,78 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
       "/categories",
       "/offers",
       "/digital-products",
-      "/delivery",
-      "/for-ship",
+      "/call-center",
+      "/profitability",
+      "/connecteurs",
     ],
   },
   {
     title: "النمو والتسويق",
     paths: [
+      "/customers",
+      "/delivery",
+      "/for-ship",
       "/funnels",
       "/templates",
-      "/profitability",
       "/media-buying",
       "/ai-analytics",
     ],
   },
-  { title: "النظام", paths: ["/connecteurs"] },
 ];
+
+const dashboardTabs = [
+  { label: "الطلبات", path: "/orders" },
+  { label: "المنتجات", path: "/products" },
+  { label: "إنشاء منتج", path: "/products/create" },
+  { label: "رقمية", path: "/digital-products" },
+  { label: "إنشاء رقمي", path: "/products/create?kind=digital" },
+  { label: "الفئات", path: "/categories" },
+  { label: "العروض", path: "/offers" },
+  { label: "Call Center", path: "/call-center" },
+  { label: "Profitability", path: "/profitability" },
+  { label: "التطبيقات", path: "/connecteurs" },
+  { label: "الباقية", path: "/dashboard" },
+  { label: "الرئيسية", path: "/dashboard" },
+] as const;
+
+function DashboardTabs({
+  location,
+  setLocation,
+}: {
+  location: string;
+  setLocation: (path: string) => void;
+}) {
+  return (
+    <nav aria-label="تبويبات الأقسام" className="dash-tabs">
+      {dashboardTabs.map(tab => {
+        const kind =
+          typeof window === "undefined"
+            ? ""
+            : new URLSearchParams(window.location.search).get("kind");
+        const active =
+          tab.label === "إنشاء رقمي"
+            ? location.startsWith("/products/create") && kind === "digital"
+            : tab.label === "إنشاء منتج"
+              ? location.startsWith("/products/create") && kind !== "digital"
+              : tab.path === "/products"
+                ? location === "/products"
+                : tab.path === "/dashboard"
+                  ? location === "/dashboard" && tab.label === "الرئيسية"
+                  : location === tab.path;
+        return (
+          <button
+            key={`${tab.label}-${tab.path}`}
+            type="button"
+            onClick={() => setLocation(tab.path)}
+            className={`dash-tab ${active ? "is-active" : ""}`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
 
 function UserAccount({ mobile = false }: { mobile?: boolean }) {
   const { user, loading, logout } = useAuth();
@@ -188,31 +245,71 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           onNavigate?.();
         }}
         aria-current={active ? "page" : undefined}
-        className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-[13px] font-bold transition duration-200 active:scale-[0.98] ${active ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
+        className={`group relative flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${active ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
       >
         {active && (
           <span className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-[var(--brand)]" />
         )}
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
         <Icon
-          className={`size-[18px] shrink-0 transition ${active ? "text-[var(--brand)]" : "text-[#9AA49E] group-hover:text-[var(--brand)]"}`}
+          className={`size-3.5 shrink-0 transition ${active ? "text-[var(--brand)]" : "text-[#9AA49E] group-hover:text-[var(--brand)]"}`}
         />
-        {item.label}
       </button>
     );
   };
   return (
-    <nav aria-label="التنقل الرئيسي" className="space-y-5">
+    <nav aria-label="التنقل الرئيسي" className="space-y-1">
       {navigationGroups.map(group => (
         <div key={group.title}>
-          <p className="px-3 pb-2 text-[10px] font-extrabold tracking-[0.12em] text-[#A7AFA9]">
-            {group.title}
+          <p
+            className={`px-3 pb-2 text-[10px] font-extrabold tracking-[0.12em] text-[#A7AFA9] ${group.title === "النمو والتسويق" ? "dash-rest-label" : ""}`}
+          >
+            {group.title === "النمو والتسويق" ? "بقية الأقسام" : group.title}
           </p>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {group.paths.map(path => {
               const item = dashboardNavigation.find(
                 entry => entry.path === path
               );
-              return item ? renderItem(item) : null;
+              if (!item) return null;
+              if (item.path === "/products") {
+                return (
+                  <div key={item.path}>
+                    {renderItem(item)}
+                    <button
+                      onClick={() => {
+                        setLocation("/products/create");
+                        onNavigate?.();
+                      }}
+                      aria-current={
+                        location === "/products/create" ? "page" : undefined
+                      }
+                      className={`group relative mt-0.5 flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 pr-4 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${location === "/products/create" ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">إنشاء منتج</span>
+                      <Plus className="size-3.5 shrink-0 text-[#9AA49E]" />
+                    </button>
+                  </div>
+                );
+              }
+              if (item.path === "/digital-products") {
+                return (
+                  <div key={item.path}>
+                    {renderItem(item)}
+                    <button
+                      onClick={() => {
+                        setLocation("/products/create?kind=digital");
+                        onNavigate?.();
+                      }}
+                      className="group relative mt-0.5 flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 pr-4 text-right text-[12.5px] font-bold text-[#5D6862] transition duration-200 hover:bg-[#F2F4EF] hover:text-[#1F2A25]"
+                    >
+                      <span className="min-w-0 flex-1 truncate">إنشاء رقمي</span>
+                      <Plus className="size-3.5 shrink-0 text-[#9AA49E]" />
+                    </button>
+                  </div>
+                );
+              }
+              return renderItem(item);
             })}
           </div>
         </div>
@@ -224,15 +321,15 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
             onNavigate?.();
           }}
           aria-current={location === "/settings" ? "page" : undefined}
-          className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-right text-[13px] font-bold transition duration-200 active:scale-[0.98] ${location === "/settings" ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
+          className={`group relative flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${location === "/settings" ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
         >
           {location === "/settings" && (
             <span className="absolute inset-y-2 right-0 w-[3px] rounded-full bg-[var(--brand)]" />
           )}
+          <span className="min-w-0 flex-1 truncate">الإعدادات</span>
           <Settings
-            className={`size-[18px] shrink-0 transition ${location === "/settings" ? "text-[var(--brand)]" : "text-[#9AA49E] group-hover:text-[var(--brand)]"}`}
+            className={`size-3.5 shrink-0 transition ${location === "/settings" ? "text-[var(--brand)]" : "text-[#9AA49E] group-hover:text-[var(--brand)]"}`}
           />
-          الإعدادات
         </button>
       </div>
     </nav>
@@ -246,35 +343,33 @@ function SidebarContent({
   onNavigate?: () => void;
   mobile?: boolean;
 }) {
-  const [, setLocation] = useLocation();
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-[#EDEEE8] px-5 py-5">
-        <BrandLockup />
+      <div className="dash-side-pills">
+        <button type="button" className="dash-side-pill is-active">
+          المتاجر
+        </button>
+        <button
+          type="button"
+          className="dash-side-pill"
+          title="افتح المتجر الحي"
+          onClick={() => {
+            window.open("/store", "_blank", "noopener,noreferrer");
+            onNavigate?.();
+          }}
+        >
+          <Store className="size-3" />
+          عبدو
+        </button>
       </div>
-      <div className="dashboard-nav-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-5">
+      <div className="dashboard-nav-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-2">
         <NavigationLinks onNavigate={onNavigate} />
       </div>
-      <button
-        onClick={() => {
-          window.open("/store", "_blank", "noopener,noreferrer");
-          onNavigate?.();
-        }}
-        className="btn-press group mx-4 mb-4 overflow-hidden rounded-2xl bg-[linear-gradient(135deg,var(--brand-strong),#14663F)] p-4 text-right text-white shadow-cta"
-      >
-        <div className="flex items-start gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/15 text-white backdrop-blur">
-            <Store className="size-4" />
-          </div>
-          <div>
-            <p className="text-xs font-extrabold">واجهة المتجر</p>
-            <p className="mt-1 text-[11px] leading-5 text-white/70">
-              افتح المتجر الحي وتصفّح الكتالوج والسلة.
-            </p>
-          </div>
-        </div>
-      </button>
-      <div className="border-t border-[#EDEEE8] p-4">
+      <div className="dash-pro">
+        <p>ترقية إلى Pro</p>
+        <button type="button">Pro</button>
+      </div>
+      <div className="border-t border-[#EDEEE8] p-3">
         <UserAccount mobile={mobile} />
       </div>
     </div>
@@ -306,12 +401,12 @@ export default function DashboardLayout({
         <span className="home-orb home-orb-2" />
         <span className="home-orb home-orb-3" />
       </div>
-      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[278px] border-l border-[#E7E9E2] bg-white lg:block">
+      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[188px] border-l border-[#E7E9E2] bg-white lg:block">
         <SidebarContent />
       </aside>
 
-      <div className="relative z-10 min-h-screen lg:mr-[278px]">
-        <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[rgba(15,118,110,0.14)] bg-[rgba(253,247,238,0.85)] px-4 backdrop-blur-xl sm:px-6 lg:px-9">
+      <div className="relative z-10 min-h-screen lg:mr-[188px]">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[rgba(15,118,110,0.14)] bg-[rgba(243,245,244,0.92)] px-4 backdrop-blur-xl sm:px-5">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
@@ -322,8 +417,7 @@ export default function DashboardLayout({
                   <Menu className="size-5" />
                 </button>
               </SheetTrigger>
-              <SheetContent
-                side="right"
+              <SheetContent side="right"
                 dir="rtl"
                 className="w-[min(88vw,340px)] max-w-none gap-0 border-l-0 p-0 [&>button]:hidden"
               >
@@ -388,7 +482,8 @@ export default function DashboardLayout({
             </div>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-[1500px] overflow-x-hidden px-4 py-7 sm:px-6 sm:py-9 lg:px-9">
+        <main className="mx-auto w-full max-w-none overflow-x-hidden px-4 py-4 sm:px-5 lg:px-6">
+          <DashboardTabs location={location} setLocation={setLocation} />
           {children}
         </main>
       </div>

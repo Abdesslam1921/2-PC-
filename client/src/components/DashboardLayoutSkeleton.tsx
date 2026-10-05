@@ -4,7 +4,7 @@ export function DashboardLayoutSkeleton() {
   return (
     <div className="flex min-h-screen bg-[#FDF7EE]" dir="rtl">
       {/* Sidebar skeleton */}
-      <div className="relative hidden w-[278px] border-l border-[rgba(15,118,110,0.14)] bg-[#FFFDF8] p-4 space-y-6 lg:block">
+      <div className="relative hidden w-[188px] border-l border-[rgba(15,118,110,0.14)] bg-white p-3 space-y-4 lg:block">
         {/* Logo area */}
         <div className="flex items-center gap-3 px-2 pt-1">
           <Skeleton className="h-10 w-10 rounded-2xl" />

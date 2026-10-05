@@ -11,28 +11,23 @@ import {
 import { trpc } from "@/lib/trpc";
 import {
   Archive,
-  ArrowRight,
   FileArchive,
   Box,
-  ChevronDown,
   CircleDollarSign,
   Copy,
   ImagePlus,
   Layers3,
-  Loader2,
   PackageCheck,
   Plus,
   Save,
-  BadgePercent,
   Settings2,
   ShieldCheck,
-  Sparkles,
   Trash2,
   Truck,
   Upload,
   Warehouse,
 } from "lucide-react";
-import React, { ChangeEvent, useMemo, useRef, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -74,14 +69,27 @@ function FormCard({
   description,
   icon: Icon,
   children,
+  compact,
+  className = "",
 }: {
   title: string;
   description: string;
   icon: typeof Box;
   children: React.ReactNode;
+  compact?: boolean;
+  className?: string;
 }) {
+  if (compact) {
+    return (
+      <section className={`dash-create-card min-w-0 ${className}`}>
+        <h2>{title}</h2>
+        <p className="mb-3 text-[11px] leading-5 text-[#79837D]">{description}</p>
+        {children}
+      </section>
+    );
+  }
   return (
-    <section className="rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-6">
+    <section className={`rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-6 ${className}`}>
       <div className="flex items-start gap-3">
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">
           <Icon className="size-5" />
@@ -155,10 +163,15 @@ export default function ProductCreate() {
   >([]);
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState(() => {
-    // Deep link from the categories page: /products/create?categoryId=12
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("categoryId") ?? "";
   });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("kind") === "digital") {
+      setProductKind("digital");
+    }
+  }, []);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   /** Existing store categories (one category per product). */
@@ -517,85 +530,50 @@ export default function ProductCreate() {
   return (
     <div>
       <PageIntro
-        eyebrow="الكتالوج · منتج جديد"
-        title="إضافة منتج"
-        description="أدخل تفاصيل المنتج، ثم أضف المتغيرات والأسعار والمخزون. عند الحفظ سيُضاف المنتج مباشرةً إلى كتالوج عبدو ستور المستقل."
+        eyebrow="المنتجات"
+        title={productKind === "digital" ? "إضافة منتج رقمي" : "إضافة منتج مادي"}
+        description="أدخل تفاصيل المنتج، ثم أضف المتغيرات والأسعار والمخزون."
         action={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setLocation("/products")}
-              className="btn-press h-11 rounded-xl border-[#E3E1D8] bg-white px-4 font-bold text-[#4A554F] transition duration-200 hover:bg-[#F5F6F2]"
-            >
-              <ArrowRight className="ml-2 size-4" />
-              رجوع
-            </Button>
-            <Button
-              disabled={createProduct.isPending}
-              onClick={saveProduct}
-              className="btn-press h-11 rounded-xl bg-[var(--brand)] px-5 font-bold shadow-cta transition duration-200 hover:bg-[var(--brand-strong)]"
-            >
-              <Save className="ml-2 size-4" />
-              {createProduct.isPending ? "جارٍ الحفظ..." : "حفظ المنتج"}
-            </Button>
-          </div>
+          <Button
+            disabled={createProduct.isPending}
+            onClick={saveProduct}
+            variant="outline"
+            className="btn-press h-9 rounded-full border-[#E3E1D8] bg-white px-4 text-[12.5px] font-bold text-[#4A554F]"
+          >
+            <Save className="ml-2 size-3.5" />
+            {createProduct.isPending ? "جارٍ الحفظ..." : "حفظ المنتج"}
+          </Button>
         }
       />
 
-      <div className="mb-6 flex items-center justify-between rounded-2xl border border-[#DCE8E0] bg-[var(--brand-soft)] px-4 py-3">
-        <div className="flex items-center gap-2 text-xs font-medium leading-5 text-[#3E6B58]">
-          <Sparkles className="size-4 shrink-0 text-[var(--brand)]" />
-          عند الحفظ، تُخزّن بيانات المنتج وصوره ومتغيراته داخل عبدو ستور
-          مباشرةً.
-        </div>
-        <SmallBadge>
-          {status === "active" ? "سيظهر في الكتالوج" : "مسودة"}
-        </SmallBadge>
+      <p className="dash-hint">
+        أربعة أقسام جنبًا إلى جنب حتى لا تطول الصفحة. الحقول كما هي. COD Trust
+        Score يُنقل إلى التطبيقات.
+      </p>
+
+      <div className="dash-kind mb-4">
+        {(
+          [
+            { value: "physical", label: "منتج مادي" },
+            { value: "digital", label: "منتج رقمي" },
+          ] as const
+        ).map(option => (
+          <button
+            type="button"
+            key={option.value}
+            onClick={() => setProductKind(option.value)}
+            className={productKind === option.value ? "is-active" : ""}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
 
-      <FormCard
-        title="نوع المنتج"
-        description="اختر إن كان المنتج يحتاج توصيلًا أم يُسلَّم كملف رقمي بعد تأكيد الدفع."
-        icon={Archive}
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              {
-                value: "physical",
-                label: "منتج مادي",
-                description: "يُطلب مع الولاية والعنوان والتوصيل.",
-              },
-              {
-                value: "digital",
-                label: "منتج رقمي",
-                description: "تنزيل آمن دون معلومات شحن.",
-              },
-            ] as const
-          ).map(option => (
-            <button
-              type="button"
-              key={option.value}
-              onClick={() => setProductKind(option.value)}
-              className={`btn-press rounded-2xl border p-4 text-right transition duration-200 ${productKind === option.value ? "border-[var(--brand)] bg-[var(--brand-soft)] shadow-soft" : "border-[#E7E9E2] bg-white hover:border-[#C8D6CD]"}`}
-            >
-              <p
-                className={`text-sm font-extrabold ${productKind === option.value ? "text-[var(--brand-strong)]" : "text-[#1F2A25]"}`}
-              >
-                {option.label}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-[#79837D]">
-                {option.description}
-              </p>
-            </button>
-          ))}
-        </div>
-      </FormCard>
-
-      <div className="mt-5 grid gap-5 2xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="space-y-5">
+      <div className="dash-create-stack mt-4">
           <FormCard
-            title="معلومات المنتج"
+            compact
+            className="dash-area-info"
+            title="(1) معلومات المنتج"
             description="الاسم والوصف الظاهرَان لعملاء متجرك."
             icon={Box}
           >
@@ -613,8 +591,8 @@ export default function ProductCreate() {
                 <textarea
                   value={description}
                   onChange={event => setDescription(event.target.value)}
-                  placeholder="اكتب وصفًا واضحًا يشرح الخامة والمميزات والاستخدام."
-                  className="min-h-36 w-full resize-y rounded-xl border border-[#E3E1D8] bg-white px-3 py-3 text-sm leading-7 text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
+                  placeholder="الوصف كما هو"
+                  className="min-h-20 w-full resize-y rounded-xl border border-[#E3E1D8] bg-[#F7F8F6] px-3 py-2 text-[12.5px] leading-6 text-[#1F2A25] outline-none transition duration-200 placeholder:text-[#A8B0AA] focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -864,8 +842,10 @@ export default function ProductCreate() {
 
           {productKind === "physical" && (
             <FormCard
+              compact
+              className="dash-area-costs"
               title="Costs & Profitability"
-              description="إعدادات داخلية يراها صاحب المتجر فقط لحساب الربح الحقيقي لاحقًا. لا تُرسل هذه البيانات إلى واجهة الزبون."
+              description="لكل قطعة أو إجمالي المخزون، تغليف، شراء، مرتجع، دفعات — كما هي."
               icon={CircleDollarSign}
             >
               <div className="rounded-2xl border border-[#E7E9E2] bg-[#FAF9F5] p-4">
@@ -1211,11 +1191,13 @@ export default function ProductCreate() {
           </FormCard>
 
           {productKind === "physical" && (
-            <FormCard
-              title="المتغيرات"
-              description="أنشئ مجموعات لون وحجم، ثم عدّل السعر والصورة والمخزون لكل متغير على حدة."
-              icon={Layers3}
-            >
+          <FormCard
+            compact
+            className="dash-area-variants"
+            title="(2) المتغيرات"
+            description="ألوان/مقاسات، ثم سعر وصورة ومخزون لكل متغير — كما هي."
+            icon={Layers3}
+          >
               <div className="flex flex-col gap-4 rounded-2xl bg-[#F5F6F2] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-extrabold text-[#1F2A25]">
@@ -1342,8 +1324,8 @@ export default function ProductCreate() {
                     </Button>
                   </div>
                   <div className="mt-5 overflow-hidden rounded-2xl border border-[#E7E9E2]">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-[1100px] w-full text-right">
+                    <div>
+                      <table className="w-full table-fixed text-right">
                         <thead className="bg-[#F5F6F2] text-[11px] font-extrabold text-[#79837D]">
                           <tr>
                             <th className="px-4 py-3">المتغير</th>
@@ -1508,8 +1490,10 @@ export default function ProductCreate() {
 
           {productKind === "physical" && (
             <FormCard
-              title="أسعار التوصيل لهذا المنتج"
-              description="اختر مصدرًا واحدًا فقط لرسوم التوصيل عند طلب هذا المنتج."
+              compact
+              className="dash-area-delivery"
+              title="(3) أسعار التوصيل"
+              description="ثابت / شركة / يدوي + توصيل مجاني — بدون تغيير منطق."
               icon={Truck}
             >
               <div className="grid gap-3 md:grid-cols-3">
@@ -1666,9 +1650,7 @@ export default function ProductCreate() {
             </FormCard>
           )}
 
-        </div>
-
-        <aside className="space-y-5 2xl:sticky 2xl:top-24 2xl:h-fit">
+        <aside className="space-y-5 dash-area-status">
           <section className="rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft">
             <div className="flex items-center gap-3">
               <div className="grid size-10 place-items-center rounded-xl bg-[var(--brand-soft)] text-[var(--brand)]">

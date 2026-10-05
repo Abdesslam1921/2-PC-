@@ -210,8 +210,8 @@ export default function DigitalProducts() {
               ستظهر طلبات الملفات هنا بعد أول عملية شراء.
             </div>
           ) : (
-            <div className="mt-5 overflow-x-auto">
-              <table className="min-w-[640px] w-full text-right">
+            <div className="mt-5">
+              <table className="w-full table-fixed text-right">
                 <thead className="bg-[#F5F6F2] text-[11px] font-extrabold text-[#79837D]">
                   <tr>
                     <th className="rounded-r-xl px-3 py-3">الطلب</th>

@@ -538,8 +538,8 @@ export default function Profitability() {
           <p className="text-base font-extrabold text-[#1F2A25]">
             الربحية حسب المنتج
           </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[600px] text-right text-xs">
+          <div className="mt-4">
+            <table className="w-full table-fixed text-right text-xs">
               <thead className="border-b border-[#ECEEE6] text-[#8A938D]">
                 <tr>
                   <th className="pb-3 font-bold">المنتج</th>
@@ -585,8 +585,8 @@ export default function Profitability() {
           <p className="text-base font-extrabold text-[#1F2A25]">
             الربحية حسب الحملة
           </p>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[500px] text-right text-xs">
+          <div className="mt-4">
+            <table className="w-full table-fixed text-right text-xs">
               <thead className="border-b border-[#ECEEE6] text-[#8A938D]">
                 <tr>
                   <th className="pb-3 font-bold">الحملة / المصدر</th>
@@ -738,8 +738,8 @@ export default function Profitability() {
             </span>
           </div>
         </div>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[700px] text-right text-xs">
+        <div className="mt-4">
+          <table className="w-full table-fixed text-right text-xs">
             <thead className="border-b border-[#ECEEE6] text-[#8A938D]">
               <tr>
                 <th className="pb-3 font-bold">رقم الطلب</th>

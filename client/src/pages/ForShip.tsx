@@ -365,8 +365,8 @@ export default function ForShip() {
       </div>
       {rows.length ? (
         <div className="animate-fade-up overflow-hidden rounded-[20px] border border-[#E7E9E2] bg-white shadow-soft">
-          <div className="overflow-x-auto">
-            <table className="min-w-[1000px] w-full text-right">
+          <div>
+            <table className="w-full table-fixed text-right">
               <thead className="border-b border-[#EEF0E9] bg-[#FAF9F5] text-xs font-extrabold text-[#8A938D]">
                 <tr>
                   <th className="px-5 py-4">الطلب</th>
@@ -440,7 +440,7 @@ export default function ForShip() {
                           updateStatus.isPending &&
                           updateStatus.variables?.orderId === order.id
                         }
-                        className="mt-2 h-9 w-full min-w-[150px] rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:opacity-50"
+                        className="mt-2 h-9 w-full rounded-xl border border-[#E3E1D8] bg-white px-2 text-xs font-extrabold text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10 disabled:opacity-50"
                       >
                         {Object.entries(labels).map(([value, label]) => (
                           <option key={value} value={value}>

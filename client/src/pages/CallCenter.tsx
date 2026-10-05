@@ -402,8 +402,8 @@ function AgentDashboard() {
                 />
               </label>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-right text-sm">
+            <div>
+              <table className="w-full table-fixed text-right text-sm">
                 <thead className="bg-[#FAF9F5] text-xs font-extrabold text-[#8A938D]">
                   <tr>
                     <th className="p-4">رقم الطلب</th>

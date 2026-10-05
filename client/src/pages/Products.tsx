@@ -94,8 +94,8 @@ export default function Products() {
         />
       ) : (
         <section className="overflow-hidden rounded-[20px] border border-[#E7E9E2] bg-white shadow-soft animate-fade-up">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[980px] border-collapse text-right">
+          <div>
+            <table className="w-full table-fixed border-collapse text-right">
               <thead className="bg-[#F5F6F2] text-xs font-extrabold text-[#1F2A25]">
                 <tr className="h-15 border-b border-[#E7E9E2]">
                   <th className="w-14 px-4">
@@ -105,11 +105,11 @@ export default function Products() {
                       className="size-4 rounded accent-[var(--brand)]"
                     />
                   </th>
-                  <th className="min-w-75 px-5">المنتج</th>
-                  <th className="min-w-45 px-5">تم الإنشاء</th>
-                  <th className="w-28 px-5">الطلبات</th>
-                  <th className="w-34 px-5">السعر</th>
-                  <th className="w-54 px-5">الإجراءات</th>
+                  <th className="px-2">المنتج</th>
+                  <th className="w-[18%] px-2">تم الإنشاء</th>
+                  <th className="w-[10%] px-2">الطلبات</th>
+                  <th className="w-[12%] px-2">السعر</th>
+                  <th className="w-[22%] px-2">الإجراءات</th>
                 </tr>
               </thead>
               <tbody>
