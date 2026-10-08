@@ -144,7 +144,10 @@ function DashboardTabs({
                 ? location === "/products"
                 : tab.path === "/dashboard"
                   ? location === "/dashboard" && tab.label === "الرئيسية"
-                  : location === tab.path;
+                  : tab.path === "/connecteurs"
+                    ? location === "/connecteurs" ||
+                      location.startsWith("/connecteurs/")
+                    : location === tab.path;
         return (
           <button
             key={`${tab.label}-${tab.path}`}
@@ -235,7 +238,10 @@ function UserAccount({ mobile = false }: { mobile?: boolean }) {
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location, setLocation] = useLocation();
   const renderItem = (item: (typeof dashboardNavigation)[number]) => {
-    const active = location === item.path;
+    const active =
+      item.path === "/connecteurs"
+        ? location === "/connecteurs" || location.startsWith("/connecteurs/")
+        : location === item.path;
     const Icon = item.icon;
     return (
       <button

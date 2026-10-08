@@ -160,6 +160,14 @@ function Router() {
         )}
       />
       <Route
+        path="/connecteurs/:kind"
+        component={() => (
+          <DashboardPage>
+            <Connecteurs />
+          </DashboardPage>
+        )}
+      />
+      <Route
         path="/connecteurs"
         component={() => (
           <DashboardPage>

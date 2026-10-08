@@ -514,3 +514,76 @@
   font-weight: 700;
   text-align: center;
 }
+
+.dash-apps-tabs {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #eef1ee;
+}
+
+.dash-apps-tabs button {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--dash-muted);
+}
+
+.dash-apps-tabs button.is-active {
+  background: #fff;
+  color: var(--dash-ink);
+  box-shadow: 0 1px 2px rgba(31, 42, 37, 0.06);
+}
+
+.dash-apps-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+@media (min-width: 768px) {
+  .dash-apps-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.dash-app-card {
+  display: flex;
+  min-width: 0;
+  min-height: 168px;
+  flex-direction: column;
+  border: 1px solid var(--dash-line);
+  border-radius: 22px;
+  background: #fff;
+  padding: 18px 18px 16px;
+  text-align: right;
+  box-shadow: 0 1px 2px rgba(31, 42, 37, 0.04);
+}
+
+.dash-app-card:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+}
+
+.dash-app-card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--dash-ink);
+}
+
+.dash-app-card p {
+  margin: 12px 0 0;
+  color: var(--dash-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.dash-app-lock {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  color: #ef4444;
+}

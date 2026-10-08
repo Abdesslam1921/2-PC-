@@ -5490,7 +5490,10 @@ export async function updateStoreProduct(
       upsellDiscountPercent: input.upsellDiscountPercent ?? null,
       upsellViewType: input.upsellViewType ?? "product",
       upsellLandingPageId: input.upsellLandingPageId ?? null,
-      codTrustScore: input.codTrustScore ?? null,
+      codTrustScore:
+        input.codTrustScore !== undefined
+          ? input.codTrustScore
+          : current.codTrustScore,
       costAccountingMode: input.costAccountingMode,
       costQuantity: input.costQuantity,
       productCostTotal: input.productCostTotal,

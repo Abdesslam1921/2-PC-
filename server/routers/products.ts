@@ -483,7 +483,9 @@ export const productsRouter = router({
           payload.upsellViewType !== "landing"
             ? null
             : (payload.upsellLandingPageId ?? null),
-        codTrustScore: payload.codTrustScore?.trim() || null,
+        ...(payload.codTrustScore !== undefined
+          ? { codTrustScore: payload.codTrustScore.trim() || null }
+          : {}),
         // `offers` is omitted by the form now (quantity offers moved to the
         // packs system), so only an explicit list replaces the stored ones.
         ...(payload.offers

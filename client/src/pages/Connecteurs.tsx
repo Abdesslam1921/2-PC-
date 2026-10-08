@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Bot,
   Cable,
   CheckCircle2,
@@ -7,6 +8,7 @@ import {
   Globe2,
   Info,
   Loader2,
+  Lock,
   MessageCircle,
   Phone,
   Plus,
@@ -15,10 +17,10 @@ import {
   ShieldCheck,
   Sparkles,
   Trash2,
-  X,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLocation, useRoute } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { PageIntro } from "@/components/PageIntro";
 
@@ -39,7 +41,8 @@ type Kind =
   | "ad_shield"
   | "tracking_retarget"
   | "message_order"
-  | "negotiator";
+  | "negotiator"
+  | "cod_trust";
 type Pixel = { id?: number; label: string; pixelId: string; enabled: boolean };
 type SupportNumberRow = { label: string; number: string; active: boolean };
 type Form = {
@@ -136,10 +139,28 @@ type Card = {
     | "ad_shield"
     | "tracking_retarget"
     | "message_order"
-    | "negotiator";
+    | "negotiator"
+    | "cod_trust";
 };
 
 const cards: Card[] = [
+  {
+    kind: "cod_trust",
+    title: "COD Trust Score",
+    short: "رسالة ثقة تظهر للعملاء في صفحة الطلب حسب الولاية والمنتج.",
+    accent: "var(--brand)",
+    icon: ShieldCheck,
+    identifier: "",
+    secret: "",
+    importance:
+      "عندما تفعّل هذه الميزة على منتج، تظهر للعملاء في صفحة الطلب رسالة تعرض عدد الأشخاص من ولايتهم الذين طلبوا هذا المنتج اليوم.",
+    steps: [
+      "اختر المنتج الذي تريد إظهار رسالة الثقة عليه.",
+      "فعّل الرسالة واكتب النص الذي يظهر للعميل.",
+      "احفظ الإعداد. الحساب نفسه لم يتغيّر؛ يُحفظ النص على المنتج.",
+    ],
+    mode: "cod_trust",
+  },
   {
     kind: "meta_capi",
     title: "Facebook Pixel + Conversions API",
@@ -542,6 +563,7 @@ const emptyForms = (): Record<Kind, Form> => ({
   tracking_retarget: emptyForm(),
   message_order: emptyForm(),
   negotiator: emptyForm(),
+  cod_trust: emptyForm(),
 });
 
 type NegotiatorRuleForm = {
@@ -558,7 +580,19 @@ type NegotiatorRuleForm = {
   customRules: string;
 };
 
+function parseCostBatches(value: string | null | undefined) {
+  try {
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function Connecteurs() {
+  const [, params] = useRoute("/connecteurs/:kind");
+  const [, setLocation] = useLocation();
+  const selectedKind = (params?.kind as Kind | undefined) ?? null;
   const { data, isLoading } = trpc.connecteurs.list.useQuery();
   const utils = trpc.useUtils();
   const save = trpc.connecteurs.save.useMutation({
@@ -641,6 +675,17 @@ export default function Connecteurs() {
   const trackingAnalytics = trpc.trackingRetarget.analytics.useQuery();
   const productsQuery = trpc.products.list.useQuery();
   const landingsQuery = trpc.landings.list.useQuery();
+  const saveCodTrust = trpc.products.update.useMutation({
+    onSuccess: async product => {
+      toast.success(`تم حفظ COD Trust لـ «${product.title}».`);
+      await utils.products.list.invalidate();
+    },
+    onError: error => toast.error(error.message || "تعذر حفظ COD Trust."),
+  });
+  const [appsTab, setAppsTab] = useState<"discover" | "installed">("discover");
+  const [trustProductId, setTrustProductId] = useState("");
+  const [trustEnabled, setTrustEnabled] = useState(false);
+  const [trustText, setTrustText] = useState("");
   const saveTracking = trpc.trackingRetarget.saveSettings.useMutation({
     onSuccess: async () => {
       toast.success("تم حفظ إعدادات Tracking & Retargeting");
@@ -683,7 +728,6 @@ export default function Connecteurs() {
     },
     onError: error => toast.error(error.message),
   });
-  const [open, setOpen] = useState<Kind | null>(null);
   const [forms, setForms] = useState<Record<Kind, Form>>(emptyForms);
   const [negotiatorRules, setNegotiatorRules] = useState<NegotiatorRuleForm[]>(
     []
@@ -931,6 +975,20 @@ export default function Connecteurs() {
     }
   }, [negotiatorRules, selectedNegotiatorProductId]);
 
+  useEffect(() => {
+    if (!trustProductId) {
+      setTrustEnabled(false);
+      setTrustText("");
+      return;
+    }
+    const product = (productsQuery.data ?? []).find(
+      item => item && String(item.id) === trustProductId
+    );
+    const score = product?.codTrustScore?.trim() ?? "";
+    setTrustEnabled(Boolean(score));
+    setTrustText(score);
+  }, [trustProductId, productsQuery.data]);
+
   const availableNegotiatorProducts = (productsQuery.data ?? [])
     .filter((product): product is NonNullable<typeof product> =>
       Boolean(product)
@@ -990,8 +1048,83 @@ export default function Connecteurs() {
         rule.productId === productId ? { ...rule, ...patch } : rule
       )
     );
+  const submitCodTrust = () => {
+    const product = (productsQuery.data ?? []).find(
+      item => item && String(item.id) === trustProductId
+    );
+    if (!product) {
+      toast.error("اختر منتجًا أولًا.");
+      return;
+    }
+    if (trustEnabled && !trustText.trim()) {
+      toast.error("اكتب نص ثقة COD أو أوقف التفعيل.");
+      return;
+    }
+    const batches = parseCostBatches(product.costBatches);
+    saveCodTrust.mutate({
+      id: product.id,
+      title: product.title,
+      description: product.description ?? "",
+      productType: product.productType ?? "",
+      collectionName: product.collectionName ?? "",
+      categoryId: product.categoryId ?? null,
+      productKind: (product.productKind as "physical" | "digital") ?? "physical",
+      currency: product.currency ?? "DZD",
+      status: product.status as "draft" | "active",
+      price: product.price ?? "",
+      compareAtPrice: product.compareAtPrice ?? "",
+      costPerItem: product.costPerItem ?? "",
+      costAccountingMode:
+        (product.costAccountingMode as "per_item" | "stock_total") ??
+        "per_item",
+      costQuantity: product.costQuantity ?? 1,
+      productCostTotal: product.productCostTotal ?? "0.00",
+      packagingCostPerItem: product.packagingCostPerItem ?? "0.00",
+      packagingCostTotal: product.packagingCostTotal ?? "0.00",
+      procurementDeliveryCostPerItem:
+        product.procurementDeliveryCostPerItem ?? "0.00",
+      procurementDeliveryCostTotal:
+        product.procurementDeliveryCostTotal ?? "0.00",
+      returnCostPerOrder: product.returnCostPerOrder ?? "0.00",
+      returnDeliveryFree: Boolean(product.returnDeliveryFree),
+      costBatches: batches.map(batch => ({
+        quantity: Number(batch.quantity || 1),
+        productCostTotal: batch.productCostTotal || "0.00",
+        packagingCostTotal: batch.packagingCostTotal || "0.00",
+        procurementDeliveryCostTotal:
+          batch.procurementDeliveryCostTotal || "0.00",
+        receivedAt: batch.receivedAt || undefined,
+      })),
+      sku: product.sku ?? "",
+      inventory: product.inventory ?? 0,
+      lowStockThreshold: product.lowStockThreshold ?? 0,
+      showStockThreshold: product.showStockThreshold ?? 0,
+      trackInventory: Boolean(product.trackInventory),
+      continueSelling: Boolean(product.continueSelling),
+      deliveryPricingMode:
+        (product.deliveryPricingMode as "fixed" | "carrier" | "manual") ??
+        "manual",
+      deliveryCarrierConnectionId:
+        product.deliveryCarrierConnectionId ?? undefined,
+      freeDelivery: Boolean(product.freeDelivery),
+      digitalMaxDownloads: product.digitalMaxDownloads ?? undefined,
+      digitalLinkValidityHours: product.digitalLinkValidityHours ?? undefined,
+      upsellProductId: product.upsellProductId ?? null,
+      upsellPrice: product.upsellPrice ?? "",
+      upsellDiscountAmount: product.upsellDiscountAmount ?? "",
+      upsellDiscountPercent: product.upsellDiscountPercent ?? null,
+      upsellViewType:
+        (product.upsellViewType as "product" | "landing") ?? "product",
+      upsellLandingPageId: product.upsellLandingPageId ?? null,
+      codTrustScore: trustEnabled ? trustText.trim() || undefined : "",
+    });
+  };
   const submit = (card: Card) => {
     const form = forms[card.kind];
+    if (card.kind === "cod_trust") {
+      submitCodTrust();
+      return;
+    }
     if (card.kind === "shark_cod") {
       saveShark.mutate({
         enabled: form.enabled,
@@ -1250,18 +1383,126 @@ export default function Connecteurs() {
   const trackingConnected = Boolean(trackingSettingsQuery.data);
   const messageOrderConnected = Boolean(messageOrderSettingsQuery.data);
   const negotiatorConnected = Boolean(negotiatorSettingsQuery.data);
+  const isCardConnected = (card: Card) => {
+    if (card.kind === "cod_trust")
+      return (productsQuery.data ?? []).some(
+        item => item && Boolean(item.codTrustScore?.trim())
+      );
+    if (card.kind === "shark_cod") return sharkConnected;
+    if (card.kind === "order_clean") return orderCleanConnected;
+    if (card.kind === "thank_you") return thankYouConnected;
+    if (card.kind === "contact_bar") return contactBarConnected;
+    if (card.kind === "content_guard" || card.kind === "ad_shield")
+      return contentGuardConnected;
+    if (card.kind === "tracking_retarget") return trackingConnected;
+    if (card.kind === "message_order") return messageOrderConnected;
+    if (card.kind === "negotiator") return negotiatorConnected;
+    return connectedKinds.has(genericKind(card.kind));
+  };
+  const selectedCard =
+    cards.find(card => card.kind === selectedKind) ?? null;
+  const listedCards =
+    appsTab === "installed"
+      ? cards.filter(card =>
+          card.kind === "cod_trust"
+            ? isCardConnected(card)
+            : isCardConnected(card) && forms[card.kind].enabled
+        )
+      : cards;
+
+  if (!selectedCard) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-7 sm:px-6 lg:px-9" dir="rtl">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-black text-[#1F2A25]">اكتشف التطبيقات</h1>
+          <div className="dash-apps-tabs">
+            <button
+              type="button"
+              className={appsTab === "discover" ? "is-active" : ""}
+              onClick={() => setAppsTab("discover")}
+            >
+              اكتشف التطبيقات
+            </button>
+            <button
+              type="button"
+              className={appsTab === "installed" ? "is-active" : ""}
+              onClick={() => setAppsTab("installed")}
+            >
+              التطبيقات المثبتة
+            </button>
+          </div>
+        </div>
+        <div className="dash-apps-grid">
+          {listedCards.map(card => {
+            const Icon = card.icon;
+            const connected = isCardConnected(card);
+            const locked =
+              card.kind === "cod_trust"
+                ? !connected
+                : !(connected && forms[card.kind].enabled);
+            return (
+              <button
+                key={card.kind}
+                type="button"
+                onClick={() => setLocation(`/connecteurs/${card.kind}`)}
+                className="dash-app-card btn-press"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="rounded-full border border-[var(--brand)]/25 px-3 py-1 text-[11px] font-extrabold text-[var(--brand)]">
+                    ترقية
+                  </span>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <h2 className="truncate">{card.title}</h2>
+                    <span
+                      className="grid size-10 shrink-0 place-items-center rounded-xl"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${card.accent} 12%, transparent)`,
+                        color: card.accent,
+                      }}
+                    >
+                      <Icon className="size-5" />
+                    </span>
+                  </div>
+                </div>
+                <p>{card.short}</p>
+                {locked && (
+                  <span className="dash-app-lock">
+                    <Lock className="size-5" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {listedCards.length === 0 && (
+          <p className="mt-8 text-center text-sm text-[#79837D]">
+            لا توجد تطبيقات مثبتة بعد.
+          </p>
+        )}
+        {isLoading && (
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm text-[#79837D]">
+            <Loader2 className="size-4 animate-spin" /> جارٍ تحميل التطبيقات…
+          </div>
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-7 sm:px-6 lg:px-9" dir="rtl">
       <PageIntro
         eyebrow="APPS & CONNECTEURS"
-        title="التطبيقات"
-        description="اربط أدوات الحماية والمزامنة والإشعارات بمتجرك. اضغط على «ربط» لفتح التفاصيل."
+        title={selectedCard.title}
+        description={selectedCard.short}
         action={
-          <div className="flex items-center gap-2 rounded-2xl border border-[#D8E6DD] bg-[var(--brand-soft)] px-4 py-3 text-xs font-bold text-[var(--brand)]">
-            <ShieldCheck className="size-4" />
-            التوكنات مشفرة
-          </div>
+          <button
+            type="button"
+            onClick={() => setLocation("/connecteurs")}
+            className="btn-press flex items-center gap-2 rounded-xl border border-[#E3E1D8] bg-white px-4 py-2.5 text-xs font-extrabold text-[#4A554F]"
+          >
+            <ArrowRight className="size-4" />
+            كل التطبيقات
+          </button>
         }
       />
 
@@ -1274,32 +1515,14 @@ export default function Connecteurs() {
       </div>
 
       <div className="space-y-4">
-        {cards.map((card, cardIndex) => {
+        {[selectedCard].map((card, cardIndex) => {
           const Icon = card.icon;
           const form = forms[card.kind];
-          const connected =
-            card.kind === "shark_cod"
-              ? sharkConnected
-              : card.kind === "order_clean"
-                ? orderCleanConnected
-                : card.kind === "thank_you"
-                  ? thankYouConnected
-                  : card.kind === "contact_bar"
-                    ? contactBarConnected
-                    : card.kind === "content_guard" || card.kind === "ad_shield"
-                      ? contentGuardConnected
-                      : card.kind === "tracking_retarget"
-                        ? trackingConnected
-                        : card.kind === "message_order"
-                          ? messageOrderConnected
-                          : card.kind === "negotiator"
-                            ? negotiatorConnected
-                            : connectedKinds.has(genericKind(card.kind));
-          const isOpen = open === card.kind;
+          const connected = isCardConnected(card);
           return (
             <section
               key={card.kind}
-              className={`animate-fade-up overflow-hidden rounded-[24px] border bg-white shadow-soft transition hover:shadow-lift ${isOpen ? "border-[var(--brand)]/40" : "border-[#E7E9E2]"}`}
+              className="animate-fade-up overflow-hidden rounded-[24px] border border-[var(--brand)]/40 bg-white shadow-soft"
               style={{ animationDelay: `${Math.min(cardIndex, 8) * 45}ms` }}
             >
               <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
@@ -1319,9 +1542,12 @@ export default function Connecteurs() {
                         {card.title}
                       </h2>
                       <span
-                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${connected && form.enabled ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "bg-[#F1F3EE] text-[#79837D]"}`}
+                        className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${connected && (card.kind === "cod_trust" ? trustEnabled : form.enabled) ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "bg-[#F1F3EE] text-[#79837D]"}`}
                       >
-                        {connected && form.enabled ? "متصل" : "غير متصل"}
+                        {connected &&
+                        (card.kind === "cod_trust" ? trustEnabled : form.enabled)
+                          ? "متصل"
+                          : "غير متصل"}
                       </span>
                     </div>
                     <p className="mt-1 text-xs leading-5 text-[#8A938D]">
@@ -1329,26 +1555,8 @@ export default function Connecteurs() {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setOpen(isOpen ? null : card.kind)}
-                  className="btn-press flex shrink-0 items-center justify-center gap-2 self-start rounded-xl bg-[var(--brand)] px-4 py-2.5 text-xs font-extrabold text-white shadow-cta hover:bg-[var(--brand-strong)] sm:self-auto"
-                >
-                  {isOpen ? (
-                    <>
-                      <X className="size-4" />
-                      إغلاق
-                    </>
-                  ) : (
-                    <>
-                      <Cable className="size-4" />
-                      {connected ? "إدارة" : "ربط"}
-                    </>
-                  )}
-                </button>
               </div>
 
-              {isOpen && (
                 <div className="border-t border-[#ECEDE6] bg-[var(--paper)] p-5 sm:p-7">
                   <div className="mb-6 grid gap-4 lg:grid-cols-[1fr_1.1fr]">
                     <div className="rounded-2xl border border-[#E7E9E2] bg-white p-4 shadow-soft">
@@ -1377,12 +1585,72 @@ export default function Connecteurs() {
                     </div>
                   </div>
 
+                  {card.mode !== "cod_trust" && (
                   <Field
                     label="اسم الإعداد"
                     value={form.label}
                     onChange={value => update(card.kind, { label: value })}
                     placeholder={card.title}
                   />
+                  )}
+
+                  {card.mode === "cod_trust" && (
+                    <div className="space-y-4">
+                      <label className="mb-4 block">
+                        <span className="mb-2 block text-xs font-extrabold text-[#4A554F]">
+                          المنتج
+                        </span>
+                        <select
+                          value={trustProductId}
+                          onChange={event => setTrustProductId(event.target.value)}
+                          className="h-11 w-full rounded-xl border border-[#E3E1D8] bg-white px-3 text-sm text-[#1F2A25] outline-none transition focus:border-[var(--brand)] focus:ring-4 focus:ring-[var(--brand)]/10"
+                        >
+                          <option value="">اختر منتجًا</option>
+                          {(productsQuery.data ?? [])
+                            .filter(
+                              (item): item is NonNullable<typeof item> =>
+                                Boolean(item)
+                            )
+                            .map(item => (
+                              <option key={item.id} value={String(item.id)}>
+                                {item.title}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <div className="flex flex-col gap-4 rounded-2xl border border-[#E7E9E2] bg-[#F5F6F2] p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-extrabold text-[#1F2A25]">
+                            تفعيل رسالة ثقة COD؟
+                          </p>
+                          <p className="mt-1 text-xs text-[#79837D]">
+                            عندما تفعّل هذه الميزة، تظهر للعملاء في صفحة الطلب
+                            رسالة تعرض عدد الأشخاص من ولايتهم الذين طلبوا هذا
+                            المنتج اليوم.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={trustEnabled}
+                          onClick={() => setTrustEnabled(value => !value)}
+                          className={`relative h-7 w-12 shrink-0 rounded-full transition duration-200 ${trustEnabled ? "bg-[var(--brand)]" : "bg-[#D4D8D0]"}`}
+                        >
+                          <span
+                            className={`absolute top-1 size-5 rounded-full bg-white shadow-sm transition duration-200 ${trustEnabled ? "right-6" : "right-1"}`}
+                          />
+                        </button>
+                      </div>
+                      {trustEnabled && (
+                        <Field
+                          label="نص ثقة COD"
+                          value={trustText}
+                          onChange={setTrustText}
+                          placeholder="مثال: 7 أشخاص من ولايتك طلبوا هذا المنتج اليوم"
+                        />
+                      )}
+                    </div>
+                  )}
 
                   {card.mode === "domain" && (
                     <>
@@ -3433,18 +3701,25 @@ export default function Connecteurs() {
                   )}
 
                   <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-[#E7E9E2] pt-5">
-                    <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-[#4A554F]">
-                      <input
-                        type="checkbox"
-                        checked={form.enabled}
-                        onChange={event =>
-                          update(card.kind, { enabled: event.target.checked })
-                        }
-                        className="size-4 accent-[var(--brand)]"
-                      />{" "}
-                      تفعيل التطبيق
-                    </label>
+                    {card.kind === "cod_trust" ? (
+                      <p className="text-xs font-bold text-[#79837D]">
+                        يُحفظ النص على المنتج المختار دون تغيير منطق الثقة.
+                      </p>
+                    ) : (
+                      <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-[#4A554F]">
+                        <input
+                          type="checkbox"
+                          checked={form.enabled}
+                          onChange={event =>
+                            update(card.kind, { enabled: event.target.checked })
+                          }
+                          className="size-4 accent-[var(--brand)]"
+                        />{" "}
+                        تفعيل التطبيق
+                      </label>
+                    )}
                     <div className="flex gap-2">
+                      {card.kind !== "cod_trust" && (
                       <button
                         type="button"
                         onClick={() =>
@@ -3465,6 +3740,7 @@ export default function Connecteurs() {
                       >
                         <Trash2 className="size-4" /> فصل
                       </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => submit(card)}
@@ -3477,7 +3753,8 @@ export default function Connecteurs() {
                           saveContentGuard.isPending ||
                           saveTracking.isPending ||
                           saveMessageOrder.isPending ||
-                          saveNegotiator.isPending
+                          saveNegotiator.isPending ||
+                          saveCodTrust.isPending
                         }
                         className="btn-press flex items-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-2.5 text-xs font-extrabold text-white shadow-cta hover:bg-[var(--brand-strong)] disabled:opacity-60"
                       >
@@ -3486,7 +3763,6 @@ export default function Connecteurs() {
                     </div>
                   </div>
                 </div>
-              )}
             </section>
           );
         })}
