@@ -4,11 +4,13 @@ import {
   scryptSync,
   timingSafeEqual,
 } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import {
   callCenterAgentProducts,
   callCenterAgents,
   callCenterSessions,
+  storeOrderItems,
+  storeOrders,
   storeProducts,
 } from "../drizzle/schema";
 import {
@@ -24,6 +26,149 @@ import {
 import { getEcotrackTrackingInfo } from "./ecotrack";
 
 const SESSION_DAYS = 7;
+
+export function pickRoundRobinAgentId(
+  eligibleIds: number[],
+  stickyAgentId: number | null,
+  lastAssignedAgentId: number | null
+) {
+  if (!eligibleIds.length) return null;
+  if (stickyAgentId && eligibleIds.includes(stickyAgentId)) return stickyAgentId;
+  if (lastAssignedAgentId == null) return eligibleIds[0];
+  const index = eligibleIds.indexOf(lastAssignedAgentId);
+  const from = index >= 0 ? index + 1 : 0;
+  return eligibleIds[from % eligibleIds.length];
+}
+
+function agentCoversProducts(
+  agentProductIds: number[],
+  orderProductIds: number[]
+) {
+  if (!agentProductIds.length) return true;
+  return orderProductIds.some(id => agentProductIds.includes(id));
+}
+
+export function isCallCenterOrderVisibleToAgent(
+  order: {
+    items: Array<{ productId: number; confirmationAgentId?: number | null }>;
+  },
+  agentId: number,
+  productIds: number[],
+  fullAccess: boolean
+) {
+  const assignedId = order.items.find(
+    item => typeof item.confirmationAgentId === "number" && item.confirmationAgentId > 0
+  )?.confirmationAgentId;
+  if (assignedId) return assignedId === agentId;
+  return fullAccess || order.items.some(item => productIds.includes(item.productId));
+}
+
+export async function assignNewOrderToCallCenterAgent(input: {
+  storeId: number;
+  orderId: number;
+  customerPhone: string;
+  productIds: number[];
+}) {
+  try {
+    return await assignNewOrderToCallCenterAgentUnsafe(input);
+  } catch (error) {
+    console.warn("[Call Center] round-robin assignment failed:", error);
+    return null;
+  }
+}
+
+async function assignNewOrderToCallCenterAgentUnsafe(input: {
+  storeId: number;
+  orderId: number;
+  customerPhone: string;
+  productIds: number[];
+}) {
+  if (!input.storeId || !input.orderId) return null;
+  const db = await getDb();
+  if (!db) return null;
+  const agents = await db
+    .select({
+      id: callCenterAgents.id,
+      email: callCenterAgents.email,
+    })
+    .from(callCenterAgents)
+    .where(
+      and(
+        eq(callCenterAgents.storeId, input.storeId),
+        eq(callCenterAgents.enabled, true)
+      )
+    )
+    .orderBy(callCenterAgents.id);
+  if (!agents.length) return null;
+  const scopedRows = await db
+    .select({
+      agentId: callCenterAgentProducts.agentId,
+      productId: callCenterAgentProducts.productId,
+    })
+    .from(callCenterAgentProducts)
+    .innerJoin(
+      callCenterAgents,
+      eq(callCenterAgentProducts.agentId, callCenterAgents.id)
+    )
+    .where(eq(callCenterAgents.storeId, input.storeId));
+  const productsByAgent = new Map<number, number[]>();
+  for (const row of scopedRows) {
+    const list = productsByAgent.get(row.agentId) ?? [];
+    list.push(row.productId);
+    productsByAgent.set(row.agentId, list);
+  }
+  const eligibleIds = agents
+    .filter(agent =>
+      agentCoversProducts(productsByAgent.get(agent.id) ?? [], input.productIds)
+    )
+    .map(agent => agent.id);
+  if (!eligibleIds.length) return null;
+
+  const phone = input.customerPhone.trim();
+  let stickyAgentId: number | null = null;
+  if (phone) {
+    const previous = await db
+      .select({ agentId: storeOrderItems.confirmationAgentId })
+      .from(storeOrderItems)
+      .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
+      .where(
+        and(
+          eq(storeOrders.storeId, input.storeId),
+          eq(storeOrders.customerPhone, phone),
+          ne(storeOrders.id, input.orderId)
+        )
+      )
+      .orderBy(desc(storeOrders.createdAt));
+    stickyAgentId =
+      previous.find(row => row.agentId && eligibleIds.includes(row.agentId))
+        ?.agentId ?? null;
+  }
+
+  const recentAssigned = await db
+    .select({ agentId: storeOrderItems.confirmationAgentId })
+    .from(storeOrderItems)
+    .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
+    .where(
+      and(eq(storeOrders.storeId, input.storeId), ne(storeOrders.id, input.orderId))
+    )
+    .orderBy(desc(storeOrders.createdAt));
+  const lastAssignedAgentId =
+    recentAssigned.find(
+      row => row.agentId && eligibleIds.includes(row.agentId)
+    )?.agentId ?? null;
+
+  const agentId = pickRoundRobinAgentId(
+    eligibleIds,
+    stickyAgentId,
+    lastAssignedAgentId
+  );
+  if (!agentId) return null;
+  await db
+    .update(storeOrderItems)
+    .set({ confirmationAgentId: agentId })
+    .where(eq(storeOrderItems.orderId, input.orderId));
+  return agents.find(agent => agent.id === agentId) ?? { id: agentId, email: "" };
+}
 
 function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -92,10 +237,8 @@ export async function listCallCenterAgents(storeId: number) {
           .where(eq(callCenterAgentProducts.agentId, agent.id))
       ).map(row => row.productId);
       const fullAccess = productIds.length === 0;
-      const visibleOrders = orders.filter(
-        order =>
-          fullAccess ||
-          order.items.some(item => productIds.includes(item.productId))
+      const visibleOrders = orders.filter(order =>
+        isCallCenterOrderVisibleToAgent(order, agent.id, productIds, fullAccess)
       );
       const total = visibleOrders.length;
       const completed = visibleOrders.filter(
@@ -486,8 +629,9 @@ export async function resolveCallCenterScope(token: string) {
             )
           )
       : [];
-  const isOrderVisible = (order: { items: Array<{ productId: number }> }) =>
-    fullAccess || order.items.some(item => productIds.includes(item.productId));
+  const isOrderVisible = (order: {
+    items: Array<{ productId: number; confirmationAgentId?: number | null }>;
+  }) => isCallCenterOrderVisibleToAgent(order, agent.id, productIds, fullAccess);
   return { agent, storeId: agent.storeId ?? 0, productIds, fullAccess, products, isOrderVisible };
 }
 
@@ -500,7 +644,7 @@ export async function getCallCenterDashboard(token: string) {
   const { productIds, fullAccess, products } = scope;
   const orders = await listStoreOrders(agent.storeId ?? 0);
   const visibleOrders = orders.filter(order =>
-    fullAccess || order.items.some(item => productIds.includes(item.productId))
+    isCallCenterOrderVisibleToAgent(order, agent.id, productIds, fullAccess)
   );
   const newOrders = visibleOrders.filter(
     order => order.fulfillmentStatus === "new"

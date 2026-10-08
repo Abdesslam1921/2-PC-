@@ -24,6 +24,7 @@ import {
 import { storeOrderItems, storeOrders } from "../../drizzle/schema";
 import { notifyNewOrder } from "../notifications";
 import { notifyCallCenterAgents } from "../callCenterNotifications";
+import { assignNewOrderToCallCenterAgent } from "../callCenterDb";
 import { verifyTurnstile } from "../turnstile";
 import {
   protectedProcedure,
@@ -235,6 +236,17 @@ export const ordersRouter = router({
           );
         }
         if (product) {
+          const productIds = Array.from(
+            new Set(input.lines.map(line => line.productId))
+          );
+          if (storeId != null) {
+            void assignNewOrderToCallCenterAgent({
+              storeId,
+              orderId: result.id,
+              customerPhone: input.customerPhone,
+              productIds,
+            });
+          }
           const orderNotification = {
             orderNumber: result.orderNumber,
             customerName: input.customerName,
@@ -247,7 +259,7 @@ export const ordersRouter = router({
           void notifyNewOrder(storeId ?? 0, orderNotification);
           void notifyCallCenterAgents(
             storeId ?? 0,
-            Array.from(new Set(input.lines.map(line => line.productId))),
+            productIds,
             "new_order",
             orderNotification
           );
@@ -334,9 +346,17 @@ export const ordersRouter = router({
           .optional(),
       })
     )
-    .mutation(async ({ ctx, input }) =>
-      createManualOrder(getStoreId(ctx), input)
-    ),
+    .mutation(async ({ ctx, input }) => {
+      const storeId = getStoreId(ctx);
+      const result = await createManualOrder(storeId, input);
+      void assignNewOrderToCallCenterAgent({
+        storeId,
+        orderId: result.orderId,
+        customerPhone: input.customerPhone,
+        productIds: [input.productId],
+      });
+      return result;
+    }),
   setConfirmationAttribution: protectedProcedure
     .input(
       z.object({

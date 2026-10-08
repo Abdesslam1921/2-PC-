@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getPublicStoreProduct: vi.fn(),
   listStoreOrders: vi.fn(),
   updateOrderStatus: vi.fn(),
+  assignNewOrderToCallCenterAgent: vi.fn(),
 }));
 
 vi.mock("../db", () => ({
@@ -13,6 +14,10 @@ vi.mock("../db", () => ({
   getPublicStoreProduct: mocks.getPublicStoreProduct,
   listStoreOrders: mocks.listStoreOrders,
   updateStoreOrderStatus: mocks.updateOrderStatus,
+}));
+
+vi.mock("../callCenterDb", () => ({
+  assignNewOrderToCallCenterAgent: mocks.assignNewOrderToCallCenterAgent,
 }));
 
 import { appRouter } from "../routers";
