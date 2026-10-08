@@ -229,7 +229,8 @@ export default function Profitability() {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="dash-profit-stack">
+      <div className="dash-profit-settings grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
           <div className="rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-7">
             <p className="text-base font-extrabold text-[#1F2A25]">
@@ -533,7 +534,7 @@ export default function Profitability() {
         </aside>
       </div>
 
-      <section className="mt-5 grid gap-5 xl:grid-cols-2">
+      <section className="dash-profit-products mt-5 grid gap-5 xl:grid-cols-2">
         <div className="rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-7">
           <p className="text-base font-extrabold text-[#1F2A25]">
             الربحية حسب المنتج
@@ -640,7 +641,7 @@ export default function Profitability() {
         </div>
       </section>
 
-      <section className="mt-5 rounded-[24px] border border-[#D8E6DD] bg-[var(--brand-soft)] p-5 shadow-soft sm:p-7">
+      <section className="dash-profit-ai mt-5 rounded-[24px] border border-[#D8E6DD] bg-[var(--brand-soft)] p-5 shadow-soft sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-base font-extrabold text-[var(--brand-strong)]">
@@ -718,7 +719,7 @@ export default function Profitability() {
         )}
       </section>
 
-      <section className="mt-5 rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-7">
+      <section className="dash-profit-orders mt-5 rounded-[24px] border border-[#E7E9E2] bg-white p-5 shadow-soft sm:p-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-base font-extrabold text-[#1F2A25]">
@@ -781,6 +782,7 @@ export default function Profitability() {
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }

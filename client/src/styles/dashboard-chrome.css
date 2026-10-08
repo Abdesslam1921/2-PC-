@@ -587,3 +587,24 @@
   justify-content: flex-end;
   color: #ef4444;
 }
+
+.dash-profit-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-profit-products {
+  order: 1;
+}
+
+.dash-profit-ai {
+  order: 2;
+}
+
+.dash-profit-orders {
+  order: 3;
+}
+
+.dash-profit-settings {
+  order: 4;
+}
