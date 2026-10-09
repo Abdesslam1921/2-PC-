@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isCallCenterOrderVisibleToAgent,
+  isDisabledAgentQueueOrder,
   pickRoundRobinAgentId,
 } from "./callCenterDb";
 
@@ -47,5 +48,37 @@ describe("Call Center agent order visibility", () => {
     expect(isCallCenterOrderVisibleToAgent(order, 5, [10], false)).toBe(true);
     expect(isCallCenterOrderVisibleToAgent(order, 5, [11], false)).toBe(false);
     expect(isCallCenterOrderVisibleToAgent(order, 5, [], true)).toBe(true);
+  });
+});
+
+describe("disabled agent queue return", () => {
+  it("releases new and review orders that were not confirmation-costed", () => {
+    expect(
+      isDisabledAgentQueueOrder({
+        fulfillmentStatus: "new",
+        items: [{ confirmationSource: "owner" }],
+      })
+    ).toBe(true);
+    expect(
+      isDisabledAgentQueueOrder({
+        fulfillmentStatus: "review",
+        items: [{ confirmationSource: null }],
+      })
+    ).toBe(true);
+  });
+
+  it("keeps confirmed or costed orders with the disabled agent", () => {
+    expect(
+      isDisabledAgentQueueOrder({
+        fulfillmentStatus: "confirmed",
+        items: [{ confirmationSource: "owner" }],
+      })
+    ).toBe(false);
+    expect(
+      isDisabledAgentQueueOrder({
+        fulfillmentStatus: "new",
+        items: [{ confirmationSource: "call_center" }],
+      })
+    ).toBe(false);
   });
 });

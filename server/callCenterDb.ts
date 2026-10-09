@@ -48,6 +48,18 @@ function agentCoversProducts(
   return orderProductIds.some(id => agentProductIds.includes(id));
 }
 
+const QUEUE_STATUSES = new Set(["new", "review"]);
+
+export function isDisabledAgentQueueOrder(order: {
+  fulfillmentStatus: string;
+  items: Array<{ confirmationSource?: string | null }>;
+}) {
+  if (!QUEUE_STATUSES.has(order.fulfillmentStatus)) return false;
+  return order.items.every(
+    item => (item.confirmationSource ?? "owner") !== "call_center"
+  );
+}
+
 export function isCallCenterOrderVisibleToAgent(
   order: {
     items: Array<{ productId: number; confirmationAgentId?: number | null }>;
@@ -415,6 +427,7 @@ export async function updateCallCenterAgent(
     )
     .limit(1);
   if (!agent) throw new Error("حساب العميل غير موجود.");
+  const disabling = agent.enabled && !input.enabled;
   const validProducts = input.productIds.length
     ? await db
         .select({ id: storeProducts.id })
@@ -452,6 +465,7 @@ export async function updateCallCenterAgent(
       .values(
         validProducts.map(product => ({ agentId, productId: product.id }))
       );
+  if (disabling) await returnDisabledAgentOrdersToQueue(storeId, agentId);
   return {
     id: agentId,
     name: input.name.trim(),
@@ -467,6 +481,74 @@ export async function updateCallCenterAgent(
     completedOrderRate: input.completedOrderRate,
     productIds: validProducts.map(product => product.id),
   };
+}
+
+async function returnDisabledAgentOrdersToQueue(
+  storeId: number,
+  agentId: number
+) {
+  const db = await getDb();
+  if (!db) return;
+  const assigned = await db
+    .select({
+      orderId: storeOrders.id,
+      customerPhone: storeOrders.customerPhone,
+      fulfillmentStatus: storeOrders.fulfillmentStatus,
+      productId: storeOrderItems.productId,
+      confirmationSource: storeOrderItems.confirmationSource,
+      confirmationAgentId: storeOrderItems.confirmationAgentId,
+    })
+    .from(storeOrderItems)
+    .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
+    .where(
+      and(
+        eq(storeOrders.storeId, storeId),
+        eq(storeOrderItems.confirmationAgentId, agentId)
+      )
+    );
+  const byOrder = new Map<
+    number,
+    {
+      customerPhone: string;
+      fulfillmentStatus: string;
+      items: Array<{
+        productId: number;
+        confirmationSource: string | null;
+      }>;
+    }
+  >();
+  for (const row of assigned) {
+    const current = byOrder.get(row.orderId) ?? {
+      customerPhone: row.customerPhone,
+      fulfillmentStatus: row.fulfillmentStatus,
+      items: [],
+    };
+    current.items.push({
+      productId: row.productId,
+      confirmationSource: row.confirmationSource,
+    });
+    byOrder.set(row.orderId, current);
+  }
+  const releasedIds: number[] = [];
+  for (const [orderId, order] of byOrder) {
+    if (!isDisabledAgentQueueOrder(order)) continue;
+    releasedIds.push(orderId);
+  }
+  if (!releasedIds.length) return;
+  await db
+    .update(storeOrderItems)
+    .set({ confirmationAgentId: null })
+    .where(inArray(storeOrderItems.orderId, releasedIds));
+  for (const orderId of releasedIds) {
+    const order = byOrder.get(orderId);
+    if (!order) continue;
+    await assignNewOrderToCallCenterAgent({
+      storeId,
+      orderId,
+      customerPhone: order.customerPhone,
+      productIds: Array.from(new Set(order.items.map(item => item.productId))),
+    });
+  }
 }
 
 export async function deleteCallCenterAgent(storeId: number, agentId: number) {
