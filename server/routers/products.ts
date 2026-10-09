@@ -9,6 +9,7 @@ import {
   listPublicStoreProducts,
   listStoreProducts,
   updateStoreProduct,
+  patchStoreProductCodTrust,
 } from "../db";
 import { storagePut } from "../storage";
 import {
@@ -498,6 +499,19 @@ export const productsRouter = router({
           : {}),
       });
     }),
+  patchCodTrust: protectedProcedure
+    .input(
+      productIdInput.extend({
+        codTrustScore: z.string().trim().max(255),
+      })
+    )
+    .mutation(async ({ ctx, input }) =>
+      patchStoreProductCodTrust(
+        getStoreId(ctx),
+        input.id,
+        input.codTrustScore.trim() || null
+      )
+    ),
   duplicate: protectedProcedure
     .input(productIdInput)
     .mutation(async ({ ctx, input }) =>

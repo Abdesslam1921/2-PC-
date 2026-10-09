@@ -5528,6 +5528,26 @@ export async function updateStoreProduct(
   return product;
 }
 
+export async function patchStoreProductCodTrust(
+  storeId: number,
+  id: number,
+  codTrustScore: string | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
+  const current = await getStoreProductById(storeId, id);
+  if (!current) throw new Error("المنتج غير موجود أو لا تملك صلاحية تعديله.");
+  await db
+    .update(storeProducts)
+    .set({ codTrustScore })
+    .where(
+      and(eq(storeProducts.id, id), eq(storeProducts.storeId, storeId))
+    );
+  const product = await getStoreProductById(storeId, id);
+  if (!product) throw new Error("تعذر تحميل المنتج بعد التعديل.");
+  return product;
+}
+
 export async function duplicateStoreProduct(storeId: number, id: number) {
   const source = await getStoreProductById(storeId, id);
   if (!source) throw new Error("المنتج غير موجود أو لا تملك صلاحية تكراره.");

@@ -580,15 +580,6 @@ type NegotiatorRuleForm = {
   customRules: string;
 };
 
-function parseCostBatches(value: string | null | undefined) {
-  try {
-    const parsed = JSON.parse(value || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function Connecteurs() {
   const [, params] = useRoute("/connecteurs/:kind");
   const [, setLocation] = useLocation();
@@ -675,7 +666,7 @@ export default function Connecteurs() {
   const trackingAnalytics = trpc.trackingRetarget.analytics.useQuery();
   const productsQuery = trpc.products.list.useQuery();
   const landingsQuery = trpc.landings.list.useQuery();
-  const saveCodTrust = trpc.products.update.useMutation({
+  const saveCodTrust = trpc.products.patchCodTrust.useMutation({
     onSuccess: async product => {
       toast.success(`تم حفظ COD Trust لـ «${product.title}».`);
       await utils.products.list.invalidate();
@@ -1060,63 +1051,9 @@ export default function Connecteurs() {
       toast.error("اكتب نص ثقة COD أو أوقف التفعيل.");
       return;
     }
-    const batches = parseCostBatches(product.costBatches);
     saveCodTrust.mutate({
       id: product.id,
-      title: product.title,
-      description: product.description ?? "",
-      productType: product.productType ?? "",
-      collectionName: product.collectionName ?? "",
-      categoryId: product.categoryId ?? null,
-      productKind: (product.productKind as "physical" | "digital") ?? "physical",
-      currency: product.currency ?? "DZD",
-      status: product.status as "draft" | "active",
-      price: product.price ?? "",
-      compareAtPrice: product.compareAtPrice ?? "",
-      costPerItem: product.costPerItem ?? "",
-      costAccountingMode:
-        (product.costAccountingMode as "per_item" | "stock_total") ??
-        "per_item",
-      costQuantity: product.costQuantity ?? 1,
-      productCostTotal: product.productCostTotal ?? "0.00",
-      packagingCostPerItem: product.packagingCostPerItem ?? "0.00",
-      packagingCostTotal: product.packagingCostTotal ?? "0.00",
-      procurementDeliveryCostPerItem:
-        product.procurementDeliveryCostPerItem ?? "0.00",
-      procurementDeliveryCostTotal:
-        product.procurementDeliveryCostTotal ?? "0.00",
-      returnCostPerOrder: product.returnCostPerOrder ?? "0.00",
-      returnDeliveryFree: Boolean(product.returnDeliveryFree),
-      costBatches: batches.map(batch => ({
-        quantity: Number(batch.quantity || 1),
-        productCostTotal: batch.productCostTotal || "0.00",
-        packagingCostTotal: batch.packagingCostTotal || "0.00",
-        procurementDeliveryCostTotal:
-          batch.procurementDeliveryCostTotal || "0.00",
-        receivedAt: batch.receivedAt || undefined,
-      })),
-      sku: product.sku ?? "",
-      inventory: product.inventory ?? 0,
-      lowStockThreshold: product.lowStockThreshold ?? 0,
-      showStockThreshold: product.showStockThreshold ?? 0,
-      trackInventory: Boolean(product.trackInventory),
-      continueSelling: Boolean(product.continueSelling),
-      deliveryPricingMode:
-        (product.deliveryPricingMode as "fixed" | "carrier" | "manual") ??
-        "manual",
-      deliveryCarrierConnectionId:
-        product.deliveryCarrierConnectionId ?? undefined,
-      freeDelivery: Boolean(product.freeDelivery),
-      digitalMaxDownloads: product.digitalMaxDownloads ?? undefined,
-      digitalLinkValidityHours: product.digitalLinkValidityHours ?? undefined,
-      upsellProductId: product.upsellProductId ?? null,
-      upsellPrice: product.upsellPrice ?? "",
-      upsellDiscountAmount: product.upsellDiscountAmount ?? "",
-      upsellDiscountPercent: product.upsellDiscountPercent ?? null,
-      upsellViewType:
-        (product.upsellViewType as "product" | "landing") ?? "product",
-      upsellLandingPageId: product.upsellLandingPageId ?? null,
-      codTrustScore: trustEnabled ? trustText.trim() || undefined : "",
+      codTrustScore: trustEnabled ? trustText.trim() : "",
     });
   };
   const submit = (card: Card) => {
