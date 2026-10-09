@@ -69,6 +69,7 @@ import {
   normalizeEcotrackHostname,
 } from "./ecotrack-catalog";
 import { decryptSecret, encryptSecret } from "./secureSecrets";
+import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -4239,17 +4240,9 @@ export async function getWilayaConversionIntelligence(
       0
     );
     const deliveryCost = Math.round((Number(order.deliveryCostSnapshot ?? 0) || 0) * 100);
-    const confirmationCost = orderItems.reduce(
-      (sum, item) =>
-        sum +
-        (item.confirmationSource === "call_center"
-          ? Math.round(
-              (isDelivered
-                ? Number(item.deliveredConfirmationCostSnapshot ?? 0)
-                : Number(item.normalConfirmationCostSnapshot ?? 0)) * 100
-            )
-          : 0),
-      0
+    const confirmationCost = confirmationCostCentsForOrder(
+      orderItems,
+      isDelivered
     );
     const returnCost = order.fulfillmentStatus === "returned"
       ? orderItems.reduce(

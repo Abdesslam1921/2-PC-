@@ -18,11 +18,16 @@ import {
   getCarrierCredentials,
   getNotificationSettings,
   listStoreOrders,
+  setOrderConfirmationAttribution,
   updateOrderCarrierData,
   updateStoreOrderStatus,
   deleteStoreOrdersBulk,
   deleteArchivedOrder,
 } from "./db";
+import {
+  hasDefinedCommission,
+  shouldSnapshotAgentConfirmation,
+} from "./callCenterConfirmation";
 import { getEcotrackTrackingInfo } from "./ecotrack";
 
 const SESSION_DAYS = 7;
@@ -530,10 +535,9 @@ async function returnDisabledAgentOrdersToQueue(
     byOrder.set(row.orderId, current);
   }
   const releasedIds: number[] = [];
-  for (const [orderId, order] of byOrder) {
-    if (!isDisabledAgentQueueOrder(order)) continue;
-    releasedIds.push(orderId);
-  }
+  Array.from(byOrder.entries()).forEach(([orderId, order]) => {
+    if (isDisabledAgentQueueOrder(order)) releasedIds.push(orderId);
+  });
   if (!releasedIds.length) return;
   await db
     .update(storeOrderItems)
@@ -810,6 +814,33 @@ export async function updateCallCenterOrderStatus(
   const order = orders.find(candidate => candidate.id === orderId);
   if (!order) throw new Error("الطلب غير موجود.");
   assertOrderVisible(order, scope);
+  const alreadyCallCenter = order.items.some(
+    item => item.confirmationSource === "call_center"
+  );
+  if (
+    shouldSnapshotAgentConfirmation({
+      nextStatus: fulfillmentStatus,
+      alreadyCallCenter,
+    }) &&
+    hasDefinedCommission(
+      scope.agent.generalOrderRate,
+      scope.agent.completedOrderRate
+    )
+  ) {
+    try {
+      await setOrderConfirmationAttribution(
+        scope.storeId,
+        orderId,
+        "call_center",
+        scope.agent.id
+      );
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.error(
+        `[Call Center] confirmation snapshot failed for order ${order.orderNumber} (${orderId}): ${reason}`
+      );
+    }
+  }
   return updateStoreOrderStatus(scope.storeId, orderId, fulfillmentStatus);
 }
 

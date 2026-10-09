@@ -9,6 +9,7 @@ import {
   storeOrders,
 } from "../drizzle/schema";
 import { getDb } from "./db";
+import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 
 const cents = (value: string | number | null | undefined) =>
   Math.round((Number(value ?? 0) || 0) * 100);
@@ -147,17 +148,9 @@ export async function getProfitabilityReport(storeId: number) {
           0
         )
       : 0;
-    const confirmationCost = orderItems.reduce(
-      (sum, item) =>
-        sum +
-        (item.confirmationSource === "call_center"
-          ? cents(
-              isDelivered
-                ? item.deliveredConfirmationCostSnapshot
-                : item.normalConfirmationCostSnapshot
-            )
-          : 0),
-      0
+    const confirmationCost = confirmationCostCentsForOrder(
+      orderItems,
+      isDelivered
     );
     const deliveryCost = cents(order.deliveryCostSnapshot);
     const totalCost =

@@ -1,6 +1,7 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import { storeOrderItems, storeOrders, storeProducts } from "../drizzle/schema";
 import { getDb } from "./db";
+import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 
 const cents = (value: string | number | null | undefined) =>
   Math.round((Number(value ?? 0) || 0) * 100);
@@ -74,6 +75,9 @@ export async function getProductNegotiationEconomics(storeId: number) {
     );
     const adSpend = cents(order.adSpendAllocatedDzd);
     const deliveryCost = cents(order.deliveryCostSnapshot);
+    const confirmationCost = isDelivered
+      ? confirmationCostCentsForOrder(orderItems, true)
+      : 0;
     for (const item of orderItems) {
       const acc = ensure(item.productId, item.title);
       const lineShare = lineBase
@@ -89,11 +93,7 @@ export async function getProductNegotiationEconomics(storeId: number) {
         acc.unitCostCents += itemUnitCost * item.quantity;
         acc.deliveryCostCents += Math.round(deliveryCost * lineShare);
         acc.adSpendCents += Math.round(adSpend * lineShare);
-        if (item.confirmationSource === "call_center") {
-          acc.confirmationCostCents += cents(
-            item.deliveredConfirmationCostSnapshot
-          );
-        }
+        acc.confirmationCostCents += Math.round(confirmationCost * lineShare);
       } else {
         acc.returnedQty += item.quantity;
         acc.returnedOrders += 1;
