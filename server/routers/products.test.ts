@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   updateStoreProduct: vi.fn(),
   duplicateStoreProduct: vi.fn(),
   deleteStoreProduct: vi.fn(),
+  patchStoreProductCodTrust: vi.fn(),
   storagePut: vi.fn(),
 }));
 
@@ -22,6 +23,7 @@ vi.mock("../db", () => ({
   updateStoreProduct: mocks.updateStoreProduct,
   duplicateStoreProduct: mocks.duplicateStoreProduct,
   deleteStoreProduct: mocks.deleteStoreProduct,
+  patchStoreProductCodTrust: mocks.patchStoreProductCodTrust,
 }));
 vi.mock("../storage", () => ({ storagePut: mocks.storagePut }));
 
@@ -206,5 +208,24 @@ describe("products management actions", () => {
     expect(publicList).toEqual([
       { id: 7, title: "تيشيرت قطني", status: "active" },
     ]);
+  });
+});
+
+describe("products.patchCodTrust", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("refuses to change another store's product and returns NOT_FOUND", async () => {
+    mocks.patchStoreProductCodTrust.mockRejectedValueOnce(
+      new Error("المنتج غير موجود أو لا تملك صلاحية تعديله.")
+    );
+    const caller = appRouter.createCaller(context());
+
+    await expect(
+      caller.products.patchCodTrust({ id: 99, codTrustScore: "80" })
+    ).rejects.toMatchObject({
+      code: "NOT_FOUND",
+      message: "المنتج غير موجود أو لا تملك صلاحية تعديله.",
+    });
+    expect(mocks.patchStoreProductCodTrust).toHaveBeenCalledWith(7, 99, "80");
   });
 });

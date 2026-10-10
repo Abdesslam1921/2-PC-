@@ -505,13 +505,25 @@ export const productsRouter = router({
         codTrustScore: z.string().trim().max(255),
       })
     )
-    .mutation(async ({ ctx, input }) =>
-      patchStoreProductCodTrust(
-        getStoreId(ctx),
-        input.id,
-        input.codTrustScore.trim() || null
-      )
-    ),
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await patchStoreProductCodTrust(
+          getStoreId(ctx),
+          input.id,
+          input.codTrustScore.trim() || null
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === "المنتج غير موجود أو لا تملك صلاحية تعديله."
+        )
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: error.message,
+          });
+        throw error;
+      }
+    }),
   duplicate: protectedProcedure
     .input(productIdInput)
     .mutation(async ({ ctx, input }) =>
