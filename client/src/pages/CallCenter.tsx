@@ -523,8 +523,12 @@ function CallCenterAdmin() {
     onError: error => toast.error(error.message),
   });
   const update = trpc.callCenter.update.useMutation({
-    onSuccess: () => {
-      toast.success("تم تحديث حساب العميل.");
+    onSuccess: result => {
+      toast.success(
+        typeof result.releasedOrderCount === "number"
+          ? `تم تحديث حساب العميل. رجع ${result.releasedOrderCount} طلب للتوزيع.`
+          : "تم تحديث حساب العميل."
+      );
       setForm(emptyForm);
       setEditingId(null);
       agentsQuery.refetch();
@@ -683,11 +687,36 @@ function CallCenterAdmin() {
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${agent.enabled ? "bg-[var(--brand-soft)] text-[var(--brand)]" : "bg-[#F1F2EC] text-[#8A938D]"}`}
+                      <button
+                        type="button"
+                        aria-label={
+                          agent.enabled
+                            ? `تعطيل ${agent.name}`
+                            : `تفعيل ${agent.name}`
+                        }
+                        disabled={update.isPending}
+                        onClick={() =>
+                          update.mutate({
+                            agentId: agent.id,
+                            name: agent.name,
+                            email: agent.email,
+                            enabled: !agent.enabled,
+                            notifyNewOrders: agent.notifyNewOrders,
+                            notifyStatusChanges: agent.notifyStatusChanges,
+                            notifyCancelledOrders: agent.notifyCancelledOrders,
+                            notifyUnresponsiveOrders:
+                              agent.notifyUnresponsiveOrders,
+                            notifyFollowUp: agent.notifyFollowUp,
+                            compensationMode: agent.compensationMode,
+                            generalOrderRate: agent.generalOrderRate,
+                            completedOrderRate: agent.completedOrderRate,
+                            productIds: agent.productIds,
+                          })
+                        }
+                        className={`rounded-full px-3 py-1 text-xs font-bold transition-colors duration-200 ${agent.enabled ? "bg-[var(--brand-soft)] text-[var(--brand)] hover:bg-[#F1F2EC] hover:text-[#8A938D]" : "bg-[#F1F2EC] text-[#8A938D] hover:bg-[var(--brand-soft)] hover:text-[var(--brand)]"}`}
                       >
                         {agent.enabled ? "مفعل" : "متوقف"}
-                      </span>
+                      </button>
                       <span className="rounded-full bg-[#F1F2EC] px-3 py-1 text-xs font-bold text-[#5C665F]">
                         {agent.productIds.length === 0
                           ? "كل الطلبات"

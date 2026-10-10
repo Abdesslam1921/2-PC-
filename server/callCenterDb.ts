@@ -470,7 +470,9 @@ export async function updateCallCenterAgent(
       .values(
         validProducts.map(product => ({ agentId, productId: product.id }))
       );
-  if (disabling) await returnDisabledAgentOrdersToQueue(storeId, agentId);
+  const releasedOrderCount = disabling
+    ? await returnDisabledAgentOrdersToQueue(storeId, agentId)
+    : undefined;
   return {
     id: agentId,
     name: input.name.trim(),
@@ -485,6 +487,7 @@ export async function updateCallCenterAgent(
     generalOrderRate: input.generalOrderRate,
     completedOrderRate: input.completedOrderRate,
     productIds: validProducts.map(product => product.id),
+    ...(typeof releasedOrderCount === "number" ? { releasedOrderCount } : {}),
   };
 }
 
@@ -493,7 +496,7 @@ async function returnDisabledAgentOrdersToQueue(
   agentId: number
 ) {
   const db = await getDb();
-  if (!db) return;
+  if (!db) return 0;
   const assigned = await db
     .select({
       orderId: storeOrders.id,
@@ -538,7 +541,7 @@ async function returnDisabledAgentOrdersToQueue(
   Array.from(byOrder.entries()).forEach(([orderId, order]) => {
     if (isDisabledAgentQueueOrder(order)) releasedIds.push(orderId);
   });
-  if (!releasedIds.length) return;
+  if (!releasedIds.length) return 0;
   await db
     .update(storeOrderItems)
     .set({ confirmationAgentId: null })
@@ -553,6 +556,7 @@ async function returnDisabledAgentOrdersToQueue(
       productIds: Array.from(new Set(order.items.map(item => item.productId))),
     });
   }
+  return releasedIds.length;
 }
 
 export async function deleteCallCenterAgent(storeId: number, agentId: number) {

@@ -110,4 +110,23 @@ describe("Call Center router", () => {
     expect(dashboard.stats.total).toBe(1);
     expect(mocks.dashboard).toHaveBeenCalledWith(login.token);
   });
+
+  it("returns how many orders went back to the queue when an agent is disabled", async () => {
+    mocks.update.mockResolvedValue({
+      id: 8,
+      name: "فريق التأكيد",
+      email: "agent@gmail.com",
+      enabled: false,
+      productIds: [3],
+      releasedOrderCount: 4,
+    });
+    const result = await appRouter.createCaller(context()).callCenter.update({
+      agentId: 8,
+      name: "فريق التأكيد",
+      email: "agent@gmail.com",
+      enabled: false,
+      productIds: [3],
+    });
+    expect(result.releasedOrderCount).toBe(4);
+  });
 });
