@@ -177,7 +177,10 @@ describe("forship core — webhook payload + signature", () => {
     ).toBe(false);
   });
 
-  it("skips verification when no secret is configured", () => {
-    expect(verifyWebhookSignature(null, {}, "{}")).toBe(true);
+  it("rejects when no secret is configured (fail-closed)", () => {
+    expect(verifyWebhookSignature(null, {}, "{}")).toBe(false);
+    expect(verifyWebhookSignature(undefined, {}, "{}")).toBe(false);
+    // A secret but no signature header is also rejected.
+    expect(verifyWebhookSignature("secret", {}, "{}")).toBe(false);
   });
 });

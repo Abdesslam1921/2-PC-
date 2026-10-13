@@ -195,7 +195,9 @@ export function verifyWebhookSignature(
   headers: Record<string, string | string[] | undefined>,
   rawBody: string
 ): boolean {
-  if (!secret) return true;
+  // Fail-closed: a carrier without a configured secret must never accept an
+  // unauthenticated webhook (previously this returned true → spoofable status).
+  if (!secret) return false;
   const signature =
     headerValue(headers["x-forship-signature"]) ??
     headerValue(headers["x-carrier-signature"]);

@@ -267,11 +267,11 @@ export async function processIncomingWebhook(
   carrierId: number,
   rawBody: string,
   headers: Record<string, string | string[] | undefined>
-): Promise<{ status: 200 | 404; message: string }> {
+): Promise<{ status: 200 | 401 | 404; message: string }> {
   const carrier = await getCarrierById(carrierId);
   if (!carrier) return { status: 404, message: "unknown carrier" };
   if (!verifyWebhookSignature(carrier.webhookSecret, headers, rawBody))
-    return { status: 200, message: "ignored: bad signature" };
+    return { status: 401, message: "invalid signature" };
 
   let payload: unknown;
   try {

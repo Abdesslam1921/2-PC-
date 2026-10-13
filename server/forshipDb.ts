@@ -141,6 +141,11 @@ export async function merchantCarrierHasWebhook(
 ): Promise<boolean> {
   try {
     const carrier = await resolveCarrierByProvider(provider);
+    // Polling may be skipped ONLY when a webhook is configured AND a secret
+    // exists to verify it. Without a secret the webhook is now rejected
+    // (fail-closed), so the periodic sync MUST keep updating statuses.
+    const full = await getCarrierById(carrier.id);
+    if (!full?.webhookSecret) return false;
     if (carrier.supportsWebhook) return true;
     const credential = await getMerchantCarrierCredential(
       merchantId,

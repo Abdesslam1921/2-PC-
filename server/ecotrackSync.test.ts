@@ -114,6 +114,20 @@ describe("syncStoreEcotrackStatuses (hybrid rule)", () => {
     expect(mocks.update.mock.calls[0][1]).toBe(2);
   });
 
+  it("auto mode keeps syncing a carrier with no webhook secret", async () => {
+    mocks.listOrders.mockResolvedValue([
+      order({ fulfillmentStatus: "at_carrier" }),
+    ]);
+    mocks.hasWebhook.mockResolvedValue(false);
+    mocks.tracking.mockResolvedValue({ status: "picked" });
+    const summary = await syncStoreEcotrackStatuses(7, {
+      includeFinal: false,
+      skipWebhookCarriers: true,
+    });
+    expect(mocks.tracking).toHaveBeenCalledTimes(1);
+    expect(summary.synced).toBe(1);
+  });
+
   it("auto mode skips carriers that push webhooks", async () => {
     mocks.listOrders.mockResolvedValue([order()]);
     mocks.hasWebhook.mockResolvedValue(true);
