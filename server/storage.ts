@@ -6,8 +6,11 @@
 import { ENV } from "./_core/env";
 import fs from "fs";
 import path from "path";
-
-const LOCAL_STORAGE_ROOT = path.join(process.cwd(), "file_storage");
+import {
+  LOCAL_STORAGE_ROOT,
+  resolveWithinStorageRoot,
+  sanitizeStorageKey,
+} from "./_core/storagePaths";
 
 function hasForgeConfig() {
   return Boolean(ENV.forgeApiUrl && ENV.forgeApiKey);
@@ -27,7 +30,12 @@ function getForgeConfig() {
 }
 
 function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "");
+  // Same containment rules as the /manus-storage proxy: a key coming from any
+  // caller must never be able to escape the storage root (write or read).
+  const key = sanitizeStorageKey(relKey.replace(/^\/+/, ""));
+  if (!key) throw new Error("Invalid storage key.");
+  if (!resolveWithinStorageRoot(key)) throw new Error("Invalid storage key.");
+  return key;
 }
 
 function appendHashSuffix(relKey: string): string {

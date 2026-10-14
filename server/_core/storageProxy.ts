@@ -1,31 +1,32 @@
 import type { Express } from "express";
 import { ENV } from "./env";
-import path from "path";
 import fs from "fs";
+import {
+  resolveWithinStorageRoot,
+  sanitizeStorageKey,
+} from "./storagePaths";
 
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
-    const key = (req.params as Record<string, string>)[0];
-    if (!key) return res.status(400).send("Missing key");
+    const rawKey = (req.params as Record<string, string>)[0] ?? "";
+    // Reject path traversal / abs paths / over-encoding BEFORE touching disk.
+    const key = sanitizeStorageKey(rawKey);
+    if (!key) return res.status(400).send("Invalid key");
 
-    const tryPaths = [
-      path.join(process.cwd(), "file_storage", key),
-      path.join(process.cwd(), "file_storage", key.replace("/1/", "/")),
-      path.join(
-        process.cwd(),
-        "file_storage",
-        key.replace("products/1/", "products/")
-      ),
+    // Legacy keys were stored under products/1/... — keep those working, but
+    // every candidate is re-resolved inside the storage root.
+    const candidateRelKeys = [
+      key,
+      key.replace("/1/", "/"),
+      key.replace("products/1/", "products/"),
     ];
-
-    for (const p of tryPaths) {
-      if (fs.existsSync(p) && fs.statSync(p).isFile()) {
-        console.log("[STORAGE] Serving:", p);
-        return res.sendFile(p);
+    for (const relKey of candidateRelKeys) {
+      const absPath = resolveWithinStorageRoot(relKey);
+      if (!absPath) continue;
+      if (fs.existsSync(absPath) && fs.statSync(absPath).isFile()) {
+        return res.sendFile(absPath);
       }
     }
-
-    console.log("[STORAGE] NOT FOUND:", key, "tried", tryPaths);
 
     if (!ENV.forgeApiUrl || !ENV.forgeApiKey) {
       return res.status(404).send("Not found: " + key);
