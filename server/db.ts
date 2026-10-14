@@ -55,6 +55,7 @@ import {
   storeProducts,
   storeProductVariants,
   storeThemeSettings,
+  stores,
   users,
   aiSettings,
   trackingRetargetSettings,
@@ -3131,6 +3132,18 @@ export async function getOrderCleanAnalytics(storeId: number) {
   };
 }
 
+/** Resolve a store only when it exists and is active (tenant guard). */
+export async function getActiveStoreById(storeId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [store] = await db
+    .select({ id: stores.id, isActive: stores.isActive })
+    .from(stores)
+    .where(and(eq(stores.id, storeId), eq(stores.isActive, true)))
+    .limit(1);
+  return store;
+}
+
 export type AbandonedOrderInput = {
   productId: number;
   landingPageId?: number;
@@ -3156,6 +3169,9 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     )
     .limit(1);
   if (!product) throw new Error("المنتج غير متاح.");
+  // Tenant guard: never write an abandoned row for a missing/inactive store.
+  if (product.storeId == null || !(await getActiveStoreById(product.storeId)))
+    throw new Error("المتجر غير متاح.");
   // Phone-first rule: never store a phone-less abandoned cart.
   const phone = input.customerPhone?.trim();
   if (!phone) return { saved: false, reason: "no_phone" } as const;

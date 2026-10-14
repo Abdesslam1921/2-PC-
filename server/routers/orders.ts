@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   createCodOrder,
   createManualOrder,
+  getActiveStoreById,
   getOfferDetails,
   deleteArchivedOrder,
   deleteStoreOrder,
@@ -26,12 +27,26 @@ import { notifyNewOrder } from "../notifications";
 import { notifyCallCenterAgents } from "../callCenterNotifications";
 import { assignNewOrderToCallCenterAgent } from "../callCenterDb";
 import { verifyTurnstile } from "../turnstile";
+import { evaluateAbandonedAttempt } from "../abandonedGuard";
 import {
   protectedProcedure,
   publicProcedure,
   router,
   getStoreId,
 } from "../_core/trpc";
+
+/** Best-effort client IP for public abuse limiting (behind a proxy). */
+function getClientIp(req: {
+  headers?: Record<string, string | string[] | undefined>;
+  ip?: string;
+  socket?: { remoteAddress?: string | null };
+} | undefined): string {
+  const forwarded = req?.headers?.["x-forwarded-for"];
+  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  const fromHeader = first?.split(",")[0]?.trim();
+  if (fromHeader) return fromHeader;
+  return req?.ip || req?.socket?.remoteAddress || "unknown";
+}
 
 const lineInput = z.object({
   productId: z.number().int().positive(),
@@ -330,9 +345,50 @@ export const ordersRouter = router({
         wilaya: z.string().trim().max(120).optional(),
         municipality: z.string().trim().max(160).optional(),
         quantity: z.number().int().min(1).max(50),
+        turnstileToken: z.string().trim().max(4096).optional(),
       })
     )
-    .mutation(async ({ input }) => upsertAbandonedOrder(input)),
+    .mutation(async ({ ctx, input }) => {
+      // Tenant guard: resolve the product's store and only proceed for an
+      // existing, active product in an existing, active store.
+      const product = await getPublicStoreProduct(input.productId);
+      const storeId = product?.storeId ?? null;
+      if (!product || storeId == null)
+        return { saved: false, reason: "store_unavailable" } as const;
+      const store = await getActiveStoreById(storeId);
+      if (!store) return { saved: false, reason: "store_unavailable" } as const;
+
+      // Turnstile is opaque: verified only when the client actually sent a
+      // token (the app is enabled for the store). Without a token the silent
+      // abandoned-cart recording must keep working — it is rate-limited below.
+      if (
+        input.turnstileToken &&
+        !(await verifyTurnstile(storeId, input.turnstileToken))
+      )
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "تعذر التحقق من الحماية. أعد المحاولة.",
+        });
+
+      const ip = getClientIp(ctx.req);
+      const guard = evaluateAbandonedAttempt({
+        customerPhone: input.customerPhone,
+        ip,
+        storeId,
+      });
+      if (!guard.ok) return { saved: false, reason: guard.reason } as const;
+
+      return upsertAbandonedOrder({
+        productId: input.productId,
+        landingPageId: input.landingPageId,
+        sessionId: input.sessionId,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        wilaya: input.wilaya,
+        municipality: input.municipality,
+        quantity: input.quantity,
+      });
+    }),
   createManual: protectedProcedure
     .input(
       z.object({
