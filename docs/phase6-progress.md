@@ -318,4 +318,38 @@
 5. **حذف/أرشفة جدول عرض الكمية القديم** (`store_product_offers`).
 6. **إشعارات Call Center** التي تُرسَل لكل الموظفين بدل المعيَّن.
 7. **Admin override**.
+8. **تأكيد مدة صلاحية رابط Forge `presign/get`** (لا نضبطها من الكود؛ يُراجَع مع مزوّد التخزين عند التفعيل).
+
+---
+
+## مراجعة البند 1ب — إجابات الأسئلة الأربعة (14-10-2026)
+
+### Q1 — هل يظهر مفتاح التخزين/رابط `digital-products/` الخام في أي رد API/صفحة شكر/تتبّع/WhatsApp/بريد؟ — **لا الآن** — كوميت `e458f53`
+- **تدقيق منهجي:** `digitalFileStorageKey` / `digitalFileUrl` في كل `server/`. المفروض:
+  - **عام (زبون):** `getPublicStoreProduct` كان أصلًا يصفّرهما (`digitalFileStorageKey: null, digitalFileUrl: null`) → `products.publicGet/publicList` نظيفة. `digital.createOrder` لا يُرجِع روابط؛ `confirmPayment/regenerateLinks` تُرجِع `link.url` = `/api/downloads/:token` فقط؛ بريد `emailDigitalLinks` يستعمل نفس `link.url` (توكن). صفحة الشكر `ThankYouPopup` لا تعرض أي رابط ملف. لا ذكر لمفتاح رقمي في `notifications.ts`/`callCenterNotifications.ts`.
+  - **لوحة التاجر (محمي، لكن خام):** `products.list/get/create/update/patchCodTrust/duplicate` و`digital.products` كانت تُرجِع `digitalFileStorageKey` و`digitalFileUrl` خامَّين، و`digital.resolveDownload` كان يُرجِع `storageKey` خامًا.
+- **الإصلاح:** `server/productPayload.ts::withoutDigitalFileRefs` يحذف الحقلين، ويُطبَّق على كل مخرجات المنتجات (بما `digital.products`)، و`resolveDownload` يُجيب الآن `{...safe, signedUrl}` بلا `storageKey`. **لا رد API يحمل مفتاح ملف مدفوع أو رابط `/manus-storage/digital-products/…`**.
+- **اختبارات:** `products.test.ts` (list/get/duplicate/patch: لا `digitalFileStorageKey`/`digitalFileUrl`، ولا سلسلة `digital-products/` أو `/manus-storage/`) + `digital.test.ts` (القائمة و`resolveDownload` نظيفان).
+
+### Q2 — مدة صلاحية الروابط الموقّعة؟ — **دقائق قليلة** — كوميت `6e744ac`
+- **المحلي (`/api/media`, HMAC+exp):** `MEDIA_URL_TTL_MS = 5 دقائق` (مفروض ومُختبَر: `digitalDownloads.test.ts` يتحقّق أن `ttl ≤ 5min` و`> 0`).
+- **مسار التنزيل الحقيقي:** `/api/downloads/:token` بوّابته **توكن DB** (`expiresAt` بالساعات + `maxDownloads`)، والرابط الموقّع لا يُمنَح إلا بعد استهلاك التوكن، فيعيش 5 دقائق فقط.
+- **Forge (`presign/get`):** لا نضبط `expiresIn` (الـAPI الخارجي يعرّف المدة). **لم أختبره/أقِسه** — أُضيف لبند ما قبل الإطلاق (رقم 8). ملاحظة: لا `BUILT_IN_FORGE_*` في `.env` الحالي → المسار الفعّال الآن هو المحلي 5 دقائق.
+
+### Q3 — حد IP والاستخراج — كوميت `7735650`
+- **لا يخنق الزبائن بعد الآن:** الحد **الأساسي = (هاتف + متجر) = 10/10د** (يستهدف الإساءة الفعلية)، و**حد IP مرتفع = 3000/10د** كأرضية فيضان فقط — حتى لا تُسقط شبكات الهاتف الجزائرية المتناعدة IP (CGNAT) زبائن شرعيين.
+- **استخراج الـIP:** لم يعد يُقرأ `X-Forwarded-For` مباشرة (قابل للتزوير؛ الثقة بالـhop الأول تسمح بانتحال أي IP). نستعمل `req.ip` (يحتفي بضبط `trust proxy`؛ وغير مفعّل عندنا = النظير الحقيقي)، وإلا `socket.remoteAddress`، مع تجريد `::ffff:`. لو أُضيف بروكسي عكسي: `app.set("trust proxy", <hops>)`.
+- **تجاوز الحد لا يكسر إرسال الطلب:** الحاجز يُرجِع `{saved:false, reason:"rate_limited"}` بلا استثناء؛ و`saveAbandoned` مُطلَق ناري-وانسَ (fire-and-forget) منفصل تمامًا عن `orders.createCod` (الذي له Turnstile + orderClean الخاصان به) → حتى لو رُدّ المتروك، إتمام الطلب لا يتأثّر.
+
+### Q4 — قاعدة الهاتف والتنظيف — كوميت `d9d05b7`
+- **نفس القاعدة الآن في كل المسارات:** `server/phone.ts::normalizeAlgerianMobile` + `ALGERIAN_MOBILE_PATTERN = ^0[567][0-9]{8}$`، تُستعمل في `createCod`، الطلب اليدوي، وحاجز المتروك.
+- **التنظيف قبل التحقق (نعم):** إزالة المسافات/الشرطات/النقاط/الأقواس، وتحويل البادئة `+213`/`00213`/`213` (أو رقم وطني 9 خانات يبدأ 5/6/7) إلى الصيغة المحلية `0X…`. أمثلة: `+213 555 123 456` → `0555123456` · `0555-12-34-56` → `0555123456`.
+- **اختبارات:** `phone.test.ts` (6) + توسيع `saveAbandoned.test.ts` (6 حالات تطبيع) + `orders.test.ts` (createCod يقبل رقمًا منسّقًا ويخزّن المطبَّع). مرفوض كما قبل: `0212345678` و`05500`.
+
+### نتائج المراجعة
+- `pnpm check` → **0 أخطاء**.
+- `pnpm test` → **493 ناجح · 8 فاشل · 3 متخطّى (504)**. الفاشلة الثمانية **نفس** المعروفة قبل → **صفر انحدار**.
+- **لا migration** (لا تغيير مخطط/DB).
+- كوميتات هذه المراجعة: `e458f53` (Q1) · `6e744ac` (Q2) · `7735650` (Q3) · `d9d05b7` (Q4) + تحديث هذا الملف.
+
 
