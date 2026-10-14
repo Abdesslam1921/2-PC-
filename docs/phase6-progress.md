@@ -19,6 +19,25 @@
 
 > ✅ أُصلح في كوميت منفصل (fail-closed + الويب هوك يرد 401). التفاصيل في «سجل التنفيذ».
 
+### S2 — تلاعب بالأسعار عبر `priceOverride` من الكليان — **الخطورة: عالية**
+- **المكان:** `server/db.ts:1920-1921` → `const unitPrice = line.priceOverride ?? offer?.price ?? variant?.price ?? product.price;` (يُستدعى من `orders.createCod`، و`priceOverride` حقل كليان في `server/routers/orders.ts`).
+- **الأثر:** أي عميل يرسل `priceOverride` في سطر الطلب يفرض **السعر النهائي** (له أولوية على سعر DB/العرض/الخيار)، فيشتري أي منتج بأي سعر (مثل `"1.00"`). كما أن وجوده يتجاوز شرط اختيار الخيار (`db.ts:1905`).
+- **الحالة:** مؤكَّد من قراءة الكود ومسار الاستدعاء (يُستخدم الحقل حاليًا في Upsell: `client/src/components/CheckoutUpsellPopup.tsx`, `DirectCodOrderForm.tsx`).
+- **الإصلاح المقترح (بانتظار موافقة):** إعادة حساب سعر Upsell من أعمدة المنتج في DB، وتجاهل/رفض `priceOverride` القادم من الكليان (أو التحقق من تطابقه فقط).
+- **الوضع:** **لم يُصلَح بعد (بانتظار موافقة صريحة).**
+
+### S3 — قراءة ملفات عشوائية عبر بروكسي التخزين بلا مصادقة — **الخطورة: عالية**
+- **المكان:** `server/_core/storageProxy.ts:7-26` (`GET /manus-storage/*` بلا auth + `key` قابل للعبور عبر `../`).
+- **الأثر (مُختبر فعليًا):** `http.get /manus-storage/products/..%2f..%2fpackage.json` → **200** بمحتوى `package.json`، و`/manus-storage/products/..%2f..%2fserver%2fsecureSecrets.ts` → **200** بمصدر الملف. أي عملية قراءة ملفات محلية بلا مصادقة (قد تشمل ملفات الإعداد/الأسرار).
+- **الحالة:** **مؤكَّد تجريبيًا** عبر سكربت مؤقّت (Express + البروكسي الحقيقي، ثم حُذف).
+- **الإصلاح المقترح (بانتظار موافقة):** تطبيع + حصر المسار داخل `file_storage` (`path.resolve` + فحص البادئة)، رفض أي `..`/مقطع مطلق، ومراجعة الوصول العام للمفاتيح الحساسة (`digital-products/`, `whatsapp-media/`).
+- **الوضع:** **لم يُصلَح بعد (بانتظار موافقة صريحة).**
+
+### ملاحظات أقل خطورة (غير مؤكَّدة/معلوماتية)
+- **مفتاح التشفير احتياطي ثابت:** `secureSecrets.ts:4-7` يُشتق مفتاح AES من `ENV.cookieSecret` وإلا من `"abdou-store-local-secret"` — إن غاب `cookieSecret` في الإنتاج فالمفتاح معروف. (خطورة متوسطة، متعلّقة بالإعداد لا الكود.)
+- **ملفات رقمية مدفوعة عبر نفس البروكسي العام:** `storageGetSignedUrl` محليًا يُرجِع `/manus-storage/{key}` بلا مصادقة (خطورة متوسطة، مرتبطة بـS3).
+- **`orders.saveAbandoned` نقطة عامة:** تقبل أي `productId` + هاتف بلا Turnstile/حدّ معدّل وكتابة صفوف «متروكة» في أي متجر (إساءة/إغراق، خطورة منخفضة).
+
 ---
 
 ## سجل التنفيذ
@@ -154,3 +173,35 @@
 - **افتراضي المتجر بلا صف:** `DEFAULT_DISTRIBUTION_SETTINGS = { autoDistribute: true, distributionScope: "all", productIds: [] }` ويُرجَع عند: لا DB/لا صف/خطأ → نفس السلوك القديم (توزيع شغّال، كل المنتجات). لا يتوقف التوزيع بصمت.
 - **scope=specific:** طلب فيه منتج من اللائحة → يُوزَّع · طلب بمنتجات خارج اللائحة → لا يُوزَّع · **لائحة فارغة → لا توزيع** (fail-safe) · حذف منتج من اللائحة → الطلبات الجديدة التي تحتويه فقط تتوقف، والتوزيعات القديمة لا تُعاد.
 - **Orders.tsx — «حذف المزامنة»:** حُذف **مُشغِّل ومعالج `syncEcotrackStatus`** (زر «مزامنة الحالة» داخل جدول الطلبات) وأُزيل استيراد `RefreshCw`. صارت المزامنة فقط في صفحة ProShip.
+
+---
+
+## سجل التنفيذ — البند 1: عزل المستأجرين (14-10-2026)
+
+### سبب فشل «اختبارات تخزين الصور» + إصلاح
+- **السبب الفعلي = drift في fixtures لا في التخزين:** `productInput.showStockThreshold` و`variantInput.showStockThreshold` **إلزاميان** في `server/routers/products.ts` (منذ migration `0058`)، لكن `products.test.ts`/`digital.test.ts` كانا لا يمرّران الحقل → يفشل الإدخال (Zod) **قبل** الوصول لأي كود رفع. لذلك لم تكن تُختبر مسارات `storagePut` إطلاقًا.
+- **الإصلاح (اختبارات فقط):** أُضيف `showStockThreshold` إلى `validProductInput()`/variant في `products.test.ts` وإلى `digitalInput` في `digital.test.ts` (مطابق لما يرسله الكليان فعلًا: `ProductCreate.tsx`/`ProductEdit.tsx`).
+- **النتيجة (مُختبر):** `products.test.ts` + `digital.test.ts` → **8/8 نجحت**، ومنها اختبار «يتوقف إنشاء المنتج عند فشل تخزين الصور» (أثبت أن مسار الرفع صار مُنفَّذا).
+- ملاحظة عزل: مسار مفاتيح الصور `products/${ctx.user.id}/...` (بالمالك) ورفع الصور يمرّ عبر store-scoped API (وسط `getStoreId`)؛ لا وصول لصور متجر آخر عبر الـAPI لأن كل `getStoreProductById/getPublicStoreProduct` مقيّد بـ`storeId`.
+
+### اختبارات عزل صريحة جديدة
+- `server/routers/tenantIsolation.test.ts` (جديد، **10/10 نجحت**): fail-closed بلا متجر (`[]`/`NOT_FOUND` دون لمس DB) للـproducts/categories/offers، والتحقق أن القراءات مُقيّدة بمعرّف متجر المتصل (`getPublicStoreProduct(id, 7)` …إلخ) وأن منتج/فئة/عرض متجر آخر لا يُحَل.
+
+### نتيجة التدقيق الثابت (3.1–3.9)
+- **3.1 نقاط عامة:** ✅ fail-closed — `publicList/publicGet` (products/categories/offers) تُرجع `[]`/`NOT_FOUND` بلا متجر ومقيّدة بـ`storeId` معه (`db.ts`).
+- **3.2 إنشاء الطلبات:** `createCod` يشتق `storeId/ownerId` من **المنتج** ويرفض خلط متاجر (`db.ts:1855-1860`) ✅. `createManual` مقيّد بـ`storeId` ✅. **ملاحظة:** `saveAbandoned` عام بلا Turnstile/حدّ معدّل (انظر الملاحظات).
+- **3.3 الداشبورد المحمي:** `patchCodTrust` وكل عمليات المنتجات/الفئات/العروض تستعمل `getStoreId(ctx)` ✅. Call Center مقيّد بـ`agent.storeId` + `assertOrderVisible` (لا يرى إلا طلبات متجره/المختصّة) ✅.
+- **3.4 ProShip/Ecotrack:** الويب هوك يتحقق التوقيع (S1) ويحلّ الشحنة بـ`carrierId+tracking` ✅ (لا يحدّد المتجر صريحًا لكن رقم التتبع فريد عالميًا). المزامنة اليدوية/المجدولة مقيّدة بـ`storeId` ✅.
+- **3.5 مفاتيح الشركات:** `apiTokenEncrypted` مشفّر AES-256-GCM ✅ (`secureSecrets.ts`)؛ ملاحظة المفتاح الاحتياطي أعلاه.
+- **3.6 كل استعلام DB:** روجعت الدوال الحيوية (products/categories/offers/orders/callCenter/delivery) وكلها تتضمن `storeId` في `WHERE` أو تشتقّه من المنتج ✅.
+- **3.8 معرّفات داخل البيانات:** `offers.setProducts`/`categories.setProducts`/`setCategoryProducts` تُرشّح المنتجات بـ`storeId` (المعرّف الغريب يُهمَل/لا يُحرَّك) ✅؛ `appliedOffers` تُتحقق عبر `getOfferDetails(storeId, ...)` ✅؛ معرّف الموظف يُتحقق بـ`storeId` ✅.
+- **3.9 تلاعب الأسعار:** الخصومات (sharkCod/retarget/الحزم) تُعاد حسابها من DB وتُطابق الإعداد ✅ — **لكن `priceOverride` ثغرة عالية (S2).**
+
+### اختبارات مُشغَّلة
+- `pnpm check` → **0 أخطاء**.
+- `vitest run products.test.ts digital.test.ts tenantIsolation.test.ts` → **18/18 نجحت**.
+
+### ما يجب إصلاحه (بانتظار موافقة)
+- **S2** تلاعب الأسعار عبر `priceOverride` (عالية).
+- **S3** قراءة ملفات عشوائية عبر بروكسي التخزين (عالية، مؤكَّدة تجريبيًا).
+- لا migration مطلوب في هذا البند.

@@ -82,6 +82,7 @@ const digitalInput = {
   sku: "GUIDE-01",
   inventory: 0,
   lowStockThreshold: 0,
+  showStockThreshold: 0,
   trackInventory: false,
   continueSelling: true,
   deliveryPricingMode: "manual" as const,

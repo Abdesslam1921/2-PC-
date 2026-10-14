@@ -71,6 +71,7 @@ function validProductInput() {
     sku: "TS-001",
     inventory: 12,
     lowStockThreshold: 3,
+    showStockThreshold: 3,
     trackInventory: true,
     continueSelling: false,
     media: [
@@ -89,6 +90,7 @@ function validProductInput() {
         compareAtPrice: "4000",
         stock: 4,
         lowStockThreshold: 2,
+        showStockThreshold: 2,
         mediaId: "media-1",
         available: true,
       },
