@@ -9,7 +9,6 @@ import {
   Phone,
   Pencil,
   Plus,
-  RefreshCw,
   RotateCcw,
   Search,
   Send,
@@ -25,7 +24,7 @@ import { PageIntro } from "@/components/PageIntro";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 const formatPrice = (value: string) =>
   `${new Intl.NumberFormat("ar-DZ", { maximumFractionDigits: 2 }).format(Number(value))} دج`;
@@ -106,6 +105,7 @@ const statuses = {
     icon: ClipboardList,
   },
 } as const;
+type OrderScope = "general" | "mine" | "abandoned";
 type EditableStatus =
   | "review"
   | "confirmed"
@@ -211,22 +211,26 @@ export default function Orders() {
     },
     onError: error => toast.error(error.message),
   });
-  const syncEcotrackStatus = trpc.delivery.syncEcotrackStatus.useMutation({
-    onSuccess: async result => {
-      const label =
-        result.fulfillmentStatus === "delivered"
-          ? "كوموند ليفري"
-          : result.fulfillmentStatus === "returned"
-            ? "كوموند روتور"
-            : (result.carrierStatus ?? "لم تُرجع الشركة حالة معروفة");
-      toast.success(`تمت مزامنة الحالة: ${label}`);
-      await utils.orders.list.invalidate();
-    },
-    onError: error => toast.error(error.message),
-  });
+  /**
+   * Sidebar sub-navigation scope:
+   *   general  = كل الطلبات
+   *   mine     = كل الطلبات باستثناء المتروكة
+   *   abandoned= الطلبات المتروكة فقط
+   */
+  const scopeParam = new URLSearchParams(useSearch()).get("scope");
+  const scope: OrderScope =
+    scopeParam === "mine"
+      ? "mine"
+      : scopeParam === "abandoned"
+        ? "abandoned"
+        : "general";
   const orders = useMemo(
     () =>
       (ordersQuery.data ?? []).filter(order => {
+        if (scope === "abandoned" && order.fulfillmentStatus !== "abandoned")
+          return false;
+        if (scope === "mine" && order.fulfillmentStatus === "abandoned")
+          return false;
         const term = search.trim().toLocaleLowerCase("ar");
         return (
           !term ||
@@ -235,7 +239,7 @@ export default function Orders() {
           order.customerPhone.includes(term)
         );
       }),
-    [ordersQuery.data, search]
+    [ordersQuery.data, search, scope]
   );
   const ecotrackConnections = useMemo(
     () =>
@@ -283,13 +287,6 @@ export default function Orders() {
       tracking: order.carrierTracking,
     });
   };
-  const syncStatus = (order: (typeof orders)[number]) => {
-    if (!order.carrierTracking)
-      return toast.error(
-        "ارفع الطلب إلى Ecotrack أولًا للحصول على رقم التتبع."
-      );
-    syncEcotrackStatus.mutate({ orderId: order.id });
-  };
 
   return (
     <div className="home-scope" dir="rtl">
@@ -313,6 +310,28 @@ export default function Orders() {
           </div>
         }
       />
+      <nav aria-label="نطاق الطلبات" className="dash-tabs">
+        {(
+          [
+            { id: "general", label: "الطلبات العامة", to: "/orders" },
+            { id: "mine", label: "طلباتي", to: "/orders?scope=mine" },
+            {
+              id: "abandoned",
+              label: "الطلبات المتروكة",
+              to: "/orders?scope=abandoned",
+            },
+          ] as const
+        ).map(item => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setLocation(item.to)}
+            className={`dash-tab ${scope === item.id ? "is-active" : ""}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
       <div className="home-card mb-5 flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex h-11 w-full items-center gap-2 rounded-xl border border-transparent bg-[#F5F6F2] px-3 text-[#8A938D] transition focus-within:border-[var(--brand)] focus-within:bg-white focus-within:ring-4 focus-within:ring-[var(--brand)]/10 sm:max-w-xs">
           <Search className="size-4" />
@@ -547,19 +566,19 @@ export default function Orders() {
                         </p>
                       </td>
                       <td className="px-5 py-4">
-                        <p className="flex items-center gap-2 text-sm font-extrabold text-[#1F2A25]">
-                          <UserRound className="size-4 text-[var(--brand)]" />
+                        <p className="flex items-center gap-1.5 text-[12.5px] font-extrabold text-[#1F2A25]">
+                          <UserRound className="size-3.5 shrink-0 text-[var(--brand)]" />
                           {order.customerName}
                         </p>
                         <p
                           dir="ltr"
-                          className={`mt-1 flex items-center gap-1.5 ${
+                          className={`dash-orders-phone mt-1 text-[#79837D] ${
                             order.fulfillmentStatus === "abandoned"
-                              ? "text-base font-black text-[#A63D28]"
-                              : "text-xs font-bold text-[#79837D]"
+                              ? "is-abandoned"
+                              : ""
                           }`}
                         >
-                          <Phone className="size-3.5" />
+                          <Phone className="size-3.5 shrink-0" />
                           {order.customerPhone}
                         </p>
                       </td>
@@ -654,21 +673,9 @@ export default function Orders() {
                               : "إنشاء بوليصة"}
                           </button>
                           {order.carrierTracking && (
-                            <>
-                              <span className="text-[10px] font-bold text-[#79837D]">
-                                تتبع: {order.carrierTracking}
-                              </span>
-                              <button
-                                onClick={() => syncStatus(order)}
-                                disabled={syncEcotrackStatus.isPending}
-                                className="btn-press inline-flex h-8 items-center gap-1 rounded-xl border border-[#E3E1D8] bg-white px-2.5 text-[10px] font-extrabold text-[var(--brand)] transition hover:bg-[#F5F6F2] disabled:opacity-50"
-                              >
-                                <RefreshCw
-                                  className={`size-3 ${syncEcotrackStatus.isPending ? "animate-spin" : ""}`}
-                                />
-                                مزامنة الحالة
-                              </button>
-                            </>
+                            <span className="max-w-full truncate text-[10px] font-bold text-[#79837D]">
+                              تتبع: {order.carrierTracking}
+                            </span>
                           )}
                           {order.carrierStatus && (
                             <span className="text-[10px] font-bold text-[#79837D]">
@@ -707,11 +714,19 @@ export default function Orders() {
       ) : (
         <EmptyState
           icon={ClipboardList}
-          title={search ? "لا توجد طلبات مطابقة" : "لا توجد طلبات بعد"}
+          title={
+            search
+              ? "لا توجد طلبات مطابقة"
+              : scope === "abandoned"
+                ? "لا توجد طلبات متروكة"
+                : "لا توجد طلبات بعد"
+          }
           description={
             search
               ? "جرّب البحث برقم طلب أو باسم العميل."
-              : "ستظهر هنا الطلبات التي يؤكدها العملاء بالدفع عند الاستلام من واجهة المتجر."
+              : scope === "abandoned"
+                ? "تظهر هنا الطلبات التي بدأها العملاء دون إكمالها."
+                : "ستظهر هنا الطلبات التي يؤكدها العملاء بالدفع عند الاستلام من واجهة المتجر."
           }
           action={
             !search ? (

@@ -50,4 +50,30 @@ describe("dashboard sidebar navigation", () => {
       expect(app.includes(`path="${path}"`), `لا راوت لـ ${path}`).toBe(true);
     }
   });
+
+  it("exposes sub-navigation for Orders, Products, Create, and Offers", () => {
+    for (const label of [
+      "الطلبات العامة",
+      "طلباتي",
+      "الطلبات المتروكة",
+      "المنتجات العامة",
+      "المنتجات المادية",
+      "المنتجات الرقمية",
+      "إنشاء منتج مادي",
+      "إنشاء منتج رقمي",
+      "العروض العامة",
+      "الباقات",
+      "خصم الكمية",
+      "Upsell",
+    ]) {
+      expect(source, `بند فرعي مفقود: ${label}`).toContain(label);
+    }
+  });
+
+  it("keeps the digital entry out of the main sidebar (moved under المنتجات)", () => {
+    expect(navPaths).not.toContain("/digital-products");
+    expect(source).not.toContain(
+      'label: "المنتجات الرقمية", path: "/digital-products"'
+    );
+  });
 });

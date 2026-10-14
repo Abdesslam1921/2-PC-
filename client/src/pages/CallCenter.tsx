@@ -9,6 +9,7 @@ import {
   PhoneCall,
   Plus,
   Search,
+  Shuffle,
   Trash2,
   Truck,
   UserRound,
@@ -67,6 +68,12 @@ const carrierLabel = (status: string | null | undefined) =>
   status
     ? (carrierLabels[status.toLowerCase()] ?? status)
     : "في انتظار حالة شركة الشحن";
+
+type CallCenterDistribution = {
+  autoDistribute: boolean;
+  distributionScope: "all" | "specific";
+  productIds: number[];
+};
 
 type AgentForm = {
   name: string;
@@ -564,6 +571,34 @@ function CallCenterAdmin() {
         ? current.productIds.filter(productId => productId !== id)
         : [...current.productIds, id],
     }));
+  const distributionQuery = trpc.callCenter.distributionSettings.useQuery();
+  const saveDistribution = trpc.callCenter.saveDistributionSettings.useMutation(
+    {
+      onSuccess: () => {
+        toast.success("تم حفظ إعدادات التوزيع التلقائي.");
+        void distributionQuery.refetch();
+      },
+      onError: error => toast.error(error.message),
+    }
+  );
+  const [distribution, setDistribution] = useState<CallCenterDistribution>({
+    autoDistribute: true,
+    distributionScope: "all",
+    productIds: [],
+  });
+  const [distributionLoaded, setDistributionLoaded] = useState(false);
+  useEffect(() => {
+    if (distributionLoaded || !distributionQuery.data) return;
+    setDistribution(distributionQuery.data);
+    setDistributionLoaded(true);
+  }, [distributionLoaded, distributionQuery.data]);
+  const toggleDistributionProduct = (id: number) =>
+    setDistribution(current => ({
+      ...current,
+      productIds: current.productIds.includes(id)
+        ? current.productIds.filter(productId => productId !== id)
+        : [...current.productIds, id],
+    }));
   return (
     <main dir="rtl" className="min-h-full">
       <div className="mx-auto max-w-6xl">
@@ -576,10 +611,11 @@ function CallCenterAdmin() {
               Call Center
             </h1>
             <p className="mt-2 text-sm text-[#79837D]">
-              أنشئ حسابات لفريق تأكيد الطلبات، اختر لكل عميل «صلاحيات كاملة»
-              على كل الطلبات وبروشيب، أو خصّص له منتجات مسموحة فقط. الطلبات
-              الجديدة تُوزَّع بالتناوب، والعميل نفسه يبقى عند نفس الموظف. الطلبات
-              السابقة لا تُعاد توزيعها.
+              أنشئ حسابات لفريق تأكيد الطلبات، وحدّد لكل عميل نطاق التوزيع:
+              «كل المنتجات» (صلاحيات كاملة) أو «منتجات محددة». التوزيع التلقائي
+              بالتناوب يطبَّق على الوكلاء المفعّلين بغض النظر عن حالة الاتصال،
+              ويفلتر المنتجات قبل الإسناد. العميل نفسه يبقى عند نفس الموظف،
+              والطلبات السابقة لا تُعاد توزيعها.
             </p>
             <p className="mt-2 text-xs leading-6 text-[#8A938D]">
               تصله إشعارات الطلبات والحالات على بريده عند ربط Google ومنح صلاحية
@@ -608,6 +644,7 @@ function CallCenterAdmin() {
             </Button>
           </div>
         </header>
+
         <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_360px]">
           <section className="space-y-4">
             <div>
@@ -786,10 +823,112 @@ function CallCenterAdmin() {
               )}
             </div>
           </section>
-          <section
-            id="new-agent"
-            className="h-fit rounded-[20px] border border-[#E7E9E2] bg-white p-5 shadow-soft lg:sticky lg:top-6"
-          >
+          <div className="h-fit space-y-4 lg:sticky lg:top-6">
+            <div className="rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--brand-strong)]">
+                  <Shuffle className="size-4" />
+                  التوزيع التلقائي (Round-robin)
+                </p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-[11px] font-extrabold ${distribution.autoDistribute ? "text-[var(--brand-strong)]" : "text-[#79837D]"}`}
+                  >
+                    {distribution.autoDistribute ? "مفعّل" : "متوقف"}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    dir="ltr"
+                    aria-checked={distribution.autoDistribute}
+                    aria-label="تشغيل أو إيقاف التوزيع التلقائي"
+                    onClick={() =>
+                      setDistribution(current => ({
+                        ...current,
+                        autoDistribute: !current.autoDistribute,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 ${distribution.autoDistribute ? "border-[var(--brand)] bg-[var(--brand)]" : "border-[#D5DAD6] bg-[#E7EAE6]"}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 size-5 rounded-full bg-white shadow-soft transition-all duration-200 ${distribution.autoDistribute ? "left-[22px]" : "left-0.5"}`}
+                    />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-[#4C6B63]">
+                يوزّع الطلبات الجديدة بالتناوب على الوكلاء المفعّلين (بغض النظر عن
+                الاتصال). اختر نطاق التوزيع:
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  aria-pressed={distribution.distributionScope === "all"}
+                  onClick={() =>
+                    setDistribution(current => ({
+                      ...current,
+                      distributionScope: "all",
+                    }))
+                  }
+                  className={`rounded-xl border px-3 py-2.5 text-center text-xs font-extrabold leading-5 transition-colors duration-200 ${distribution.distributionScope === "all" ? "border-[var(--brand)] bg-white text-[var(--brand-strong)] shadow-soft" : "border-transparent bg-white/60 text-[#79837D] hover:bg-white"}`}
+                >
+                  كل المنتجات (صلاحيات كاملة)
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={distribution.distributionScope === "specific"}
+                  onClick={() =>
+                    setDistribution(current => ({
+                      ...current,
+                      distributionScope: "specific",
+                    }))
+                  }
+                  className={`rounded-xl border px-3 py-2.5 text-center text-xs font-extrabold leading-5 transition-colors duration-200 ${distribution.distributionScope === "specific" ? "border-[var(--brand)] bg-white text-[var(--brand-strong)] shadow-soft" : "border-transparent bg-white/60 text-[#79837D] hover:bg-white"}`}
+                >
+                  منتجات محددة
+                </button>
+              </div>
+              {distribution.distributionScope === "specific" && (
+                <div className="mt-2 max-h-44 space-y-2 overflow-y-auto rounded-xl border border-[#E3E1D8] p-2">
+                  {products.map(product => (
+                    <label
+                      key={product.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-xs font-bold text-[#1F2A25] transition-colors duration-200 hover:bg-[var(--brand-soft)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={distribution.productIds.includes(product.id)}
+                        onChange={() => toggleDistributionProduct(product.id)}
+                        className="size-4 accent-[var(--brand)]"
+                      />
+                      {product.title}
+                    </label>
+                  ))}
+                  {!products.length && (
+                    <p className="px-2 py-3 text-center text-xs text-[#8A938D]">
+                      لا توجد منتجات في المتجر بعد.
+                    </p>
+                  )}
+                </div>
+              )}
+              <Button
+                onClick={() => saveDistribution.mutate(distribution)}
+                disabled={
+                  saveDistribution.isPending ||
+                  (distribution.distributionScope === "specific" &&
+                    distribution.productIds.length === 0)
+                }
+                className="btn-press mt-3 h-10 w-full rounded-xl bg-[var(--brand)] text-xs font-extrabold text-white shadow-cta hover:bg-[var(--brand-strong)]"
+              >
+                {saveDistribution.isPending
+                  ? "جارٍ الحفظ..."
+                  : "حفظ إعدادات التوزيع"}
+              </Button>
+            </div>
+            <section
+              id="new-agent"
+              className="rounded-[20px] border border-[#E7E9E2] bg-white p-5 shadow-soft"
+            >
             <h2 className="flex items-center gap-2 font-extrabold text-[#1F2A25]">
               <Plus className="size-5 text-[var(--brand)]" />
               {editingId ? "تعديل حساب العميل" : "إنشاء حساب جديد"}
@@ -978,13 +1117,14 @@ function CallCenterAdmin() {
                 المتابعة والسويفي
               </label>
             </div>
-            <div className="mt-5">
-              <p className="text-sm font-extrabold text-[#1F2A25]">
-                صلاحية الوصول للطلبات
+            <div className="mt-5 rounded-2xl border border-[var(--brand)]/25 bg-[var(--brand-soft)] p-3">
+              <p className="flex items-center gap-2 text-sm font-extrabold text-[var(--brand-strong)]">
+                <Shuffle className="size-4" />
+                نطاق هذا الوكيل (صلاحية الوصول)
               </p>
-              <p className="mt-1 text-xs leading-5 text-[#79837D]">
-                اختر صلاحية العميل: صلاحيات كاملة على كل طلبات المتجر (الطلبات،
-                تغيير الحالات، تتبع بروشيب)، أو تقييده بمنتجات محددة فقط.
+              <p className="mt-1 text-xs leading-5 text-[#4C6B63]">
+                يخضع التوزيع للمفتاح العام في الأعلى (مفعّل/متوقف + كل المنتجات أو
+                منتجات محددة). هنا حدّد نطاق <b>هذا الوكيل</b>:
               </p>
               <div className="mt-3 grid gap-2">
                 <label
@@ -1000,10 +1140,12 @@ function CallCenterAdmin() {
                     className="accent-[var(--brand)]"
                   />
                   <span>
-                    <b className="text-[#1F2A25]">صلاحيات كاملة (كل الطلبات)</b>
+                    <b className="text-[#1F2A25]">
+                      كل المنتجات (صلاحيات كاملة)
+                    </b>
                     <small className="mt-1 block font-normal text-[#79837D]">
-                      يرى العميل كل طلبات المتجر ويغيّر حالاتها ويتتبع بروشيب
-                      بدون تقييد بالمنتجات.
+                      يُسند إليه أي طلب جديد، ويرى كل طلبات المتجر ويغيّر حالاتها
+                      ويتتبع بروشيب بدون تقييد بالمنتجات.
                     </small>
                   </span>
                 </label>
@@ -1020,13 +1162,18 @@ function CallCenterAdmin() {
                     className="accent-[var(--brand)]"
                   />
                   <span>
-                    <b className="text-[#1F2A25]">منتجات محددة فقط</b>
+                    <b className="text-[#1F2A25]">منتجات محددة</b>
                     <small className="mt-1 block font-normal text-[#79837D]">
-                      يرى العميل الطلبات المرتبطة بالمنتجات المختارة فقط.
+                      يُسند إليه فقط الطلبات التي تحتوي منتجاته المختارة، ويرى
+                      الطلبات المرتبطة بها فقط.
                     </small>
                   </span>
                 </label>
               </div>
+              <p className="mt-2 text-[11px] leading-5 text-[#5C7A72]">
+                لإيقاف استقبال هذا الوكيل للطلبات: اضغط زر «مفعل/متوقف» في
+                بطاقته بعد الحفظ.
+              </p>
             </div>
             <div className="mt-5">
               <div className="flex items-center justify-between gap-2">
@@ -1119,7 +1266,8 @@ function CallCenterAdmin() {
                 إلغاء التعديل
               </button>
             )}
-          </section>
+            </section>
+          </div>
         </div>
       </div>
     </main>

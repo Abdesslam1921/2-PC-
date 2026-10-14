@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { trpc } from "@/lib/trpc";
+import { useLocation, useSearch } from "wouter";
 
 type Tier = {
   quantity: string;
@@ -112,10 +113,23 @@ const slugPreview = (value: string) =>
 const money = (value: number) =>
   `${new Intl.NumberFormat("ar-DZ", { maximumFractionDigits: 2 }).format(value)} دج`;
 
+type OfferTab = "all" | "bundle" | "quantity" | "upsell";
+
 export default function Offers() {
   const utils = trpc.useUtils();
-  /** Each offer kind has its own list; Upsell edits the product's columns. */
-  const [tab, setTab] = useState<"bundle" | "quantity" | "upsell">("bundle");
+  /**
+   * Each offer kind has its own list; Upsell edits the product's columns.
+   * The active tab is driven by the sidebar sub-navigation (`?tab=`) so both
+   * stay in sync. `all` is the "العروض العامة" overview.
+   */
+  const [, setLocation] = useLocation();
+  const tabParam = new URLSearchParams(useSearch()).get("tab");
+  const tab: OfferTab =
+    tabParam === "bundle" || tabParam === "quantity" || tabParam === "upsell"
+      ? tabParam
+      : "all";
+  const goTab = (next: OfferTab) =>
+    setLocation(next === "all" ? "/offers" : `/offers?tab=${next}`);
   const [upsellDraft, setUpsellDraft] = useState<UpsellDraft | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -175,13 +189,15 @@ export default function Offers() {
         (a, b) => ordered.indexOf(a.id) - ordered.indexOf(b.id)
       )
     : offers.data ?? [];
-  /** Each tab has its own list (never one merged list). */
+  /** Each tab has its own list (the "all" tab merges every offer kind). */
   const tabRows =
-    tab === "bundle"
-      ? rows.filter(row => row.kind !== "quantity")
-      : tab === "quantity"
-        ? rows.filter(row => row.kind === "quantity")
-        : [];
+    tab === "all"
+      ? rows
+      : tab === "bundle"
+        ? rows.filter(row => row.kind !== "quantity")
+        : tab === "quantity"
+          ? rows.filter(row => row.kind === "quantity")
+          : [];
 
   /**
    * Quantity deals are grouped per product: creating 10 tiers for one product
@@ -422,6 +438,7 @@ export default function Offers() {
       <div className="flex flex-wrap gap-2 rounded-2xl border border-[#E7E9E2] bg-white p-1.5">
         {(
           [
+            { id: "all", label: "العامة" },
             { id: "bundle", label: "باقات" },
             { id: "quantity", label: "خصم كمية" },
             { id: "upsell", label: "Upsell" },
@@ -430,7 +447,7 @@ export default function Offers() {
           <button
             key={item.id}
             type="button"
-            onClick={() => setTab(item.id)}
+            onClick={() => goTab(item.id)}
             className={`flex-1 rounded-xl px-4 py-2.5 text-[13px] font-extrabold transition ${
               tab === item.id
                 ? "bg-[var(--brand-soft)] text-[#0B5D57]"
@@ -442,7 +459,9 @@ export default function Offers() {
               <span className="mr-1.5 text-[11px] font-bold text-[#9aa39d]">
                 {item.id === "bundle"
                   ? rows.filter(row => row.kind !== "quantity").length
-                  : rows.filter(row => row.kind === "quantity").length}
+                  : item.id === "quantity"
+                    ? rows.filter(row => row.kind === "quantity").length
+                    : rows.length}
               </span>
             ) : null}
           </button>
@@ -452,15 +471,18 @@ export default function Offers() {
       {/* Contextual add action, inside the active tab. */}
       <div className="flex items-center justify-between rounded-2xl border border-[#E7E9E2] bg-white px-4 py-3">
         <span className="text-[12.5px] font-black text-[#576B66]">
-          {tab === "bundle"
-            ? "الباقات"
-            : tab === "quantity"
-              ? "عروض خصم الكمية"
-              : "Smart Checkout Upsell"}
+          {tab === "all"
+            ? "كل العروض"
+            : tab === "bundle"
+              ? "الباقات"
+              : tab === "quantity"
+                ? "عروض خصم الكمية"
+                : "Smart Checkout Upsell"}
         </span>
         <Button
           onClick={() => {
-            if (tab === "bundle") setDraft({ ...emptyDraft, kind: "bundle" });
+            if (tab === "all" || tab === "bundle")
+              setDraft({ ...emptyDraft, kind: "bundle" });
             else if (tab === "quantity")
               setDraft({ ...emptyDraft, kind: "quantity", tiers: [emptyTier()] });
             else setUpsellDraft(emptyUpsellDraft());
@@ -468,7 +490,7 @@ export default function Offers() {
           className="h-10 rounded-xl brand-shine cta-gradient px-4 text-[12.5px] font-extrabold"
         >
           <Plus className="ml-1.5 size-4" />
-          {tab === "bundle"
+          {tab === "all" || tab === "bundle"
             ? "إضافة باقة"
             : tab === "quantity"
               ? "إضافة خصم كمية"
@@ -592,9 +614,11 @@ export default function Offers() {
       ) : tabRows.length === 0 ? (
         <Card className="rounded-2xl border-[#E7E9E2]">
           <CardContent className="py-14 text-center text-sm text-[#73758a]">
-            {tab === "bundle"
-              ? "لا باقات بعد. اضغط «إضافة باقة»."
-              : "لا عروض خصم كمية بعد. اضغط «إضافة خصم كمية»."}
+            {tab === "all"
+              ? "لا عروض بعد. اضغط «إضافة باقة» أو اختر نوعًا من التبويبات."
+              : tab === "bundle"
+                ? "لا باقات بعد. اضغط «إضافة باقة»."
+                : "لا عروض خصم كمية بعد. اضغط «إضافة خصم كمية»."}
           </CardContent>
         </Card>
       ) : tab === "quantity" ? (

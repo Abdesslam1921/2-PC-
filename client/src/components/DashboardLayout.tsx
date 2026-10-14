@@ -26,7 +26,6 @@ import {
   CircleHelp,
   CircleDollarSign,
   Cable,
-  FileDown,
   Truck,
   LayoutDashboard,
   BadgePercent,
@@ -38,7 +37,6 @@ import {
   Package,
   PhoneCall,
   PanelsTopLeft,
-  Plus,
   Settings,
   ShoppingBag,
   Sparkles,
@@ -46,23 +44,129 @@ import {
   WandSparkles,
   Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
-export const dashboardNavigation = [
+type NavSubItem = {
+  label: string;
+  to: string;
+  /** Whether this sub-item is the active one for the current query. */
+  match: (params: URLSearchParams) => boolean;
+};
+
+type NavSubEntry = NavSubItem | { label: string; section: true };
+
+type DashboardNavItem = {
+  icon: LucideIcon;
+  label: string;
+  path: string;
+  subs?: NavSubEntry[];
+};
+
+const kindOf = (params: URLSearchParams) => params.get("kind");
+
+export const dashboardNavigation: DashboardNavItem[] = [
   { icon: LayoutDashboard, label: "نظرة عامة", path: "/dashboard" },
-  { icon: Package, label: "المنتجات", path: "/products" },
+  {
+    icon: Package,
+    label: "المنتجات",
+    path: "/products",
+    subs: [
+      {
+        label: "المنتجات العامة",
+        to: "/products",
+        match: params => {
+          const kind = kindOf(params);
+          return kind !== "physical" && kind !== "digital";
+        },
+      },
+      {
+        label: "المنتجات المادية",
+        to: "/products?kind=physical",
+        match: params => kindOf(params) === "physical",
+      },
+      {
+        label: "المنتجات الرقمية",
+        to: "/products?kind=digital",
+        match: params => kindOf(params) === "digital",
+      },
+      { label: "إنشاء منتج", section: true },
+      {
+        label: "إنشاء منتج مادي",
+        to: "/products/create",
+        match: params => kindOf(params) !== "digital",
+      },
+      {
+        label: "إنشاء منتج رقمي",
+        to: "/products/create?kind=digital",
+        match: params => kindOf(params) === "digital",
+      },
+    ],
+  },
   { icon: FolderTree, label: "الفئات", path: "/categories" },
-  { icon: BadgePercent, label: "العروض", path: "/offers" },
-  { icon: FileDown, label: "المنتجات الرقمية", path: "/digital-products" },
+  {
+    icon: BadgePercent,
+    label: "العروض",
+    path: "/offers",
+    subs: [
+      {
+        label: "العروض العامة",
+        to: "/offers",
+        match: params => {
+          const tab = params.get("tab");
+          return !tab || tab === "all";
+        },
+      },
+      {
+        label: "الباقات",
+        to: "/offers?tab=bundle",
+        match: params => params.get("tab") === "bundle",
+      },
+      {
+        label: "خصم الكمية",
+        to: "/offers?tab=quantity",
+        match: params => params.get("tab") === "quantity",
+      },
+      {
+        label: "Upsell",
+        to: "/offers?tab=upsell",
+        match: params => params.get("tab") === "upsell",
+      },
+    ],
+  },
   { icon: Truck, label: "التوصيل", path: "/delivery" },
   { icon: Cable, label: "Connecteurs", path: "/connecteurs" },
   { icon: PhoneCall, label: "Call Center", path: "/call-center" },
   { icon: PanelsTopLeft, label: "الفانل", path: "/funnels" },
   { icon: LayoutTemplate, label: "القوالب", path: "/templates" },
-  { icon: ShoppingBag, label: "الطلبات", path: "/orders" },
+  {
+    icon: ShoppingBag,
+    label: "الطلبات",
+    path: "/orders",
+    subs: [
+      {
+        label: "الطلبات العامة",
+        to: "/orders",
+        match: params => {
+          const scope = params.get("scope");
+          return scope !== "mine" && scope !== "abandoned";
+        },
+      },
+      {
+        label: "طلباتي",
+        to: "/orders?scope=mine",
+        match: params => params.get("scope") === "mine",
+      },
+      {
+        label: "الطلبات المتروكة",
+        to: "/orders?scope=abandoned",
+        match: params => params.get("scope") === "abandoned",
+      },
+    ],
+  },
   { icon: Truck, label: "ProShip · تتبع الشحن", path: "/for-ship" },
   {
     icon: CircleDollarSign,
@@ -72,7 +176,7 @@ export const dashboardNavigation = [
   { icon: WandSparkles, label: "AI Media Buying", path: "/media-buying" },
   { icon: Sparkles, label: "التحليل بالذكاء الاصطناعي", path: "/ai-analytics" },
   { icon: Users, label: "العملاء", path: "/customers" },
-] as const;
+];
 
 const navigationGroups: Array<{ title: string; paths: string[] }> = [
   { title: "الرئيسية", paths: ["/dashboard"] },
@@ -86,7 +190,6 @@ const navigationGroups: Array<{ title: string; paths: string[] }> = [
       "/products",
       "/categories",
       "/offers",
-      "/digital-products",
       "/call-center",
       "/profitability",
       "/connecteurs",
@@ -110,14 +213,11 @@ const dashboardTabs = [
   { label: "الطلبات", path: "/orders" },
   { label: "المنتجات", path: "/products" },
   { label: "إنشاء منتج", path: "/products/create" },
-  { label: "رقمية", path: "/digital-products" },
-  { label: "إنشاء رقمي", path: "/products/create?kind=digital" },
   { label: "الفئات", path: "/categories" },
   { label: "العروض", path: "/offers" },
   { label: "Call Center", path: "/call-center" },
   { label: "Profitability", path: "/profitability" },
   { label: "التطبيقات", path: "/connecteurs" },
-  { label: "الباقية", path: "/dashboard" },
   { label: "الرئيسية", path: "/dashboard" },
 ] as const;
 
@@ -131,23 +231,15 @@ function DashboardTabs({
   return (
     <nav aria-label="تبويبات الأقسام" className="dash-tabs">
       {dashboardTabs.map(tab => {
-        const kind =
-          typeof window === "undefined"
-            ? ""
-            : new URLSearchParams(window.location.search).get("kind");
         const active =
-          tab.label === "إنشاء رقمي"
-            ? location.startsWith("/products/create") && kind === "digital"
-            : tab.label === "إنشاء منتج"
-              ? location.startsWith("/products/create") && kind !== "digital"
-              : tab.path === "/products"
-                ? location === "/products"
-                : tab.path === "/dashboard"
-                  ? location === "/dashboard" && tab.label === "الرئيسية"
-                  : tab.path === "/connecteurs"
-                    ? location === "/connecteurs" ||
-                      location.startsWith("/connecteurs/")
-                    : location === tab.path;
+          tab.path === "/products"
+            ? location === "/products"
+            : tab.path === "/products/create"
+              ? location === "/products/create"
+              : tab.path === "/connecteurs"
+                ? location === "/connecteurs" ||
+                  location.startsWith("/connecteurs/")
+                : location === tab.path;
         return (
           <button
             key={`${tab.label}-${tab.path}`}
@@ -235,9 +327,14 @@ function UserAccount({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
+export function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location, setLocation] = useLocation();
-  const renderItem = (item: (typeof dashboardNavigation)[number]) => {
+  const params = new URLSearchParams(useSearch());
+  const go = (to: string) => {
+    setLocation(to);
+    onNavigate?.();
+  };
+  const renderItem = (item: DashboardNavItem) => {
     const active =
       item.path === "/connecteurs"
         ? location === "/connecteurs" || location.startsWith("/connecteurs/")
@@ -246,10 +343,7 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <button
         key={item.path}
-        onClick={() => {
-          setLocation(item.path);
-          onNavigate?.();
-        }}
+        onClick={() => go(item.path)}
         aria-current={active ? "page" : undefined}
         className={`group relative flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${active ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
       >
@@ -261,6 +355,41 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           className={`size-3.5 shrink-0 transition ${active ? "text-[var(--brand)]" : "text-[#9AA49E] group-hover:text-[var(--brand)]"}`}
         />
       </button>
+    );
+  };
+  /**
+   * Sub-navigation stays collapsed until its main section is opened, so the
+   * section's sub-tabs only appear once you are on (or click) its main tab.
+   */
+  const isSectionOpen = (item: DashboardNavItem) =>
+    location === item.path || location.startsWith(`${item.path}/`);
+  const renderSubs = (item: DashboardNavItem) => {
+    if (!item.subs?.length || !isSectionOpen(item)) return null;
+    return (
+      <div className="dash-subnav">
+        {item.subs.map(sub => {
+          if ("section" in sub) {
+            return (
+              <p key={sub.label} className="dash-subnav-heading">
+                {sub.label}
+              </p>
+            );
+          }
+          const subPath = sub.to.split("?")[0];
+          const active = location === subPath && sub.match(params);
+          return (
+            <button
+              key={sub.to}
+              type="button"
+              onClick={() => go(sub.to)}
+              aria-current={active ? "page" : undefined}
+              className={`dash-subnav-link ${active ? "is-active" : ""}`}
+            >
+              <span className="min-w-0 flex-1 truncate">{sub.label}</span>
+            </button>
+          );
+        })}
+      </div>
     );
   };
   return (
@@ -278,54 +407,19 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
                 entry => entry.path === path
               );
               if (!item) return null;
-              if (item.path === "/products") {
-                return (
-                  <div key={item.path}>
-                    {renderItem(item)}
-                    <button
-                      onClick={() => {
-                        setLocation("/products/create");
-                        onNavigate?.();
-                      }}
-                      aria-current={
-                        location === "/products/create" ? "page" : undefined
-                      }
-                      className={`group relative mt-0.5 flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 pr-4 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${location === "/products/create" ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">إنشاء منتج</span>
-                      <Plus className="size-3.5 shrink-0 text-[#9AA49E]" />
-                    </button>
-                  </div>
-                );
-              }
-              if (item.path === "/digital-products") {
-                return (
-                  <div key={item.path}>
-                    {renderItem(item)}
-                    <button
-                      onClick={() => {
-                        setLocation("/products/create?kind=digital");
-                        onNavigate?.();
-                      }}
-                      className="group relative mt-0.5 flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 pr-4 text-right text-[12.5px] font-bold text-[#5D6862] transition duration-200 hover:bg-[#F2F4EF] hover:text-[#1F2A25]"
-                    >
-                      <span className="min-w-0 flex-1 truncate">إنشاء رقمي</span>
-                      <Plus className="size-3.5 shrink-0 text-[#9AA49E]" />
-                    </button>
-                  </div>
-                );
-              }
-              return renderItem(item);
+              return (
+                <div key={item.path}>
+                  {renderItem(item)}
+                  {renderSubs(item)}
+                </div>
+              );
             })}
           </div>
         </div>
       ))}
       <div className="border-t border-[#EDEEE8] pt-4">
         <button
-          onClick={() => {
-            setLocation("/settings");
-            onNavigate?.();
-          }}
+          onClick={() => go("/settings")}
           aria-current={location === "/settings" ? "page" : undefined}
           className={`group relative flex w-full items-center justify-end gap-2 rounded-xl px-2.5 py-1.5 text-right text-[12.5px] font-bold transition duration-200 active:scale-[0.98] ${location === "/settings" ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]" : "text-[#5D6862] hover:bg-[#F2F4EF] hover:text-[#1F2A25]"}`}
         >
@@ -375,9 +469,11 @@ function SidebarContent({
         <p>ترقية إلى Pro</p>
         <button type="button">Pro</button>
       </div>
-      <div className="border-t border-[#EDEEE8] p-3">
-        <UserAccount mobile={mobile} />
-      </div>
+      {mobile && (
+        <div className="border-t border-[#EDEEE8] p-3">
+          <UserAccount mobile={mobile} />
+        </div>
+      )}
     </div>
   );
 }
@@ -407,11 +503,11 @@ export default function DashboardLayout({
         <span className="home-orb home-orb-2" />
         <span className="home-orb home-orb-3" />
       </div>
-      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[188px] border-l border-[#E7E9E2] bg-white lg:block">
+      <aside className="fixed inset-y-0 right-0 z-40 hidden w-[232px] border-l border-[#E7E9E2] bg-white lg:block">
         <SidebarContent />
       </aside>
 
-      <div className="relative z-10 min-h-screen lg:mr-[188px]">
+      <div className="relative z-10 min-h-screen lg:mr-[232px]">
         <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[rgba(15,118,110,0.14)] bg-[rgba(243,245,244,0.92)] px-4 backdrop-blur-xl sm:px-5">
           <div className="flex items-center gap-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>

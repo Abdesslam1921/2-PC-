@@ -18,6 +18,7 @@ vi.stubGlobal("open", mocks.open);
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/products", mocks.setLocation],
+  useSearch: () => "",
 }));
 
 vi.mock("@/_core/hooks/useAuth", () => ({

@@ -17,6 +17,7 @@ import {
   Boxes,
   Copy,
   ExternalLink,
+  FileArchive,
   Image as ImageIcon,
   Loader2,
   PackagePlus,
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 function formatCreatedAt(value: Date | string) {
   return new Intl.DateTimeFormat("ar-DZ", {
@@ -42,8 +43,20 @@ export default function Products() {
   const productsQuery = trpc.products.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+  /**
+   * Sidebar sub-navigation filter: all products / physical only / digital only.
+   * The storefront and the product data are untouched — this is a view filter.
+   */
+  const kindParam = new URLSearchParams(useSearch()).get("kind");
+  const kind: "all" | "physical" | "digital" =
+    kindParam === "physical"
+      ? "physical"
+      : kindParam === "digital"
+        ? "digital"
+        : "all";
   const products = (productsQuery.data ?? []).filter(
-    (product): product is NonNullable<typeof product> => Boolean(product)
+    (product): product is NonNullable<typeof product> =>
+      product != null && (kind === "all" || product.productKind === kind)
   );
   const [deleting, setDeleting] = useState<{
     id: number;
@@ -69,18 +82,69 @@ export default function Products() {
     <div className="w-full min-w-0 max-w-full overflow-x-hidden">
       <PageIntro
         eyebrow="الكتالوج"
-        title="المنتجات"
+        title={
+          kind === "digital"
+            ? "المنتجات الرقمية"
+            : kind === "physical"
+              ? "المنتجات المادية"
+              : "المنتجات"
+        }
         description="أدر منتجاتك وأسعارها ومخزونها من جدول واحد واضح وسريع."
         action={
-          <Button
-            onClick={() => setLocation("/products/create")}
-            className="btn-press h-11 rounded-xl bg-[var(--brand)] px-5 font-bold shadow-cta transition-colors duration-200 hover:bg-[var(--brand-strong)]"
-          >
-            <PackagePlus className="ml-2 size-4" />
-            إضافة منتج
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {kind === "digital" ? (
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/digital-products")}
+                className="btn-press h-11 rounded-xl border-[#D8E4DC] bg-white px-5 font-bold text-[var(--brand-strong)]"
+              >
+                <FileArchive className="ml-2 size-4" />
+                التسليم الرقمي
+              </Button>
+            ) : null}
+            <Button
+              onClick={() =>
+                setLocation(
+                  kind === "digital"
+                    ? "/products/create?kind=digital"
+                    : "/products/create"
+                )
+              }
+              className="btn-press h-11 rounded-xl bg-[var(--brand)] px-5 font-bold shadow-cta transition-colors duration-200 hover:bg-[var(--brand-strong)]"
+            >
+              <PackagePlus className="ml-2 size-4" />
+              {kind === "digital" ? "إضافة منتج رقمي" : "إضافة منتج"}
+            </Button>
+          </div>
         }
       />
+
+      <nav aria-label="تصفية المنتجات" className="dash-tabs">
+        {(
+          [
+            { id: "all", label: "المنتجات العامة", to: "/products" },
+            {
+              id: "physical",
+              label: "المنتجات المادية",
+              to: "/products?kind=physical",
+            },
+            {
+              id: "digital",
+              label: "المنتجات الرقمية",
+              to: "/products?kind=digital",
+            },
+          ] as const
+        ).map(item => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setLocation(item.to)}
+            className={`dash-tab ${kind === item.id ? "is-active" : ""}`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
 
       {authLoading || productsQuery.isLoading ? (
         <div className="grid min-h-72 place-items-center rounded-[24px] border border-[#E7E9E2] bg-white shadow-soft">
@@ -121,14 +185,24 @@ export default function Products() {
                           <Boxes className="size-5" />
                         </div>
                         <p className="mt-4 text-sm font-extrabold text-[#1F2A25]">
-                          لا توجد منتجات بعد
+                          {kind === "digital"
+                            ? "لا توجد منتجات رقمية بعد"
+                            : kind === "physical"
+                              ? "لا توجد منتجات مادية بعد"
+                              : "لا توجد منتجات بعد"}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-[#8A938D]">
                           أضف أول منتج ليظهر هنا مع السعر والإجراءات ورابط صفحة
                           الهبوط.
                         </p>
                         <Button
-                          onClick={() => setLocation("/products/create")}
+                          onClick={() =>
+                            setLocation(
+                              kind === "digital"
+                                ? "/products/create?kind=digital"
+                                : "/products/create"
+                            )
+                          }
                           className="btn-press mt-4 rounded-xl bg-[var(--brand)] text-xs shadow-cta transition-colors duration-200 hover:bg-[var(--brand-strong)]"
                         >
                           <PackagePlus className="ml-2 size-4" />

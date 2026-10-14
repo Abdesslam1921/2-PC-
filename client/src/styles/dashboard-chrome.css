@@ -210,7 +210,7 @@
  * Colors stay on the project teal/gold tokens. Scoped to .dash-identity only.
  * ------------------------------------------------------------------------- */
 .dash-identity {
-  --dash-sidebar: 188px;
+  --dash-sidebar: 232px;
   --dash-ink: #1f2a25;
   --dash-muted: #6b756f;
   --dash-line: rgba(15, 118, 110, 0.12);
@@ -334,9 +334,9 @@
   min-height: 32px;
   padding: 5px 10px;
   border-radius: 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
-  color: var(--dash-muted);
+  color: #2f3d37;
 }
 
 .dash-identity aside nav button[aria-current="page"],
@@ -607,4 +607,74 @@
 
 .dash-profit-settings {
   order: 4;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sidebar sub-navigation — a light-pill sub-list under a main nav item
+ * (الطلبات · المنتجات · إنشاء منتج · العروض). Scoped to .dash-identity aside
+ * so it can never touch the storefront.
+ * ------------------------------------------------------------------------- */
+.dash-identity aside .dash-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 8px 6px 0;
+  padding-right: 6px;
+  border-right: 1px solid var(--dash-line);
+}
+
+.dash-identity aside .dash-subnav-link {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: transparent;
+  color: #3c4a44;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.dash-identity aside .dash-subnav-link:hover {
+  background: #eef2ee;
+  color: var(--dash-ink);
+}
+
+.dash-identity aside .dash-subnav-link.is-active {
+  background: var(--brand-soft);
+  color: var(--brand-strong);
+  font-weight: 800;
+}
+
+.dash-identity aside .dash-subnav-heading {
+  display: block;
+  padding: 7px 10px 2px;
+  color: #6b756f;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+/* Orders table — keep the customer phone on ONE line without distorting the
+ * other columns (smaller, tightened, never wraps). */
+.dash-identity main .dash-orders-phone {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  direction: ltr;
+}
+
+.dash-identity main .dash-orders-phone.is-abandoned {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #a63d28;
 }
