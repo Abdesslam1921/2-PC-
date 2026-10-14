@@ -28,6 +28,7 @@ import { notifyCallCenterAgents } from "../callCenterNotifications";
 import { assignNewOrderToCallCenterAgent } from "../callCenterDb";
 import { verifyTurnstile } from "../turnstile";
 import { evaluateAbandonedAttempt } from "../abandonedGuard";
+import { normalizeAlgerianMobile } from "../phone";
 import {
   protectedProcedure,
   publicProcedure,
@@ -75,10 +76,10 @@ const phoneInput = z
   .string()
   .trim()
   .max(40)
-  .regex(
-    /^0[567][0-9]{8}$/,
-    "رقم الهاتف يجب أن يبدأ بـ05 أو 06 أو 07 ويتكون من 10 أرقام."
-  );
+  .refine(value => normalizeAlgerianMobile(value) !== null, {
+    message: "رقم الهاتف يجب أن يبدأ بـ05 أو 06 أو 07 ويتكون من 10 أرقام.",
+  })
+  .transform(value => normalizeAlgerianMobile(value)!);
 
 const checkoutInput = z.object({
   customerName: z.string().trim().min(2, "أدخل الاسم الكامل.").max(180),
@@ -392,7 +393,7 @@ export const ordersRouter = router({
         landingPageId: input.landingPageId,
         sessionId: input.sessionId,
         customerName: input.customerName,
-        customerPhone: input.customerPhone,
+        customerPhone: guard.phone,
         wilaya: input.wilaya,
         municipality: input.municipality,
         quantity: input.quantity,

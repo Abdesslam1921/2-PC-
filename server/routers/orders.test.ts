@@ -101,6 +101,23 @@ describe("orders.createCod", () => {
     });
   });
 
+  it("normalises a formatted Algerian phone before creating the order", async () => {
+    const caller = appRouter.createCaller(context());
+    await caller.orders.createCod({
+      customerName: "محمد أمين",
+      customerPhone: "+213 555 123 456",
+      wilaya: "الجزائر",
+      address: "الحي الجديد، شارع 1",
+      lines: [{ productId: 7, quantity: 1 }],
+    });
+
+    expect(mocks.createCodOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ customerPhone: "0555123456" }),
+      expect.anything(),
+      []
+    );
+  });
+
   it("rejects a phone number that is not a 10-digit Algerian mobile number", async () => {
     const caller = appRouter.createCaller(context());
     await expect(

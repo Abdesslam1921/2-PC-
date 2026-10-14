@@ -94,6 +94,23 @@ describe("orders.saveAbandoned — hardened public endpoint", () => {
     expect(mocks.upsertAbandonedOrder).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["0555123456", "0555123456"],
+    ["0555 12 34 56", "0555123456"],
+    ["0555-12-34-56", "0555123456"],
+    ["+213555123456", "0555123456"],
+    ["00213555123456", "0555123456"],
+    ["555123456", "0555123456"],
+  ])("normalises %s to %s before validation", async (raw, expected) => {
+    const result = await appRouter
+      .createCaller(context())
+      .orders.saveAbandoned({ ...validInput, customerPhone: raw });
+    expect(result).toEqual({ saved: true, orderId: 55 });
+    expect(mocks.upsertAbandonedOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ customerPhone: expected })
+    );
+  });
+
   it("rejects a non-Algerian-mobile phone number without writing", async () => {
     const result = await appRouter.createCaller(context()).orders.saveAbandoned({
       ...validInput,

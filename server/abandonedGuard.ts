@@ -1,7 +1,10 @@
 import { checkRateLimit } from "./_core/rateLimit";
+import {
+  ALGERIAN_MOBILE_PATTERN,
+  normalizeAlgerianMobile,
+} from "./phone";
 
-/** Algerian mobile numbers: 05/06/07 + 8 digits. */
-export const ABANDONED_PHONE_PATTERN = /^0[567][0-9]{8}$/;
+export { ALGERIAN_MOBILE_PATTERN };
 
 /**
  * Windowing for the public abandoned-order endpoint. The PRIMARY limit is per
@@ -24,15 +27,15 @@ export type AbandonedAttempt = {
 };
 
 export type AbandonedAttemptResult =
-  | { ok: true }
+  | { ok: true; phone: string }
   | { ok: false; reason: "no_phone" | "invalid_phone" | "rate_limited" };
 
 /**
  * Decide whether a public `saveAbandoned` attempt may touch the DB. Enforced
- * server-side:
+ * server-side; the caller records the returned `phone` (already normalised).
  *  - per-IP flood floor (high, applied even to malformed input so bad payloads
  *    can't flood);
- *  - phone presence + Algerian mobile format;
+ *  - phone presence + normalisation + Algerian mobile format;
  *  - per (phone + store) cap (the real abuse limiter).
  */
 export function evaluateAbandonedAttempt({
@@ -51,10 +54,9 @@ export function evaluateAbandonedAttempt({
   )
     return { ok: false, reason: "rate_limited" };
 
-  const phone = (customerPhone ?? "").trim();
-  if (!phone) return { ok: false, reason: "no_phone" };
-  if (!ABANDONED_PHONE_PATTERN.test(phone))
-    return { ok: false, reason: "invalid_phone" };
+  const phone = normalizeAlgerianMobile(customerPhone);
+  if (!customerPhone?.trim()) return { ok: false, reason: "no_phone" };
+  if (!phone) return { ok: false, reason: "invalid_phone" };
 
   if (
     !checkRateLimit(
@@ -66,5 +68,5 @@ export function evaluateAbandonedAttempt({
   )
     return { ok: false, reason: "rate_limited" };
 
-  return { ok: true };
+  return { ok: true, phone };
 }
