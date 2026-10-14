@@ -42,6 +42,15 @@ describe("mediaSignature — HMAC + expiry", () => {
     ).toBe(false);
   });
 
+  it("expires local signed links within a few minutes", () => {
+    const now = Date.now();
+    const url = signMediaUrl(DIGITAL_KEY, undefined, now);
+    const params = new URLSearchParams(url.split("?")[1]);
+    const ttlMs = Number(params.get("exp")) * 1000 - now;
+    expect(ttlMs).toBeGreaterThan(0);
+    expect(ttlMs).toBeLessThanOrEqual(5 * 60 * 1000);
+  });
+
   it("rejects a tampered signature and a tampered key", () => {
     const url = signMediaUrl(DIGITAL_KEY);
     const params = new URLSearchParams(url.split("?")[1]);
