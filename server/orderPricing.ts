@@ -71,3 +71,40 @@ export function selectCodUnitPrice(input: {
   if (input.isUpsell) return input.upsellPrice ?? null;
   return input.variantPrice ?? input.productPrice ?? null;
 }
+
+export type UpsellLineProduct = {
+  productId: number;
+  price: string | null;
+  /** The product this line offers as its add-on (null when none). */
+  upsellProductId: number | null;
+  upsellPrice?: string | null;
+  upsellDiscountAmount?: string | null;
+  upsellDiscountPercent?: number | null;
+};
+
+/**
+ * Resolve an upsell line's unit price, enforcing every server-side rule:
+ *  - the line's product must be EXACTLY the `upsellProductId` configured on a
+ *    base product that is part of the SAME order (so an upsell is only accepted
+ *    when its base product is in the cart, in the same store — the caller has
+ *    already forced one store for the whole order),
+ *  - an upsell is a single add-on, so the quantity must be exactly 1,
+ *  - the price is recomputed from the base's stored config + the line product's
+ *    DB price (never from the client).
+ * Returns null when any rule fails (the caller rejects the line).
+ */
+export function resolveUpsellLinePrice(input: {
+  lineProductId: number;
+  linePrice: string | null;
+  quantity: number;
+  orderProducts: UpsellLineProduct[];
+}): string | null {
+  if (input.quantity !== 1) return null;
+  const base = input.orderProducts.find(
+    candidate =>
+      candidate.productId !== input.lineProductId &&
+      candidate.upsellProductId === input.lineProductId
+  );
+  if (!base) return null;
+  return computeUpsellUnitPrice(base, input.linePrice);
+}

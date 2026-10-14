@@ -38,6 +38,15 @@ describe("sanitizeStorageKey — rejects path traversal and encoding tricks", ()
     );
   });
 
+  it("keeps unicode and spaced names untouched (Arabic, spaces, parentheses)", () => {
+    expect(sanitizeStorageKey("products/42/صورة المنتج (1).png")).toBe(
+      "products/42/صورة المنتج (1).png"
+    );
+    expect(sanitizeStorageKey("generated/1787708106245_b00fc9c4 (1).png")).toBe(
+      "generated/1787708106245_b00fc9c4 (1).png"
+    );
+  });
+
   it("resolveWithinStorageRoot refuses anything outside the root", () => {
     const root = path.resolve(LOCAL_STORAGE_ROOT);
     expect(resolveWithinStorageRoot("products/42/a.png")).toBe(
@@ -108,3 +117,107 @@ describe("GET /manus-storage/* — real proxy end to end", () => {
     expect(res.body).not.toContain(packageSentinel);
   });
 });
+
+describe("GET /manus-storage/* — real files already on disk keep serving", () => {
+  const server = express();
+  registerStorageProxy(server);
+  let listener: http.Server;
+  let port = 0;
+
+  beforeAll(async () => {
+    await new Promise<void>(resolve => {
+      listener = server.listen(0, () => {
+        const address = listener.address();
+        port = typeof address === "object" && address ? address.port : 0;
+        resolve();
+      });
+    });
+  });
+
+  afterAll(async () => {
+    await new Promise<void>(resolve => listener.close(() => resolve()));
+  });
+
+  function rawGetBuffer(
+    rawPath: string
+  ): Promise<{ status: number; buffer: Buffer }> {
+    return new Promise((resolve, reject) => {
+      const req = http.get({ host: "127.0.0.1", port, path: rawPath }, res => {
+        const chunks: Buffer[] = [];
+        res.on("data", chunk => chunks.push(Buffer.from(chunk)));
+        res.on("end", () =>
+          resolve({ status: res.statusCode ?? 0, buffer: Buffer.concat(chunks) })
+        );
+      });
+      req.on("error", reject);
+    });
+  }
+
+  // Enumerate the real files already under file_storage, prioritising names
+  // with spaces / non-ASCII characters so the sanitizer is tested against the
+  // actual directory contents (not a synthetic single fixture).
+  const realFiles = (() => {
+    if (!fs.existsSync(LOCAL_STORAGE_ROOT)) return [] as string[];
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out.push(path.relative(LOCAL_STORAGE_ROOT, full).split(path.sep).join("/"));
+      }
+    };
+    walk(LOCAL_STORAGE_ROOT);
+    const interesting = out.filter(k => /[^\x00-\x7F]/.test(k) || k.includes(" "));
+    const rest = out.filter(k => !interesting.includes(k));
+    return [...interesting, ...rest].slice(0, 25);
+  })();
+
+  it.skipIf(realFiles.length === 0)(
+    "serves every sampled real file with its exact bytes",
+    async () => {
+      expect(realFiles.length).toBeGreaterThan(0);
+      for (const relKey of realFiles) {
+        const bytes = fs.readFileSync(path.join(LOCAL_STORAGE_ROOT, relKey));
+        const url =
+          "/manus-storage/" +
+          relKey.split("/").map(encodeURIComponent).join("/");
+        const res = await rawGetBuffer(url);
+        expect(res.status, `status for ${relKey}`).toBe(200);
+        expect(res.buffer.equals(bytes), `bytes for ${relKey}`).toBe(true);
+      }
+    }
+  );
+
+  it.skipIf(!realFiles.some(k => k.includes(" ") || /[^\x00-\x7F]/.test(k)))(
+    "serves a real file whose name has a space or non-ASCII characters",
+    async () => {
+      const relKey = realFiles.find(
+        k => k.includes(" ") || /[^\x00-\x7F]/.test(k)
+      )!;
+      const bytes = fs.readFileSync(path.join(LOCAL_STORAGE_ROOT, relKey));
+      const url =
+        "/manus-storage/" + relKey.split("/").map(encodeURIComponent).join("/");
+      const res = await rawGetBuffer(url);
+      expect(res.status).toBe(200);
+      expect(res.buffer.equals(bytes)).toBe(true);
+    }
+  );
+
+  it("serves an Arabic-named file end to end", async () => {
+    const relKey = "products/42/صورة-اختبار عربية.png";
+    const absPath = path.join(LOCAL_STORAGE_ROOT, relKey);
+    const bytes = Buffer.from("ARABIC-NAME-BYTES");
+    await fs.promises.mkdir(path.dirname(absPath), { recursive: true });
+    await fs.promises.writeFile(absPath, bytes);
+    try {
+      const url =
+        "/manus-storage/" + relKey.split("/").map(encodeURIComponent).join("/");
+      const res = await rawGetBuffer(url);
+      expect(res.status).toBe(200);
+      expect(res.buffer.equals(bytes)).toBe(true);
+    } finally {
+      await fs.promises.rm(absPath, { force: true });
+    }
+  });
+});
+

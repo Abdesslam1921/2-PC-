@@ -64,7 +64,7 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import {
-  computeUpsellUnitPrice,
+  resolveUpsellLinePrice,
   selectCodUnitPrice,
 } from "./orderPricing";
 import {
@@ -1987,14 +1987,26 @@ export async function createCodOrder(
 
     // Pass 2 — derive each unit price from the DB only. The client-supplied
     // `priceOverride` value is never read; only its presence flags an upsell.
+    const productRefs = resolvedLines.map(line => ({
+      productId: line.product.id,
+      price: line.product.price,
+      upsellProductId: line.product.upsellProductId,
+      upsellPrice: line.product.upsellPrice,
+      upsellDiscountAmount: line.product.upsellDiscountAmount,
+      upsellDiscountPercent: line.product.upsellDiscountPercent,
+    }));
     for (const line of resolvedLines) {
       let unitPrice: string | null;
       if (line.upsellRequested) {
-        const base = resolvedLines.find(
-          candidate => candidate.product.upsellProductId === line.product.id
-        );
-        if (!base) throw new Error("العرض الإضافي غير متاح لهذا الطلب.");
-        unitPrice = computeUpsellUnitPrice(base.product, line.product.price);
+        // Validated against the base product IN THIS ORDER (same store, exact
+        // upsell target) and quantity === 1 — never a client price.
+        unitPrice = resolveUpsellLinePrice({
+          lineProductId: line.product.id,
+          linePrice: line.product.price,
+          quantity: line.quantity,
+          orderProducts: productRefs,
+        });
+        if (!unitPrice) throw new Error("العرض الإضافي غير متاح لهذا الطلب.");
       } else {
         unitPrice = selectCodUnitPrice({
           quantityOfferPrice: line.quantityOffer?.fixedPrice,

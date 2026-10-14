@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   computeUpsellUnitPrice,
+  resolveUpsellLinePrice,
   selectCodUnitPrice,
 } from "./orderPricing";
 
@@ -74,6 +75,84 @@ describe("selectCodUnitPrice — DB-resolved sources only", () => {
   });
 });
 
+describe("resolveUpsellLinePrice — server-side upsell rules", () => {
+  const base = {
+    productId: 1,
+    price: "3500.00",
+    upsellProductId: 2,
+    upsellPrice: "2500.00",
+    upsellDiscountAmount: null,
+    upsellDiscountPercent: null,
+  };
+  const upsell = {
+    productId: 2,
+    price: "4000.00",
+    upsellProductId: null,
+  };
+
+  it("accepts an upsell whose product matches the base upsellProductId, qty 1", () => {
+    expect(
+      resolveUpsellLinePrice({
+        lineProductId: 2,
+        linePrice: "4000.00",
+        quantity: 1,
+        orderProducts: [base, upsell],
+      })
+    ).toBe("2500.00");
+  });
+
+  it("rejects an upsell when its base product is not in the order", () => {
+    expect(
+      resolveUpsellLinePrice({
+        lineProductId: 2,
+        linePrice: "4000.00",
+        quantity: 1,
+        orderProducts: [upsell],
+      })
+    ).toBeNull();
+  });
+
+  it("rejects a line whose product is not the base's configured upsell target", () => {
+    const wrongTarget = { ...base, upsellProductId: 99 };
+    expect(
+      resolveUpsellLinePrice({
+        lineProductId: 2,
+        linePrice: "4000.00",
+        quantity: 1,
+        orderProducts: [wrongTarget, upsell],
+      })
+    ).toBeNull();
+  });
+
+  it.each([0, 2, 5])("rejects an upsell quantity of %s (single add-on only)", quantity => {
+    expect(
+      resolveUpsellLinePrice({
+        lineProductId: 2,
+        linePrice: "4000.00",
+        quantity,
+        orderProducts: [base, upsell],
+      })
+    ).toBeNull();
+  });
+
+  it("rejects when the base has no upsell pricing configured", () => {
+    const noConfig = {
+      ...base,
+      upsellPrice: null,
+      upsellDiscountAmount: null,
+      upsellDiscountPercent: null,
+    };
+    expect(
+      resolveUpsellLinePrice({
+        lineProductId: 2,
+        linePrice: "4000.00",
+        quantity: 1,
+        orderProducts: [noConfig, upsell],
+      })
+    ).toBeNull();
+  });
+});
+
 /**
  * Source-level guard: `orders.createCod` must never read a client price. This
  * keeps the S2 fix from silently regressing.
@@ -83,7 +162,7 @@ describe("public checkout never trusts a client-supplied amount", () => {
     const dbSource = readFileSync("server/db.ts", "utf8");
     expect(dbSource).not.toContain("line.priceOverride ??");
     expect(dbSource).not.toMatch(/unitPrice\s*=\s*line\.priceOverride/);
-    expect(dbSource).toContain("computeUpsellUnitPrice(");
+    expect(dbSource).toContain("resolveUpsellLinePrice(");
   });
 
   it("the checkout input schema exposes no price/total/deliveryFee/discountAmount field", () => {
