@@ -115,6 +115,45 @@ describe("orders.createCod", () => {
     expect(mocks.createCodOrder).not.toHaveBeenCalled();
   });
 
+  it.each([0, -1, 51, 1.5])(
+    "rejects an out-of-range line quantity (%s) before creating an order",
+    async quantity => {
+      const caller = appRouter.createCaller(context());
+      await expect(
+        caller.orders.createCod({
+          customerName: "محمد أمين",
+          customerPhone: "0550000000",
+          wilaya: "الجزائر",
+          address: "الحي الجديد، شارع 1",
+          lines: [{ productId: 7, quantity }],
+        })
+      ).rejects.toThrow();
+      expect(mocks.createCodOrder).not.toHaveBeenCalled();
+    }
+  );
+
+  it("accepts an upsell-flagged line and forwards it (value not trusted here)", async () => {
+    const caller = appRouter.createCaller(context());
+    await caller.orders.createCod({
+      customerName: "محمد أمين",
+      customerPhone: "0550000000",
+      wilaya: "الجزائر",
+      address: "الحي الجديد، شارع 1",
+      lines: [
+        { productId: 7, quantity: 1 },
+        { productId: 9, quantity: 1, priceOverride: "0.01" },
+      ],
+    });
+
+    expect(mocks.createCodOrder).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.arrayContaining([
+        expect.objectContaining({ productId: 9, priceOverride: "0.01" }),
+      ]),
+      []
+    );
+  });
+
   it("returns orders only for the authenticated store owner", async () => {
     const caller = appRouter.createCaller(context());
     const orders = await caller.orders.list();

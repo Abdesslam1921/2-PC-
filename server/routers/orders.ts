@@ -38,6 +38,11 @@ const lineInput = z.object({
   variantId: z.number().int().positive().optional(),
   offerId: z.number().int().positive().optional(),
   quantity: z.number().int().min(1).max(50),
+  /**
+   * Upsell marker only. The VALUE is never trusted: `createCodOrder` recomputes
+   * an upsell line's price from the base product's stored upsell settings and
+   * the upsell product's DB price. It is also rejected for non-upsell lines.
+   */
   priceOverride: z
     .string()
     .trim()

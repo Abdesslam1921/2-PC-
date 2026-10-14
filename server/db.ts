@@ -64,6 +64,10 @@ import {
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import {
+  computeUpsellUnitPrice,
+  selectCodUnitPrice,
+} from "./orderPricing";
+import {
   getEcotrackProviderCatalog,
   hhdDefaultRates,
   normalizeEcotrackHostname,
@@ -1832,14 +1836,29 @@ export async function createCodOrder(
     const resolvedLines: Array<{
       product: typeof storeProducts.$inferSelect;
       variant?: typeof storeProductVariants.$inferSelect;
+      /**
+       * Quantity deals live in the unified `offers` table (kind='quantity').
+       * Resolution is scoped by the product's store + product link and uses the
+       * authoritative usage counter, never the legacy archive table.
+       */
+      quantityOffer?: {
+        id: number;
+        name: string;
+        quantity: number;
+        fixedPrice: string;
+        freeDelivery: boolean;
+        usedCount: number;
+      };
       quantity: number;
       unitPrice: string;
       variantLabel: string | null;
-      offer?: typeof storeProductOffers.$inferSelect;
       inventoryQuantity: number;
       costSnapshot: CostSnapshot;
+      /** Client flagged this line as an upsell. Only the flag is trusted. */
+      upsellRequested: boolean;
     }> = [];
 
+    // Pass 1 — resolve every line (product, variant, quantity offer) from the DB.
     for (const line of lines) {
       const [product] = await tx
         .select()
@@ -1860,29 +1879,63 @@ export async function createCodOrder(
         throw new Error("لا يمكن جمع منتجات من متاجر مختلفة في طلب واحد.");
 
       let variant: typeof storeProductVariants.$inferSelect | undefined;
-      let offer: typeof storeProductOffers.$inferSelect | undefined;
+      let quantityOffer:
+        | {
+            id: number;
+            name: string;
+            quantity: number;
+            fixedPrice: string;
+            freeDelivery: boolean;
+            usedCount: number;
+          }
+        | undefined;
       if (line.offerId) {
-        const [foundOffer] = await tx
+        // The id is either a legacy id (migrated rows, < 1_000_000) or the
+        // unified offers id — both are matched, scoped by kind + store.
+        const [offerRow] = await tx
           .select()
-          .from(storeProductOffers)
+          .from(offers)
           .where(
             and(
-              eq(storeProductOffers.id, line.offerId),
-              eq(storeProductOffers.productId, product.id),
-              eq(storeProductOffers.enabled, true),
+              eq(offers.storeId, product.storeId ?? -1),
+              eq(offers.kind, "quantity"),
+              eq(offers.isActive, true),
               or(
-                eq(storeProductOffers.maxUses, 0),
-                lt(storeProductOffers.usedCount, storeProductOffers.maxUses)
-              )
+                eq(offers.id, line.offerId),
+                eq(offers.legacyId, line.offerId)
+              ),
+              or(eq(offers.maxUses, 0), lt(offers.usedCount, offers.maxUses))
             )
           )
           .limit(1);
-        if (!foundOffer)
+        if (!offerRow || !offerRow.fixedPrice)
           throw new Error(
             `العرض المختار للمنتج «${product.title}» لم يعد متاحًا.`
           );
-        offer = foundOffer;
+        const [link] = await tx
+          .select({ quantity: offerProducts.quantity })
+          .from(offerProducts)
+          .where(
+            and(
+              eq(offerProducts.offerId, offerRow.id),
+              eq(offerProducts.productId, product.id),
+              eq(offerProducts.storeId, offerRow.storeId)
+            )
+          )
+          .limit(1);
+        if (!link)
+          throw new Error(`العرض المختار لا يخصّ المنتج «${product.title}».`);
+        quantityOffer = {
+          id: offerRow.id,
+          name: offerRow.name,
+          quantity: link.quantity,
+          fixedPrice: offerRow.fixedPrice,
+          freeDelivery: offerRow.freeDelivery,
+          usedCount: offerRow.usedCount,
+        };
       }
+      // The variant is resolved independently of any quantity offer (a deal can
+      // be bought for a specific variant), exactly as before.
       if (line.variantId) {
         const [foundVariant] = await tx
           .select()
@@ -1902,12 +1955,14 @@ export async function createCodOrder(
           .select({ id: storeProductVariants.id })
           .from(storeProductVariants)
           .where(eq(storeProductVariants.productId, product.id));
-        if (productVariants.length && !line.priceOverride)
+        // An upsell line (flagged by the client) intentionally carries no
+        // variant; every other multi-variant product must pick one.
+        if (productVariants.length && line.priceOverride === undefined)
           throw new Error(`اختر خيارًا متاحًا للمنتج «${product.title}».`);
       }
 
-      const inventoryQuantity = offer
-        ? offer.quantity * line.quantity
+      const inventoryQuantity = quantityOffer
+        ? quantityOffer.quantity * line.quantity
         : line.quantity;
       if (product.trackInventory && !product.continueSelling) {
         const remaining = variant ? variant.stock : product.inventory;
@@ -1917,25 +1972,47 @@ export async function createCodOrder(
           );
       }
 
-      const unitPrice =
-        line.priceOverride ?? offer?.price ?? variant?.price ?? product.price;
-      if (!unitPrice)
-        throw new Error(`سعر المنتج «${product.title}» غير محدد.`);
-      subtotalCents += toCents(unitPrice) * line.quantity;
       resolvedLines.push({
         product,
         variant,
-        offer,
+        quantityOffer,
         quantity: line.quantity,
         inventoryQuantity,
-        unitPrice,
+        unitPrice: "",
         costSnapshot: resolveCostSnapshot(product),
-        variantLabel: offer
-          ? `العرض: ${offer.description}`
-          : variant
-            ? [variant.color, variant.size].filter(Boolean).join(" · ") || null
-            : null,
+        variantLabel: null,
+        upsellRequested: line.priceOverride !== undefined,
       });
+    }
+
+    // Pass 2 — derive each unit price from the DB only. The client-supplied
+    // `priceOverride` value is never read; only its presence flags an upsell.
+    for (const line of resolvedLines) {
+      let unitPrice: string | null;
+      if (line.upsellRequested) {
+        const base = resolvedLines.find(
+          candidate => candidate.product.upsellProductId === line.product.id
+        );
+        if (!base) throw new Error("العرض الإضافي غير متاح لهذا الطلب.");
+        unitPrice = computeUpsellUnitPrice(base.product, line.product.price);
+      } else {
+        unitPrice = selectCodUnitPrice({
+          quantityOfferPrice: line.quantityOffer?.fixedPrice,
+          isUpsell: false,
+          variantPrice: line.variant?.price,
+          productPrice: line.product.price,
+        });
+      }
+      if (!unitPrice)
+        throw new Error(`سعر المنتج «${line.product.title}» غير محدد.`);
+      line.unitPrice = unitPrice;
+      line.variantLabel = line.quantityOffer
+        ? `العرض: ${line.quantityOffer.name}`
+        : line.variant
+          ? [line.variant.color, line.variant.size].filter(Boolean).join(" · ") ||
+            null
+          : null;
+      subtotalCents += toCents(unitPrice) * line.quantity;
     }
 
     if (!ownerId || !resolvedLines.length)
@@ -2066,7 +2143,7 @@ export async function createCodOrder(
       (resolvedLines.length > 0 &&
         resolvedLines.every(
           line =>
-            Boolean(line.offer?.freeDelivery) ||
+            Boolean(line.quantityOffer?.freeDelivery) ||
             Boolean(line.product?.freeDelivery)
         ));
     const deliveryFee = freeDelivery ? "0.00" : (rateFee ?? fixedFee ?? "0.00");
@@ -2193,18 +2270,17 @@ export async function createCodOrder(
     );
 
     for (const line of resolvedLines) {
-      if (line.offer) {
-        // Quantity deals live in the unified offers table now; `line.offer.id`
-        // is the legacy id, so the row is resolved by (kind, legacyId) — never
-        // by the offers primary key.
+      if (line.quantityOffer) {
+        // Optimistic consume on the authoritative usage counter: the update
+        // only lands when nobody else consumed the same offer in the meantime.
         const update = await tx
           .update(offers)
-          .set({ usedCount: line.offer.usedCount + line.quantity })
+          .set({ usedCount: line.quantityOffer.usedCount + line.quantity })
           .where(
             and(
               eq(offers.kind, "quantity"),
-              eq(offers.legacyId, line.offer.id),
-              eq(offers.usedCount, line.offer.usedCount),
+              eq(offers.id, line.quantityOffer.id),
+              eq(offers.usedCount, line.quantityOffer.usedCount),
               or(eq(offers.maxUses, 0), lt(offers.usedCount, offers.maxUses))
             )
           );
@@ -2215,7 +2291,7 @@ export async function createCodOrder(
           ) !== 1
         )
           throw new Error(
-            `انتهت حصص العرض «${line.offer.description}»؛ أعد المحاولة.`
+            `انتهت حصص العرض «${line.quantityOffer.name}»؛ أعد المحاولة.`
           );
       }
     }
