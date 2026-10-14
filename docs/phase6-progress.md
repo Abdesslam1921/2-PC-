@@ -51,7 +51,24 @@
 
 - معروف مسبقًا: فشل mock ناقص `trpc.messageOrder` في `ProductLanding.ui.test.tsx` و`StorefrontJourney.ui.test.tsx` (سقوط `MessageOrderWidget`).
 - تقلّب بيئي: Vitest SSR temp-file (`UNKNOWN: unknown error, open ...\Temp\...\ssr\<hash>`) — ليس انحدار كود.
-- (يُستكمل بالأسماء الدقيقة بعد الـcommits.)
+### baseline نظيف (14-10-2026، بعد fde12c6) — **الأسماء الدقيقة**
+`406 اختبارًا · 14 فاشل · 389 ناجح · 3 متخطّى` (75 ملفًا · 10 فاشلة). الفاشلة (14):
+1. `server/googleOAuth.test.ts` › Google OAuth configuration › has configured client credentials and reaches the Google token endpoint
+2. `server/metaOAuthCredentials.test.ts` › Meta OAuth application credentials › validates the OAuth app credentials against Meta
+3. `server/routers/connecteurs.test.ts` › connecteurs contract › exposes all supported integrations in stable order
+4. `server/routers/digital.test.ts` › digital products and offers › uploads a digital file and forwards its metadata without delivery fields
+5. `server/routers/digital.test.ts` › digital products and offers › requires a file for a digital product
+6. `server/routers/products.test.ts` › products.create › stores local product data and uploads attached images without using an external catalog
+7. `server/routers/products.test.ts` › products.create › stops product creation when independent image storage fails
+8. `server/routers/products.test.ts` › products.create › returns the database error after images upload when local product persistence fails
+9. `server/routers/products.test.ts` › products management actions › updates, duplicates, deletes, and exposes an active product through its landing query
+10. `client/src/ui.contract.test.ts` › presentation-state contracts › keeps the catalog, cart, and checkout connected to the independent storefront journey
+11. `client/src/pages/Orders.ui.test.tsx` › Orders › sends the selected operational status for an order
+12. `client/src/pages/ProductLanding.ui.test.tsx` › ProductLanding › submits the selected live variant through the direct COD form
+13. `client/src/pages/Storefront.ui.test.tsx` › Storefront › renders the live public catalog and adds an available product to the independent cart
+14. `client/src/pages/StorefrontJourney.ui.test.tsx` › Storefront shopping journey › sends a published product directly to COD without passing through the cart
+
+> ملاحظة: العدد 14 **مطابق** لما قبل التعديلات (لا انحدار جديد). جزء كبير منها يعتمد على شبكة/مزوّدات خارجية (OAuth/تخزين صور) وmocks واجهة. لا يُخلط مع أي فشل مستقبلي.
 
 ---
 
