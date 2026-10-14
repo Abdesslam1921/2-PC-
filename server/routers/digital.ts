@@ -10,6 +10,7 @@ import {
 } from "../db";
 import { sendGmailMessage } from "../callCenterNotifications";
 import { storageGetSignedUrl } from "../storage";
+import { withoutDigitalFileRefs } from "../productPayload";
 import {
   protectedProcedure,
   publicProcedure,
@@ -90,9 +91,12 @@ async function confirmAndEmail(
 export const digitalRouter = router({
   products: protectedProcedure.query(async ({ ctx }) => {
     const products = await listStoreProducts(getStoreId(ctx));
-    return products.filter((product): product is NonNullable<typeof product> =>
-      Boolean(product && product.productKind === "digital")
-    );
+    return products
+      .filter(
+        (product): product is NonNullable<typeof product> =>
+          Boolean(product && product.productKind === "digital")
+      )
+      .map(withoutDigitalFileRefs);
   }),
   orders: protectedProcedure.query(async ({ ctx }) =>
     listDigitalOrders(getStoreId(ctx))
@@ -152,6 +156,9 @@ export const digitalRouter = router({
     .mutation(async ({ input }) => {
       const download = await consumeDigitalDownload(input.token);
       const signedUrl = await storageGetSignedUrl(download.storageKey);
-      return { ...download, signedUrl };
+      // Never return the raw storage key to the client — only the short-lived
+      // signed URL (local mode) or the provider URL (Forge mode).
+      const { storageKey: _storageKey, ...safe } = download;
+      return { ...safe, signedUrl };
     }),
 });

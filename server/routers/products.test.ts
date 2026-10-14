@@ -231,3 +231,48 @@ describe("products.patchCodTrust", () => {
     expect(mocks.patchStoreProductCodTrust).toHaveBeenCalledWith(7, 99, "80");
   });
 });
+
+describe("products API never exposes raw paid-file refs", () => {
+  const rawDigitalProduct = {
+    id: 9,
+    title: "دليل",
+    productKind: "digital" as const,
+    digitalFileName: "guide.pdf",
+    digitalFileStorageKey: "digital-products/42/guide_abc123.pdf",
+    digitalFileUrl: "/manus-storage/digital-products/42/guide_abc123.pdf",
+    images: [],
+    variants: [],
+    offers: [],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.listStoreProducts.mockResolvedValue([rawDigitalProduct]);
+    mocks.getStoreProductById.mockResolvedValue(rawDigitalProduct);
+    mocks.duplicateStoreProduct.mockResolvedValue(rawDigitalProduct);
+    mocks.patchStoreProductCodTrust.mockResolvedValue(rawDigitalProduct);
+    mocks.updateStoreProduct.mockResolvedValue(rawDigitalProduct);
+  });
+
+  it("strips digitalFileStorageKey/digitalFileUrl from list/get/duplicate/patch", async () => {
+    const caller = appRouter.createCaller(context());
+    const [list] = await caller.products.list();
+    const get = await caller.products.get({ id: 9 });
+    const duplicate = await caller.products.duplicate({ id: 9 });
+    const patched = await caller.products.patchCodTrust({
+      id: 9,
+      codTrustScore: "80",
+    });
+
+    for (const product of [list, get, duplicate, patched]) {
+      expect(product).not.toHaveProperty("digitalFileStorageKey");
+      expect(product).not.toHaveProperty("digitalFileUrl");
+      expect(JSON.stringify(product)).not.toContain("digital-products/");
+      expect(JSON.stringify(product)).not.toContain("/manus-storage/");
+      // Non-sensitive metadata is still available to the dashboard.
+      expect((product as { digitalFileName?: string }).digitalFileName).toBe(
+        "guide.pdf"
+      );
+    }
+  });
+});

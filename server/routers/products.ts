@@ -12,6 +12,7 @@ import {
   patchStoreProductCodTrust,
 } from "../db";
 import { storagePut } from "../storage";
+import { withoutDigitalFileRefs } from "../productPayload";
 import {
   protectedProcedure,
   publicProcedure,
@@ -280,7 +281,9 @@ function toStoredProductInput(
 
 export const productsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) =>
-    listStoreProducts(getStoreId(ctx))
+    (await listStoreProducts(getStoreId(ctx))).map(product =>
+      product ? withoutDigitalFileRefs(product) : product
+    )
   ),
   get: protectedProcedure
     .input(productIdInput)
@@ -291,7 +294,7 @@ export const productsRouter = router({
           code: "NOT_FOUND",
           message: "المنتج غير موجود.",
         });
-      return product;
+      return withoutDigitalFileRefs(product);
     }),
   publicGet: publicProcedure
     .input(productIdInput)
@@ -363,7 +366,7 @@ export const productsRouter = router({
           };
         })
       );
-      return createStoreProduct(ctx.user.id, getStoreId(ctx), {
+      const created = await createStoreProduct(ctx.user.id, getStoreId(ctx), {
         ...toStoredProductInput(input, digital),
         media,
         variants:
@@ -386,6 +389,7 @@ export const productsRouter = router({
               })),
         imageIdByClientId: new Map(),
       });
+      return withoutDigitalFileRefs(created);
     }),
   update: protectedProcedure
     .input(
@@ -437,7 +441,8 @@ export const productsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, ...payload } = input;
-      return updateStoreProduct(getStoreId(ctx), id, {
+      return withoutDigitalFileRefs(
+        await updateStoreProduct(getStoreId(ctx), id, {
         ...payload,
         productType: emptyToNull(payload.productType),
         collectionName: emptyToNull(payload.collectionName),
@@ -497,7 +502,8 @@ export const productsRouter = router({
               })),
             }
           : {}),
-      });
+        })
+      );
     }),
   patchCodTrust: protectedProcedure
     .input(
@@ -507,10 +513,12 @@ export const productsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        return await patchStoreProductCodTrust(
-          getStoreId(ctx),
-          input.id,
-          input.codTrustScore.trim() || null
+        return withoutDigitalFileRefs(
+          await patchStoreProductCodTrust(
+            getStoreId(ctx),
+            input.id,
+            input.codTrustScore.trim() || null
+          )
         );
       } catch (error) {
         if (
@@ -527,7 +535,9 @@ export const productsRouter = router({
   duplicate: protectedProcedure
     .input(productIdInput)
     .mutation(async ({ ctx, input }) =>
-      duplicateStoreProduct(getStoreId(ctx), input.id)
+      withoutDigitalFileRefs(
+        await duplicateStoreProduct(getStoreId(ctx), input.id)
+      )
     ),
   delete: protectedProcedure
     .input(productIdInput)

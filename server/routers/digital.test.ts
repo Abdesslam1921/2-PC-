@@ -230,5 +230,28 @@ describe("digital products and offers", () => {
       expect.stringContaining("/api/downloads/")
     );
     expect(download.signedUrl).toBe("https://signed.example/download");
+    // The raw storage key must never reach the client.
+    expect(download).not.toHaveProperty("storageKey");
+    expect(JSON.stringify(download)).not.toContain("digital-products/");
+  });
+
+  it("strips the raw storage ref from the digital product list", async () => {
+    mocks.listStoreProducts.mockResolvedValue([
+      {
+        id: 9,
+        title: "دليل",
+        productKind: "digital",
+        digitalFileName: "guide.pdf",
+        digitalFileStorageKey: "digital-products/42/guide_abc123.pdf",
+        digitalFileUrl: "/manus-storage/digital-products/42/guide_abc123.pdf",
+      },
+    ]);
+    const products = await appRouter
+      .createCaller(context())
+      .digital.products();
+    expect(products).toHaveLength(1);
+    expect(products[0]).not.toHaveProperty("digitalFileStorageKey");
+    expect(products[0]).not.toHaveProperty("digitalFileUrl");
+    expect(JSON.stringify(products)).not.toContain("digital-products/");
   });
 });
