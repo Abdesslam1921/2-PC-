@@ -11,6 +11,11 @@ import {
   resolveWithinStorageRoot,
   sanitizeStorageKey,
 } from "./_core/storagePaths";
+import {
+  isProtectedStorageKey,
+  MEDIA_URL_TTL_MS,
+  signMediaUrl,
+} from "./_core/mediaSignature";
 
 function hasForgeConfig() {
   return Boolean(ENV.forgeApiUrl && ENV.forgeApiKey);
@@ -121,9 +126,11 @@ export async function storageGet(
 export async function storageGetSignedUrl(relKey: string): Promise<string> {
   const key = normalizeKey(relKey);
 
-  // Local fallback: return the internal /manus-storage URL which the
-  // server proxy resolves to the local file (no Forge needed).
+  // Local fallback (no Forge): paid digital files must NOT be exposed through
+  // the public /manus-storage proxy, so hand back a short-lived HMAC-signed
+  // /api/media URL instead. Public assets keep the plain proxy URL.
   if (!hasForgeConfig()) {
+    if (isProtectedStorageKey(key)) return signMediaUrl(key, MEDIA_URL_TTL_MS);
     return `/manus-storage/${key}`;
   }
 

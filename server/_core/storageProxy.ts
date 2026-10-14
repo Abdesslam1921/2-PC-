@@ -5,6 +5,7 @@ import {
   resolveWithinStorageRoot,
   sanitizeStorageKey,
 } from "./storagePaths";
+import { isProtectedStorageKey } from "./mediaSignature";
 
 export function registerStorageProxy(app: Express) {
   app.get("/manus-storage/*", async (req, res) => {
@@ -12,6 +13,11 @@ export function registerStorageProxy(app: Express) {
     // Reject path traversal / abs paths / over-encoding BEFORE touching disk.
     const key = sanitizeStorageKey(rawKey);
     if (!key) return res.status(400).send("Invalid key");
+
+    // Paid digital files are never public: they are served only through the
+    // token-gated /api/downloads/:token → /api/media flow. Answer 404 (not 403)
+    // so the public proxy does not confirm that such a key exists.
+    if (isProtectedStorageKey(key)) return res.status(404).send("Not found");
 
     // Legacy keys were stored under products/1/... — keep those working, but
     // every candidate is re-resolved inside the storage root.

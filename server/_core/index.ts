@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
+import { registerDigitalMediaRoute } from "./digitalMedia";
 import { registerGoogleOAuthRoutes } from "../googleOAuth";
 import { registerGoogleAuthRoutes } from "../googleAuth";
 import { registerMetaOAuthRoutes } from "../metaOAuth";
@@ -187,6 +188,7 @@ async function startServer() {
   });
 
   registerStorageProxy(app);
+  registerDigitalMediaRoute(app);
   registerOAuthRoutes(app);
   registerGoogleOAuthRoutes(app);
   registerGoogleAuthRoutes(app);
