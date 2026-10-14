@@ -8,6 +8,7 @@ import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import {
   callCenterAgentProducts,
   callCenterAgents,
+  callCenterSettings,
   callCenterSessions,
   storeOrderItems,
   storeOrders,
@@ -45,7 +46,14 @@ export function pickRoundRobinAgentId(
   return eligibleIds[from % eligibleIds.length];
 }
 
-function agentCoversProducts(
+/**
+ * Round-robin eligibility by product scope. An agent with no explicit product
+ * assignment covers ALL products ("كل المنتجات"); an agent with an explicit
+ * list only covers orders that contain at least one of those products
+ * ("منتجات محددة"). This is the product filter applied BEFORE distribution.
+ * It never depends on an "online" flag — only `enabled` agents reach this point.
+ */
+export function agentCoversProducts(
   agentProductIds: number[],
   orderProductIds: number[]
 ) {
@@ -80,6 +88,120 @@ export function isCallCenterOrderVisibleToAgent(
   return fullAccess || order.items.some(item => productIds.includes(item.productId));
 }
 
+export type CallCenterDistributionSettings = {
+  /** Master switch: when false, no new order is auto-distributed. */
+  autoDistribute: boolean;
+  /** "all" = every product; "specific" = only the selected products. */
+  distributionScope: "all" | "specific";
+  /** Selected products when scope is "specific". */
+  productIds: number[];
+};
+
+function parseProductIds(raw: string | null | undefined): number[] {
+  if (!raw) return [];
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map(value => Number(value))
+      .filter(value => Number.isInteger(value) && value > 0);
+  } catch {
+    return [];
+  }
+}
+
+const DEFAULT_DISTRIBUTION_SETTINGS: CallCenterDistributionSettings = {
+  autoDistribute: true,
+  distributionScope: "all",
+  productIds: [],
+};
+
+/**
+ * The store-level gate applied BEFORE assigning: master switch + optional
+ * product scope. Returns false when the order must NOT be auto-distributed.
+ */
+export function isOrderInDistributionScope(
+  settings: CallCenterDistributionSettings,
+  orderProductIds: number[]
+) {
+  if (!settings.autoDistribute) return false;
+  if (settings.distributionScope === "all") return true;
+  if (!settings.productIds.length) return false;
+  return orderProductIds.some(id => settings.productIds.includes(id));
+}
+
+/** Fail-safe read: a missing row / table / DB falls back to "enabled on all". */
+export async function getCallCenterDistributionSettings(
+  storeId: number
+): Promise<CallCenterDistributionSettings> {
+  try {
+    const db = await getDb();
+    if (!db) return DEFAULT_DISTRIBUTION_SETTINGS;
+    const [row] = await db
+      .select()
+      .from(callCenterSettings)
+      .where(eq(callCenterSettings.storeId, storeId))
+      .limit(1);
+    if (!row) return DEFAULT_DISTRIBUTION_SETTINGS;
+    return {
+      autoDistribute: row.autoDistribute,
+      distributionScope: row.distributionScope,
+      productIds: parseProductIds(row.productIdsJson),
+    };
+  } catch (error) {
+    console.warn("[Call Center] distribution settings read failed:", error);
+    return DEFAULT_DISTRIBUTION_SETTINGS;
+  }
+}
+
+export async function saveCallCenterDistributionSettings(
+  ownerId: number,
+  storeId: number,
+  input: CallCenterDistributionSettings
+) {
+  const db = await getDb();
+  if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
+  const validProductIds =
+    input.distributionScope === "specific" && input.productIds.length
+      ? (
+          await db
+            .select({ id: storeProducts.id })
+            .from(storeProducts)
+            .where(
+              and(
+                eq(storeProducts.storeId, storeId),
+                inArray(storeProducts.id, input.productIds)
+              )
+            )
+        ).map(row => row.id)
+      : [];
+  const productIdsJson =
+    input.distributionScope === "specific"
+      ? JSON.stringify(validProductIds)
+      : null;
+  await db
+    .insert(callCenterSettings)
+    .values({
+      ownerId,
+      storeId,
+      autoDistribute: input.autoDistribute,
+      distributionScope: input.distributionScope,
+      productIdsJson,
+    })
+    .onDuplicateKeyUpdate({
+      set: {
+        autoDistribute: input.autoDistribute,
+        distributionScope: input.distributionScope,
+        productIdsJson,
+      },
+    });
+  return {
+    autoDistribute: input.autoDistribute,
+    distributionScope: input.distributionScope,
+    productIds: validProductIds,
+  } satisfies CallCenterDistributionSettings;
+}
+
 export async function assignNewOrderToCallCenterAgent(input: {
   storeId: number;
   orderId: number;
@@ -103,6 +225,9 @@ async function assignNewOrderToCallCenterAgentUnsafe(input: {
   if (!input.storeId || !input.orderId) return null;
   const db = await getDb();
   if (!db) return null;
+  // Store-level round-robin gate: master switch + optional product scope.
+  const distribution = await getCallCenterDistributionSettings(input.storeId);
+  if (!isOrderInDistributionScope(distribution, input.productIds)) return null;
   const agents = await db
     .select({
       id: callCenterAgents.id,

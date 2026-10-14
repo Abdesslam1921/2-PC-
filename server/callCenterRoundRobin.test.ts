@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  agentCoversProducts,
   isCallCenterOrderVisibleToAgent,
   isDisabledAgentQueueOrder,
+  isOrderInDistributionScope,
   pickRoundRobinAgentId,
 } from "./callCenterDb";
 
@@ -29,6 +31,61 @@ describe("Call Center round-robin assignment", () => {
 
   it("starts from the first eligible agent when the last assignee is gone", () => {
     expect(pickRoundRobinAgentId([4, 7, 9], null, 2)).toBe(4);
+  });
+});
+
+describe("Call Center store-level distribution scope gate", () => {
+  const base = { autoDistribute: true, productIds: [] as number[] };
+
+  it("stops everything when the master switch is off", () => {
+    expect(
+      isOrderInDistributionScope(
+        { ...base, autoDistribute: false, distributionScope: "all" },
+        [1, 2]
+      )
+    ).toBe(false);
+  });
+
+  it("distributes every product when scope is all", () => {
+    expect(
+      isOrderInDistributionScope({ ...base, distributionScope: "all" }, [99])
+    ).toBe(true);
+  });
+
+  it("distributes only the selected products when scope is specific", () => {
+    const settings = {
+      autoDistribute: true,
+      distributionScope: "specific" as const,
+      productIds: [1, 2],
+    };
+    expect(isOrderInDistributionScope(settings, [2, 3])).toBe(true);
+    expect(isOrderInDistributionScope(settings, [7])).toBe(false);
+  });
+
+  it("fails safe when specific scope has no products", () => {
+    expect(
+      isOrderInDistributionScope(
+        {
+          autoDistribute: true,
+          distributionScope: "specific",
+          productIds: [],
+        },
+        [1]
+      )
+    ).toBe(false);
+  });
+});
+
+describe("Call Center round-robin product scope (all vs specific)", () => {
+  it("treats an agent with no assigned products as covering كل المنتجات", () => {
+    expect(agentCoversProducts([], [10, 20])).toBe(true);
+    expect(agentCoversProducts([], [])).toBe(true);
+  });
+
+  it("only covers orders that include at least one specific product", () => {
+    expect(agentCoversProducts([10], [10, 20])).toBe(true);
+    expect(agentCoversProducts([10], [20, 30])).toBe(false);
+    expect(agentCoversProducts([10, 11], [11])).toBe(true);
   });
 });
 

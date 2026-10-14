@@ -7,7 +7,9 @@ import {
   deleteCallCenterArchivedOrder,
   deleteCallCenterOrders,
   getCallCenterDashboard,
+  getCallCenterDistributionSettings,
   listCallCenterAgents,
+  saveCallCenterDistributionSettings,
   loginCallCenterAgent,
   sendCallCenterMediaToWhatsApp,
   syncAllCallCenterOrderStatuses,
@@ -45,6 +47,20 @@ export const callCenterRouter = router({
   list: protectedProcedure.query(({ ctx }) =>
     listCallCenterAgents(getStoreId(ctx))
   ),
+  distributionSettings: protectedProcedure.query(({ ctx }) =>
+    getCallCenterDistributionSettings(getStoreId(ctx))
+  ),
+  saveDistributionSettings: protectedProcedure
+    .input(
+      z.object({
+        autoDistribute: z.boolean(),
+        distributionScope: z.enum(["all", "specific"]),
+        productIds: z.array(z.number().int().positive()).max(100),
+      })
+    )
+    .mutation(({ ctx, input }) =>
+      saveCallCenterDistributionSettings(ctx.user.id, getStoreId(ctx), input)
+    ),
   create: protectedProcedure
     .input(
       z.object({

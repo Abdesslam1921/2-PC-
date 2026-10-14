@@ -484,6 +484,13 @@
       "when": 1790593315187,
       "tag": "0068_ambiguous_silver_fox",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "5",
+      "when": 1791908750873,
+      "tag": "0069_tiny_scalphunter",
+      "breakpoints": true
     }
   ]
 }

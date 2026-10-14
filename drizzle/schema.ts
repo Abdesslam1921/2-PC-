@@ -987,6 +987,25 @@ export const callCenterSessions = mysqlTable("call_center_sessions", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+/**
+ * Store-level automatic round-robin distribution settings.
+ * `autoDistribute` is the master switch; `distributionScope` chooses whether
+ * new orders of ALL products or only SPECIFIC products are distributed.
+ * `productIdsJson` holds the selected product ids when scope = "specific".
+ */
+export const callCenterSettings = mysqlTable("call_center_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("ownerId").notNull(),
+  storeId: int("storeId").unique(),
+  autoDistribute: boolean("autoDistribute").default(true).notNull(),
+  distributionScope: mysqlEnum("distributionScope", ["all", "specific"])
+    .default("all")
+    .notNull(),
+  productIdsJson: text("productIdsJson"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 // ── ForShip Order Tracking (Hybrid Webhook + Adaptive Polling) ──────────────
 
 export const carrierPlatformTypes = ["ecotrack", "yalidine", "custom"] as const;
@@ -1391,6 +1410,7 @@ export type CallCenterAgent = typeof callCenterAgents.$inferSelect;
 export type CallCenterAgentProduct =
   typeof callCenterAgentProducts.$inferSelect;
 export type CallCenterSession = typeof callCenterSessions.$inferSelect;
+export type CallCenterSettings = typeof callCenterSettings.$inferSelect;
 export type Carrier = typeof carriers.$inferSelect;
 export type MerchantCarrierCredential =
   typeof merchantCarrierCredentials.$inferSelect;

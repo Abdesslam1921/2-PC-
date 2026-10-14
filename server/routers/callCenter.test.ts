@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   dashboard: vi.fn(),
   remove: vi.fn(),
   update: vi.fn(),
+  distributionSettings: vi.fn(),
+  saveDistributionSettings: vi.fn(),
+  getDistributionSettings: vi.fn(),
 }));
 
 vi.mock("../callCenterDb", () => ({
@@ -16,6 +19,9 @@ vi.mock("../callCenterDb", () => ({
   getCallCenterDashboard: mocks.dashboard,
   deleteCallCenterAgent: mocks.remove,
   updateCallCenterAgent: mocks.update,
+  getCallCenterDistributionSettings: mocks.distributionSettings,
+  saveCallCenterDistributionSettings: mocks.saveDistributionSettings,
+  getCallCenterDistributionSettings: mocks.getDistributionSettings,
 }));
 
 import { appRouter } from "../routers";
@@ -109,6 +115,64 @@ describe("Call Center router", () => {
     expect(login.token).toHaveLength(64);
     expect(dashboard.stats.total).toBe(1);
     expect(mocks.dashboard).toHaveBeenCalledWith(login.token);
+  });
+
+  it("saves the store-level distribution settings under the tenant", async () => {
+    mocks.saveDistributionSettings.mockResolvedValue({
+      autoDistribute: false,
+      distributionScope: "specific",
+      productIds: [3],
+    });
+    const result = await appRouter
+      .createCaller(context())
+      .callCenter.saveDistributionSettings({
+        autoDistribute: false,
+        distributionScope: "specific",
+        productIds: [3],
+      });
+    expect(mocks.saveDistributionSettings).toHaveBeenCalledWith(42, 7, {
+      autoDistribute: false,
+      distributionScope: "specific",
+      productIds: [3],
+    });
+    expect(result.autoDistribute).toBe(false);
+  });
+
+  it("scopes distribution settings to the caller's tenant and ignores storeId in the input", async () => {
+    mocks.getDistributionSettings.mockResolvedValue({
+      autoDistribute: true,
+      distributionScope: "all",
+      productIds: [],
+    });
+    mocks.saveDistributionSettings.mockResolvedValue({
+      autoDistribute: true,
+      distributionScope: "all",
+      productIds: [],
+    });
+    // A different tenant context must never read/write another store's row, and
+    // an extra storeId in the payload must be ignored (tenant = session only).
+    const base = context();
+    const otherTenant = {
+      ...base,
+      storeId: 9,
+      store: { ...base.store!, id: 9 },
+    };
+    const payload = {
+      autoDistribute: true,
+      distributionScope: "all" as const,
+      productIds: [] as number[],
+      storeId: 999,
+    };
+    await appRouter
+      .createCaller(otherTenant)
+      .callCenter.saveDistributionSettings(payload);
+    expect(mocks.saveDistributionSettings).toHaveBeenCalledWith(42, 9, {
+      autoDistribute: true,
+      distributionScope: "all",
+      productIds: [],
+    });
+    await appRouter.createCaller(otherTenant).callCenter.distributionSettings();
+    expect(mocks.getDistributionSettings).toHaveBeenCalledWith(9);
   });
 
   it("returns how many orders went back to the queue when an agent is disabled", async () => {
