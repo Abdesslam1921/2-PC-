@@ -35,17 +35,22 @@ import {
   getStoreId,
 } from "../_core/trpc";
 
-/** Best-effort client IP for public abuse limiting (behind a proxy). */
+/**
+ * Best-effort client IP for the coarse abuse floor.
+ *
+ * We deliberately do NOT read `X-Forwarded-For` directly: it is client-supplied
+ * unless a trusted proxy rewrites it, and trusting the first hop lets anyone
+ * forge an arbitrary IP. Express `req.ip` already honours the `trust proxy`
+ * setting (we never enable it, so this is the real transport peer); if a reverse
+ * proxy is ever added, enable `app.set("trust proxy", <hops>)` and this keeps
+ * working. The value is only a high flood cap, never the primary limiter.
+ */
 function getClientIp(req: {
-  headers?: Record<string, string | string[] | undefined>;
   ip?: string;
   socket?: { remoteAddress?: string | null };
 } | undefined): string {
-  const forwarded = req?.headers?.["x-forwarded-for"];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const fromHeader = first?.split(",")[0]?.trim();
-  if (fromHeader) return fromHeader;
-  return req?.ip || req?.socket?.remoteAddress || "unknown";
+  const candidate = req?.ip || req?.socket?.remoteAddress || "";
+  return candidate ? candidate.replace(/^::ffff:/, "") : "unknown";
 }
 
 const lineInput = z.object({
@@ -65,15 +70,19 @@ const lineInput = z.object({
     .optional(),
 });
 
+/** One phone rule for every entry point (checkout + manual order). */
+const phoneInput = z
+  .string()
+  .trim()
+  .max(40)
+  .regex(
+    /^0[567][0-9]{8}$/,
+    "رقم الهاتف يجب أن يبدأ بـ05 أو 06 أو 07 ويتكون من 10 أرقام."
+  );
+
 const checkoutInput = z.object({
   customerName: z.string().trim().min(2, "أدخل الاسم الكامل.").max(180),
-  customerPhone: z
-    .string()
-    .trim()
-    .regex(
-      /^0[567][0-9]{8}$/,
-      "رقم الهاتف يجب أن يبدأ بـ05 أو 06 أو 07 ويتكون من 10 أرقام."
-    ),
+  customerPhone: phoneInput,
   wilaya: z.string().trim().min(2, "اختر الولاية.").max(120),
   wilayaCode: z
     .string()
@@ -395,10 +404,7 @@ export const ordersRouter = router({
         productId: z.number().int().positive(),
         quantity: z.number().int().min(1).max(50).default(1),
         customerName: z.string().trim().min(2).max(180),
-        customerPhone: z
-          .string()
-          .trim()
-          .regex(/^0[567][0-9]{8}$/),
+        customerPhone: phoneInput,
         wilaya: z.string().trim().min(2).max(120),
         municipality: z.string().trim().max(160).optional(),
         address: z.string().trim().max(2000).optional(),
