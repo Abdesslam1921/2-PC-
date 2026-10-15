@@ -167,10 +167,45 @@ describe("GET /manus-storage/* — real files already on disk keep serving", () 
       }
     };
     walk(LOCAL_STORAGE_ROOT);
-    const interesting = out.filter(k => /[^\x00-\x7F]/.test(k) || k.includes(" "));
-    const rest = out.filter(k => !interesting.includes(k));
+    // Paid digital files under `digital-products/` are intentionally NOT served
+    // by the public proxy (they go through the token-gated download flow), so
+    // they are excluded from the "every real file must serve" sampling below.
+    const publicFiles = out.filter(key => !key.startsWith("digital-products/"));
+    const interesting = publicFiles.filter(
+      k => /[^\x00-\x7F]/.test(k) || k.includes(" ")
+    );
+    const rest = publicFiles.filter(k => !interesting.includes(k));
     return [...interesting, ...rest].slice(0, 25);
   })();
+
+  const realProtectedFiles = (() => {
+    if (!fs.existsSync(LOCAL_STORAGE_ROOT)) return [] as string[];
+    const out: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else out.push(path.relative(LOCAL_STORAGE_ROOT, full).split(path.sep).join("/"));
+      }
+    };
+    walk(LOCAL_STORAGE_ROOT);
+    return out.filter(key => key.startsWith("digital-products/"));
+  })();
+
+  it.skipIf(realProtectedFiles.length === 0)(
+    "refuses every real paid file through the public proxy",
+    async () => {
+      for (const relKey of realProtectedFiles) {
+        const url =
+          "/manus-storage/" + relKey.split("/").map(encodeURIComponent).join("/");
+        const res = await rawGetBuffer(url);
+        expect(res.status, `status for ${relKey}`).toBe(404);
+        expect(res.buffer.toString("utf8"), `leak for ${relKey}`).toBe(
+          "Not found"
+        );
+      }
+    }
+  );
 
   it.skipIf(realFiles.length === 0)(
     "serves every sampled real file with its exact bytes",

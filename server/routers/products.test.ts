@@ -232,6 +232,47 @@ describe("products.patchCodTrust", () => {
   });
 });
 
+describe("products.update cannot clear a digital file", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.updateStoreProduct.mockResolvedValue({ id: 9 });
+    mocks.duplicateStoreProduct.mockResolvedValue({ id: 8 });
+  });
+
+  it("strips forged file fields instead of forwarding them to the DB", async () => {
+    const caller = appRouter.createCaller(context());
+    const { media, variants, ...editable } = validProductInput();
+
+    await caller.products.update({
+      id: 9,
+      ...editable,
+      title: "بدون لمس الملف",
+      // A malicious/legacy client trying to null or swap the file reference.
+      digitalFileStorageKey: null,
+      digitalFileUrl: null,
+      digitalFileName: null,
+    } as any);
+
+    expect(mocks.updateStoreProduct).toHaveBeenCalledWith(
+      7,
+      9,
+      expect.any(Object)
+    );
+    const payload = mocks.updateStoreProduct.mock.calls[0][2];
+    // The schema never carries these fields, so the DB merge keeps the stored
+    // file (see server/digitalFileMerge + the live preservation check).
+    expect(payload).not.toHaveProperty("digitalFileStorageKey");
+    expect(payload).not.toHaveProperty("digitalFileUrl");
+    expect(payload).not.toHaveProperty("digitalFileName");
+  });
+
+  it("duplicate is the supported way to branch a digital product (file copied in DB)", async () => {
+    const caller = appRouter.createCaller(context());
+    await caller.products.duplicate({ id: 9 });
+    expect(mocks.duplicateStoreProduct).toHaveBeenCalledWith(7, 9);
+  });
+});
+
 describe("products API never exposes raw paid-file refs", () => {
   const rawDigitalProduct = {
     id: 9,

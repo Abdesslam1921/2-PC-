@@ -74,6 +74,7 @@ import {
   normalizeEcotrackHostname,
 } from "./ecotrack-catalog";
 import { decryptSecret, encryptSecret } from "./secureSecrets";
+import { mergeDigitalFileFields } from "./digitalFileMerge";
 import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -5557,17 +5558,7 @@ export async function updateStoreProduct(
       productKind: input.productKind ?? current.productKind,
       currency: input.currency ?? current.currency,
       collectionName: input.collectionName,
-      digitalFileName: input.digitalFileName ?? current.digitalFileName,
-      digitalFileStorageKey:
-        input.digitalFileStorageKey ?? current.digitalFileStorageKey,
-      digitalFileUrl: input.digitalFileUrl ?? current.digitalFileUrl,
-      digitalFileSize: input.digitalFileSize ?? current.digitalFileSize,
-      digitalFileMimeType:
-        input.digitalFileMimeType ?? current.digitalFileMimeType,
-      digitalMaxDownloads:
-        input.digitalMaxDownloads ?? current.digitalMaxDownloads,
-      digitalLinkValidityHours:
-        input.digitalLinkValidityHours ?? current.digitalLinkValidityHours,
+      ...mergeDigitalFileFields(current, input),
       status: input.status,
       price: input.price,
       compareAtPrice: input.compareAtPrice,
