@@ -9,7 +9,7 @@ import {
   whatsappHref,
 } from "./sectionData";
 import { signatureStyle } from "./FooterExtras";
-import { SECTION_FIELDS } from "@shared/storefront/sectionFields";
+import { SECTION_FIELDS, SECTION_ITEM_FIELDS } from "@shared/storefront/sectionFields";
 import { storefrontAnchors } from "./sectionIcons";
 import type { StorefrontSection } from "@shared/storefront/storefrontConfig";
 
@@ -264,6 +264,39 @@ describe("storefront offer cards", () => {
     ]);
     expect(cards[0].imageUrl).toBe("/bundle.jpg");
     expect(cards[0].savingPercent).toBe(0);
+  });
+});
+
+describe("deleted products/categories/offers never break a storefront", () => {
+  it("renders nothing when every offer was deleted/deactivated", () => {
+    expect(offerCards([])).toEqual([]);
+  });
+
+  it("renders no category tiles (without throwing) when the store has none left", () => {
+    expect(categoryTiles(section("categories"), [], [])).toEqual([]);
+  });
+
+  it("a merchant category tile is inert data (no DB lookup → a deleted source cannot dangle)", () => {
+    // Tiles store display data only; nothing resolves a live category id, so
+    // deleting the underlying category leaves the tile harmless.
+    const tiles = categoryTiles(
+      section("categories", {}, [{ id: "item-1", name: "هدايا" }]),
+      [],
+      []
+    );
+    expect(tiles).toEqual([
+      { id: "item-1", name: "هدايا", imageUrl: undefined, bg: undefined },
+    ]);
+  });
+
+  it("the section editor exposes no product/category/offer id fields", () => {
+    const keys = [
+      ...Object.values(SECTION_FIELDS).flat(),
+      ...Object.values(SECTION_ITEM_FIELDS).flat(),
+    ].map(field => field.key);
+    expect(keys).not.toContain("productId");
+    expect(keys).not.toContain("categoryId");
+    expect(keys).not.toContain("offerId");
   });
 });
 

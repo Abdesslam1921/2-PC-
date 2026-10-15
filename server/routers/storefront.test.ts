@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrpcContext } from "../_core/context";
 import {
@@ -90,7 +91,7 @@ describe("storefront.publicConfig tenant isolation", () => {
     expect(result?.templateKey).toBe("modern");
   });
 
-  it("fails safe to null when the published snapshot is not valid", async () => {
+  it("falls back safely to Modern when the published snapshot is corrupt", async () => {
     mocks.getPublishedStorefront.mockResolvedValueOnce({
       versionNumber: 1,
       snapshotJson: "{not-json",
@@ -98,7 +99,40 @@ describe("storefront.publicConfig tenant isolation", () => {
     });
     const caller = appRouter.createCaller(makeContext(7));
     const result = await caller.storefront.publicConfig();
-    expect(result).toBeNull();
+    // The live store keeps serving: it renders the Modern default, not null.
+    expect(result).not.toBeNull();
+    expect(result?.fallback).toBe(true);
+    expect(result?.templateKey).toBe("modern");
+    expect(result?.config.templateKey).toBe("modern");
+  });
+
+  it("falls back safely to Modern when the published snapshot fails validation", async () => {
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 3,
+      snapshotJson: JSON.stringify({
+        templateKey: "unknown-template",
+        sections: [],
+      }),
+      publishedAt: new Date(),
+    });
+    const caller = appRouter.createCaller(makeContext(7));
+    const result = await caller.storefront.publicConfig();
+    expect(result?.fallback).toBe(true);
+    expect(result?.templateKey).toBe("modern");
+    // Read-time fallback never mutates or deletes the immutable version.
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+
+  it("serves the real config (no fallback flag) when the snapshot is valid", async () => {
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 5,
+      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      publishedAt: new Date(),
+    });
+    const caller = appRouter.createCaller(makeContext(7));
+    const result = await caller.storefront.publicConfig();
+    expect(result?.fallback).toBe(false);
+    expect(result?.versionNumber).toBe(5);
   });
 });
 
@@ -222,5 +256,190 @@ describe("storefront template seeding", () => {
     );
     expect(savedConfig.templateKey).toBe("modern");
     expect(savedConfig.theme).toEqual({});
+  });
+});
+
+function makeForeignUserContext(storeId: number, userId = 999): TrpcContext {
+  const ctx = makeContext(storeId);
+  return {
+    ...ctx,
+    user: {
+      id: userId,
+      openId: "foreign-open-id",
+      name: "Foreign",
+      email: "foreign@example.com",
+      role: "user",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    } as TrpcContext["user"],
+  };
+}
+
+describe("storefront versions — immutability & draft/publish separation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("only ever INSERTs versions (no update/delete source path)", () => {
+    const dbSource = readFileSync("server/storefrontDb.ts", "utf8");
+    expect(dbSource).not.toMatch(/\.update\(\s*storefrontVersions\s*\)/);
+    expect(dbSource).not.toMatch(/\.delete\(\s*storefrontVersions\s*\)/);
+    expect(dbSource).toContain("db.insert(storefrontVersions)");
+
+    const routerSource = readFileSync("server/routers/storefront.ts", "utf8");
+    const rollbackBlock = routerSource.slice(
+      routerSource.indexOf("rollback: protectedProcedure"),
+      routerSource.indexOf("uploadAsset: protectedProcedure")
+    );
+    // Rollback must create a NEW version, never mutate or delete history.
+    expect(rollbackBlock).toContain("createStorefrontVersion(");
+    expect(rollbackBlock).not.toMatch(/\.delete\(/);
+    expect(rollbackBlock).not.toMatch(/\.update\(/);
+  });
+
+  it("publicConfig reads the published version only, never the draft", async () => {
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 9,
+      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      publishedAt: new Date(),
+    });
+    const caller = appRouter.createCaller(makeContext(7));
+    await caller.storefront.publicConfig();
+    expect(mocks.getPublishedStorefront).toHaveBeenCalledWith(7);
+    expect(mocks.getStorefrontDraft).not.toHaveBeenCalled();
+  });
+
+  it("saveDraft never creates a published version", async () => {
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({ conflict: false, version: 3 });
+    const caller = appRouter.createCaller(makeOwnerContext(7));
+    await caller.storefront.saveDraft({
+      config: DEFAULT_MODERN_CONFIG,
+      expectedVersion: 2,
+    });
+    expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("storefront publish — immutable snapshot + audit + tenancy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("publish creates a new immutable version scoped to the store and audits it", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      concurrencyVersion: 4,
+    });
+    mocks.createStorefrontVersion.mockResolvedValueOnce({ versionNumber: 4 });
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.publish({ note: "go live" });
+
+    expect(result.versionNumber).toBe(4);
+    expect(mocks.createStorefrontVersion).toHaveBeenCalledTimes(1);
+    const arg = mocks.createStorefrontVersion.mock.calls[0][0];
+    expect(arg.storeId).toBe(7);
+    expect(arg.publishedBy).toBe(42);
+    expect(arg.sourceDraftVersion).toBe(4);
+    expect(JSON.parse(arg.snapshotJson).templateKey).toBe("modern");
+
+    expect(mocks.recordStorefrontAuditLog).toHaveBeenCalledTimes(1);
+    const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
+    expect(audit).toMatchObject({ storeId: 7, actorId: 42, action: "publish", toVersion: 4 });
+  });
+
+  it("publish refuses when there is no draft", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce(null);
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(caller.storefront.publish({})).rejects.toThrow(/مسودة/);
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+
+  it("a foreign non-admin user cannot publish or roll back", async () => {
+    const caller = appRouter.createCaller(makeForeignUserContext(7, 999));
+    await expect(caller.storefront.publish({})).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await expect(
+      caller.storefront.rollback({ versionNumber: 1 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+    expect(mocks.recordStorefrontAuditLog).not.toHaveBeenCalled();
+  });
+});
+
+describe("storefront rollback — creates a new version, never mutates history", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const v1Config = JSON.stringify({
+    ...DEFAULT_MODERN_CONFIG,
+    sections: DEFAULT_MODERN_CONFIG.sections.map(section =>
+      section.type === "hero"
+        ? { ...section, settings: { ...section.settings, title: "V1 HERO" } }
+        : section
+    ),
+  });
+
+  it("V1→V2→V3→rollback to V1 produces a NEW V4 equivalent to V1", async () => {
+    mocks.getStorefrontVersionByNumber.mockResolvedValueOnce({
+      versionNumber: 1,
+      snapshotJson: v1Config,
+    });
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_BOLD_CONFIG),
+      concurrencyVersion: 6,
+    });
+    mocks.createStorefrontVersion.mockResolvedValueOnce({ versionNumber: 4 });
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({ conflict: false, version: 7 });
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.rollback({ versionNumber: 1 });
+
+    expect(result.versionNumber).toBe(4);
+    expect(result.config.templateKey).toBe("modern");
+    const created = mocks.createStorefrontVersion.mock.calls[0][0];
+    expect(created.storeId).toBe(7);
+    expect(created.sourceDraftVersion).toBeNull();
+    // The new version holds the same snapshot as V1 (history is copied, not moved).
+    expect(JSON.parse(created.snapshotJson).sections.find((s: any) => s.type === "hero").settings.title).toBe(
+      "V1 HERO"
+    );
+    expect(created.note).toContain("rollback to v1");
+
+    const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
+    expect(audit).toMatchObject({
+      storeId: 7,
+      action: "rollback",
+      fromVersion: 1,
+      toVersion: 4,
+    });
+    // The draft is restored so the editor reflects the rolled-back config.
+    expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("rollback to a version that does not belong to the store is NOT_FOUND", async () => {
+    mocks.getStorefrontVersionByNumber.mockResolvedValueOnce(null);
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(
+      caller.storefront.rollback({ versionNumber: 99 })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(mocks.getStorefrontVersionByNumber).toHaveBeenCalledWith(7, 99);
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+
+  it("rollback refuses a corrupt source version without creating one", async () => {
+    mocks.getStorefrontVersionByNumber.mockResolvedValueOnce({
+      versionNumber: 2,
+      snapshotJson: "{not-json",
+    });
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(
+      caller.storefront.rollback({ versionNumber: 2 })
+    ).rejects.toThrow();
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
   });
 });

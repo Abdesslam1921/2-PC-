@@ -152,34 +152,52 @@ export const storefrontRouter = router({
   publicConfig: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.store) return null;
     const published = await getPublishedStorefront(ctx.store.id);
+    // No published version at all → legacy coexistence (render the old store).
     if (!published) return null;
-    let parsed: unknown;
+
+    /**
+     * A corrupt or schema-invalid published snapshot must never take the live
+     * store down. Fall back safely to the Modern default at READ time (nothing
+     * is written and the immutable version is never modified or deleted).
+     */
+    let config: StorefrontConfig;
+    let servedFallback = false;
     try {
-      parsed = JSON.parse(published.snapshotJson);
+      const valid = validateStorefrontConfig(JSON.parse(published.snapshotJson));
+      if (valid.ok && valid.data) {
+        config = valid.data;
+      } else {
+        config = TEMPLATE_DEFAULTS.modern;
+        servedFallback = true;
+      }
     } catch {
-      console.warn("[storefront] invalid published snapshot JSON", ctx.store.id);
-      return null;
+      config = TEMPLATE_DEFAULTS.modern;
+      servedFallback = true;
     }
-    const valid = validateStorefrontConfig(parsed);
-    if (!valid.ok || !valid.data) {
-      console.warn("[storefront] published config failed validation", ctx.store.id);
-      return null;
+    if (servedFallback) {
+      console.warn(
+        "[storefront] published snapshot corrupt/invalid — serving Modern fallback",
+        ctx.store.id,
+        published.versionNumber
+      );
     }
+
     /**
      * A bundle created AFTER the last publish must still surface its "الباقات"
      * section. Inject it at read time (idempotent; the section renders nothing
      * while no bundle is available), so the merchant is not forced to re-publish
      * just to see newly created packs.
      */
-    const config = (await hasActiveBundle(ctx.store.id))
-      ? ensureOffersSection(valid.data)
-      : valid.data;
+    const resolved = (await hasActiveBundle(ctx.store.id))
+      ? ensureOffersSection(config)
+      : config;
     return {
-      templateKey: config.templateKey,
-      config,
+      templateKey: resolved.templateKey,
+      config: resolved,
       storeName: ctx.store.name,
       versionNumber: published.versionNumber,
       publishedAt: published.publishedAt,
+      fallback: servedFallback,
     };
   }),
 
