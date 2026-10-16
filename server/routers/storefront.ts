@@ -12,16 +12,19 @@ import {
   getPublishedStorefront,
   getStorefrontDraft,
   getStorefrontVersionByNumber,
+  listStorefrontVersionSnapshots,
   listStorefrontVersions,
   recordStorefrontAuditLog,
   saveStorefrontDraft,
 } from "../storefrontDb";
+import { evaluatePublishedSnapshots } from "../storefrontSnapshotHealth";
 import { storagePut } from "../storage";
 import { hasActiveBundle } from "../db";
 import {
   STOREFRONT_TEMPLATE_KEYS,
   TEMPLATE_DEFAULT_CONFIGS,
   ensureOffersSection,
+  validateStoredStorefrontConfig,
   validateStorefrontConfig,
 } from "../../shared/storefront/storefrontConfig";
 import type { StorefrontConfig } from "../../shared/storefront/storefrontConfig";
@@ -49,7 +52,7 @@ async function templateSeedConfig(
       : publishedSnapshotJson;
   if (snapshotJson) {
     try {
-      const valid = validateStorefrontConfig(JSON.parse(snapshotJson));
+      const valid = validateStoredStorefrontConfig(JSON.parse(snapshotJson));
       if (valid.ok && valid.data && valid.data.templateKey === templateKey) {
         return { config: valid.data, seededFrom: "published" };
       }
@@ -91,7 +94,7 @@ async function seedAndPublishTemplate(input: {
   const currentPublished = await getPublishedStorefront(input.storeId);
   if (currentPublished) {
     try {
-      const current = validateStorefrontConfig(
+      const current = validateStoredStorefrontConfig(
         JSON.parse(currentPublished.snapshotJson)
       );
       if (current.ok && current.data?.templateKey === input.templateKey) {
@@ -148,37 +151,35 @@ async function seedAndPublishTemplate(input: {
 }
 
 export const storefrontRouter = router({
-  /** Public: the live storefront reads the latest PUBLISHED config only. */
+  /** Public: the live storefront reads the newest valid PUBLISHED config. */
   publicConfig: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.store) return null;
-    const published = await getPublishedStorefront(ctx.store.id);
+    const versions = await listStorefrontVersionSnapshots(ctx.store.id);
     // No published version at all → legacy coexistence (render the old store).
-    if (!published) return null;
+    if (!versions.length) return null;
 
     /**
      * A corrupt or schema-invalid published snapshot must never take the live
-     * store down. Fall back safely to the Modern default at READ time (nothing
-     * is written and the immutable version is never modified or deleted).
+     * store down. Resolution order (read-only, nothing is written/deleted):
+     *   1. the newest valid version (after normalising old fields),
+     *   2. the newest EARLIER valid version (last good rollback),
+     *   3. only if no version is valid → the Modern default.
      */
+    const { config: validConfig, servedVersion, health } =
+      evaluatePublishedSnapshots(versions);
+    const servedFallback = !health.ok;
     let config: StorefrontConfig;
-    let servedFallback = false;
-    try {
-      const valid = validateStorefrontConfig(JSON.parse(published.snapshotJson));
-      if (valid.ok && valid.data) {
-        config = valid.data;
-      } else {
-        config = TEMPLATE_DEFAULTS.modern;
-        servedFallback = true;
-      }
-    } catch {
+    if (validConfig) {
+      config = validConfig;
+    } else {
       config = TEMPLATE_DEFAULTS.modern;
-      servedFallback = true;
     }
     if (servedFallback) {
       console.warn(
-        "[storefront] published snapshot corrupt/invalid — serving Modern fallback",
+        "[storefront] published snapshot corrupt/invalid — serving",
+        validConfig ? `last good v${servedVersion?.versionNumber}` : "Modern fallback",
         ctx.store.id,
-        published.versionNumber
+        health.reason ?? ""
       );
     }
 
@@ -195,24 +196,27 @@ export const storefrontRouter = router({
       templateKey: resolved.templateKey,
       config: resolved,
       storeName: ctx.store.name,
-      versionNumber: published.versionNumber,
-      publishedAt: published.publishedAt,
+      versionNumber: servedVersion?.versionNumber ?? health.latestVersionNumber,
+      publishedAt: servedVersion?.publishedAt ?? versions[0].publishedAt,
       fallback: servedFallback,
+      fallbackReason: servedFallback ? health.reason : null,
+      latestVersionNumber: health.latestVersionNumber,
     };
   }),
 
   /** Owner: current draft + latest published + history. */
   managed: protectedProcedure.query(async ({ ctx }) => {
     const { storeId, isOverride } = assertOwner(ctx);
-    const [draft, published, versions] = await Promise.all([
+    const [draft, published, versions, snapshots] = await Promise.all([
       getStorefrontDraft(storeId),
       getPublishedStorefront(storeId),
       listStorefrontVersions(storeId),
+      listStorefrontVersionSnapshots(storeId),
     ]);
     let draftConfig = null;
     if (draft) {
       try {
-        const v = validateStorefrontConfig(JSON.parse(draft.configJson));
+        const v = validateStoredStorefrontConfig(JSON.parse(draft.configJson));
         draftConfig = v.ok ? v.data ?? null : null;
       } catch {
         draftConfig = null;
@@ -221,12 +225,20 @@ export const storefrontRouter = router({
     let publishedTemplateKey: string | null = null;
     if (published) {
       try {
-        const v = validateStorefrontConfig(JSON.parse(published.snapshotJson));
+        const v = validateStoredStorefrontConfig(
+          JSON.parse(published.snapshotJson)
+        );
         publishedTemplateKey = v.ok ? v.data?.templateKey ?? null : null;
       } catch {
         publishedTemplateKey = null;
       }
     }
+    /**
+     * Health of the published history, used by the editor/dashboard to warn the
+     * merchant when the newest published snapshot is corrupt and the store is
+     * rendering an earlier version (or the Modern fallback).
+     */
+    const { health } = evaluatePublishedSnapshots(snapshots);
     return {
       isOverride,
       draft: draft
@@ -239,6 +251,7 @@ export const storefrontRouter = router({
             templateKey: publishedTemplateKey,
           }
         : null,
+      publishedHealth: health,
       versions,
     };
   }),
@@ -288,7 +301,8 @@ export const storefrontRouter = router({
           message: "لا توجد مسودة للنشر.",
         });
       }
-      const valid = validateStorefrontConfig(JSON.parse(draft.configJson));
+      // A stored draft may predate a schema field removal: normalise first.
+      const valid = validateStoredStorefrontConfig(JSON.parse(draft.configJson));
       if (!valid.ok || !valid.data) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -336,7 +350,10 @@ export const storefrontRouter = router({
       if (!source) {
         throw new TRPCError({ code: "NOT_FOUND", message: "الإصدار غير موجود." });
       }
-      const valid = validateStorefrontConfig(JSON.parse(source.snapshotJson));
+      // The source snapshot may be old: normalise removed fields before validating.
+      const valid = validateStoredStorefrontConfig(
+        JSON.parse(source.snapshotJson)
+      );
       if (!valid.ok || !valid.data) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -448,7 +465,9 @@ export const storefrontRouter = router({
       let existingConfig: unknown = null;
       if (existing) {
         try {
-          const v = validateStorefrontConfig(JSON.parse(existing.configJson));
+          const v = validateStoredStorefrontConfig(
+            JSON.parse(existing.configJson)
+          );
           existingKey = v.ok ? v.data?.templateKey ?? null : null;
           existingConfig = v.ok ? v.data ?? null : null;
         } catch {

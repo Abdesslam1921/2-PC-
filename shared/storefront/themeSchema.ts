@@ -145,6 +145,52 @@ export const storefrontThemeConfigSchema = z
 
 export type StorefrontThemeConfig = z.infer<typeof storefrontThemeConfigSchema>;
 
+/**
+ * Normalize a STORED theme payload before strict validation.
+ *
+ * Older published snapshots may carry theme groups/tokens that were later
+ * removed or renamed (e.g. the `density` group). Instead of rejecting the whole
+ * snapshot, this drops only the unknown groups / unknown token keys / values
+ * that no longer satisfy the current schema, and keeps everything else intact.
+ * Purely additive to validation: it never invents values.
+ */
+export function normalizeStorefrontThemeConfig(
+  input: unknown
+): Record<string, unknown> {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  const src = input as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  const groups: Array<[string, readonly string[], z.ZodTypeAny]> = [
+    ["colors", colorNames, colorValueSchema],
+    ["fills", fillNames, fillValueSchema],
+    ["fontFamilies", fontFamilyNames, fontFamilyValueSchema],
+    ["fontScale", fontScaleNames, fontSizeValueSchema],
+    ["fontWeights", fontWeightNames, fontWeightValueSchema],
+    ["lineHeights", lineHeightNames, lineHeightValueSchema],
+    ["letterSpacings", letterSpacingNames, letterSpacingValueSchema],
+    ["spacing", spacingNames, lengthValueSchema],
+    ["layout", layoutNames, lengthValueSchema],
+    ["borders", borderNames, lengthValueSchema],
+    ["radius", radiusNames, lengthValueSchema],
+    ["shadows", shadowNames, shadowValueSchema],
+    ["effects", effectNames, effectValueSchema],
+  ];
+  for (const [group, allowedNames, valueSchema] of groups) {
+    const value = src[group];
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const allowed = new Set<string>(allowedNames);
+    const kept: Record<string, unknown> = {};
+    for (const [key, tokenValue] of Object.entries(
+      value as Record<string, unknown>
+    )) {
+      if (!allowed.has(key)) continue; // removed/unknown token → drop
+      if (valueSchema.safeParse(tokenValue).success) kept[key] = tokenValue;
+    }
+    if (Object.keys(kept).length) out[group] = kept;
+  }
+  return out;
+}
+
 /** Structural profile of a template (named choices only, no visual values). */
 export const storefrontTemplateProfileSchema = z
   .strictObject({

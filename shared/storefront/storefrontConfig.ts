@@ -6,7 +6,10 @@
  * `templateKey`; only its code is rendered on the storefront.
  */
 import { z } from "zod";
-import { storefrontThemeConfigSchema } from "./themeSchema";
+import {
+  normalizeStorefrontThemeConfig,
+  storefrontThemeConfigSchema,
+} from "./themeSchema";
 
 /** Templates supported by the engine. Extend as new templates are approved. */
 export const STOREFRONT_TEMPLATE_KEYS = [
@@ -153,6 +156,117 @@ export function validateStorefrontConfig(
   const res = storefrontConfigSchema.safeParse(input);
   if (res.success) return { ok: true, data: res.data };
   return { ok: false, message: res.error.issues[0]?.message ?? "إعداد غير صالح." };
+}
+
+/** Top-level keys the current section schema understands. */
+const SECTION_KEYS = ["id", "type", "enabled", "order", "items", "settings"];
+/** Item keys the current repeatable-item schema understands. */
+const ITEM_KEYS = ["id", "name", "imageUrl", "text", "bg", "icon"];
+const SECTION_TYPE_SET = new Set<string>(STOREFRONT_SECTION_TYPES);
+
+const isPrimitive = (value: unknown): value is string | number | boolean =>
+  typeof value === "string" ||
+  typeof value === "boolean" ||
+  (typeof value === "number" && Number.isFinite(value));
+
+/**
+ * Normalize a STORED storefront config before strict validation.
+ *
+ * Published snapshots and drafts written by OLDER versions of the app can carry
+ * fields that were since removed or renamed (unknown section/item keys, an
+ * unknown `theme` group like `density`, an invalid per-section style value such
+ * as `styleRadius: "large"`, or a section type we retired). Instead of rejecting
+ * the whole snapshot and falling back blindly, this drops exactly the parts the
+ * current contract no longer understands and keeps the rest. It never invents
+ * values and never changes valid data, so a config that is already valid is
+ * returned structurally identical.
+ *
+ * Use this only for STORED data (published versions, drafts). Merchant input
+ * must still go through the strict `validateStorefrontConfig`.
+ */
+export function normalizeStorefrontConfig(input: unknown): unknown {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return input;
+  const src = input as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...src };
+
+  if ("theme" in src) {
+    out.theme = normalizeStorefrontThemeConfig(src.theme);
+  }
+
+  if (Array.isArray(src.sections)) {
+    out.sections = src.sections
+      .map(raw => {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+        const section = raw as Record<string, unknown>;
+        // Drop unknown top-level section keys (removed/renamed fields).
+        const normalized: Record<string, unknown> = {};
+        for (const key of SECTION_KEYS) {
+          if (key in section) normalized[key] = section[key];
+        }
+        // A retired/unknown section type can only invalidate the whole config.
+        if (
+          typeof normalized.type === "string" &&
+          !SECTION_TYPE_SET.has(normalized.type)
+        ) {
+          return null;
+        }
+        // Settings: keep only safe primitives with a valid key and value rule.
+        if (
+          normalized.settings &&
+          typeof normalized.settings === "object" &&
+          !Array.isArray(normalized.settings)
+        ) {
+          const kept: Record<string, unknown> = {};
+          for (const [key, value] of Object.entries(
+            normalized.settings as Record<string, unknown>
+          )) {
+            if (!SETTING_KEY.test(key)) continue;
+            if (!isPrimitive(value)) continue;
+            if (!isValidStyleValue(key, value)) continue;
+            kept[key] = value;
+          }
+          normalized.settings = kept;
+        }
+        // Items: drop unknown item keys (retired item fields).
+        if (Array.isArray(normalized.items)) {
+          const items = normalized.items
+            .map(itemRaw => {
+              if (
+                !itemRaw ||
+                typeof itemRaw !== "object" ||
+                Array.isArray(itemRaw)
+              ) {
+                return null;
+              }
+              const item = itemRaw as Record<string, unknown>;
+              const kept: Record<string, unknown> = {};
+              for (const key of ITEM_KEYS) {
+                if (key in item) kept[key] = item[key];
+              }
+              return kept;
+            })
+            .filter((item): item is Record<string, unknown> => item !== null);
+          if (items.length) normalized.items = items;
+          else delete normalized.items;
+        }
+        return normalized;
+      })
+      .filter(
+        (section): section is Record<string, unknown> => section !== null
+      );
+  }
+
+  return out;
+}
+
+/**
+ * Validate a STORED storefront config: normalize first (drop fields the current
+ * contract no longer understands), then apply the strict schema.
+ */
+export function validateStoredStorefrontConfig(
+  input: unknown
+): StorefrontValidationResult {
+  return validateStorefrontConfig(normalizeStorefrontConfig(input));
 }
 
 /** Default Modern configuration — the one-click opt-in starting point. */

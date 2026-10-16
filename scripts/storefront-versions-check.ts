@@ -17,6 +17,7 @@ import { createConnection } from "mysql2/promise";
 import fs from "node:fs";
 import path from "node:path";
 import { planStorefrontRetention } from "../server/storefrontRetention";
+import { evaluatePublishedSnapshots } from "../server/storefrontSnapshotHealth";
 import { DEFAULT_MODERN_CONFIG } from "../shared/storefront/storefrontConfig";
 
 const ROOT = process.cwd();
@@ -191,6 +192,33 @@ try {
   check(
     "retention never empties history",
     plan.keep.length >= 1 && plan.keep.length + plan.prune.length === plan.totalVersions
+  );
+
+  // (f) fallback resolution over REAL rows: a corrupt NEWEST version must
+  // resolve to the newest valid version beneath it, not to Modern.
+  await insertVersion(storeA, await nextVersion(storeA), "{corrupt", "corrupt v");
+  const [rowsDesc]: any = await conn.query(
+    `SELECT versionNumber, snapshotJson, publishedAt FROM storefront_versions
+      WHERE storeId = ? ORDER BY versionNumber DESC`,
+    [storeA]
+  );
+  const evaluated = evaluatePublishedSnapshots(
+    rowsDesc.map((r: any) => ({
+      versionNumber: Number(r.versionNumber),
+      snapshotJson: r.snapshotJson,
+      publishedAt: r.publishedAt,
+    }))
+  );
+  check(
+    "a corrupt newest version resolves to the last valid version",
+    evaluated.health.ok === false &&
+      evaluated.servedVersion?.versionNumber === rollbackNumber &&
+      evaluated.config !== null
+  );
+  check(
+    "the corrupt newest version is reported for the merchant banner",
+    evaluated.health.latestVersionNumber === rollbackNumber + 1 &&
+      evaluated.health.reason !== null
   );
 
   await conn.query("ROLLBACK");

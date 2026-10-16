@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getPublishedStorefront: vi.fn(),
   getStorefrontDraft: vi.fn(),
   listStorefrontVersions: vi.fn(),
+  listStorefrontVersionSnapshots: vi.fn(),
   saveStorefrontDraft: vi.fn(),
   createStorefrontVersion: vi.fn(),
   getStorefrontVersionByNumber: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("../storefrontDb", () => ({
   getPublishedStorefront: mocks.getPublishedStorefront,
   getStorefrontDraft: mocks.getStorefrontDraft,
   listStorefrontVersions: mocks.listStorefrontVersions,
+  listStorefrontVersionSnapshots: mocks.listStorefrontVersionSnapshots,
   saveStorefrontDraft: mocks.saveStorefrontDraft,
   createStorefrontVersion: mocks.createStorefrontVersion,
   getStorefrontVersionByNumber: mocks.getStorefrontVersionByNumber,
@@ -79,56 +81,66 @@ describe("storefront.publicConfig tenant isolation", () => {
     expect(mocks.getPublishedStorefront).not.toHaveBeenCalled();
   });
 
+  const snapshotRow = (versionNumber: number, json: string) => ({
+    versionNumber,
+    snapshotJson: json,
+    publishedAt: new Date(),
+  });
+
   it("returns the published config for the resolved store only", async () => {
-    mocks.getPublishedStorefront.mockResolvedValueOnce({
-      versionNumber: 1,
-      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
-      publishedAt: new Date(),
-    });
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      snapshotRow(1, JSON.stringify(DEFAULT_MODERN_CONFIG)),
+    ]);
     const caller = appRouter.createCaller(makeContext(7));
     const result = await caller.storefront.publicConfig();
-    expect(mocks.getPublishedStorefront).toHaveBeenCalledWith(7);
+    expect(mocks.listStorefrontVersionSnapshots).toHaveBeenCalledWith(7);
     expect(result?.templateKey).toBe("modern");
   });
 
-  it("falls back safely to Modern when the published snapshot is corrupt", async () => {
-    mocks.getPublishedStorefront.mockResolvedValueOnce({
-      versionNumber: 1,
-      snapshotJson: "{not-json",
-      publishedAt: new Date(),
-    });
+  it("serves the LAST GOOD previous version when the newest snapshot is corrupt", async () => {
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      snapshotRow(3, "{not-json"),
+      snapshotRow(2, JSON.stringify(DEFAULT_BOLD_CONFIG)),
+      snapshotRow(1, JSON.stringify(DEFAULT_MODERN_CONFIG)),
+    ]);
     const caller = appRouter.createCaller(makeContext(7));
     const result = await caller.storefront.publicConfig();
-    // The live store keeps serving: it renders the Modern default, not null.
+    expect(result?.fallback).toBe(true);
+    expect(result?.versionNumber).toBe(2);
+    expect(result?.templateKey).toBe("bold");
+  });
+
+  it("serves the last good version when the newest fails validation", async () => {
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      snapshotRow(3, JSON.stringify({ templateKey: "unknown-template", sections: [] })),
+      snapshotRow(2, JSON.stringify(DEFAULT_MINIMAL_CONFIG)),
+    ]);
+    const caller = appRouter.createCaller(makeContext(7));
+    const result = await caller.storefront.publicConfig();
+    expect(result?.fallback).toBe(true);
+    expect(result?.templateKey).toBe("minimal");
+    expect(result?.versionNumber).toBe(2);
+  });
+
+  it("falls back to Modern only when NO published version is valid", async () => {
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      snapshotRow(3, "{not-json"),
+      snapshotRow(2, JSON.stringify({ templateKey: "unknown-template", sections: [] })),
+    ]);
+    const caller = appRouter.createCaller(makeContext(7));
+    const result = await caller.storefront.publicConfig();
     expect(result).not.toBeNull();
     expect(result?.fallback).toBe(true);
     expect(result?.templateKey).toBe("modern");
     expect(result?.config.templateKey).toBe("modern");
-  });
-
-  it("falls back safely to Modern when the published snapshot fails validation", async () => {
-    mocks.getPublishedStorefront.mockResolvedValueOnce({
-      versionNumber: 3,
-      snapshotJson: JSON.stringify({
-        templateKey: "unknown-template",
-        sections: [],
-      }),
-      publishedAt: new Date(),
-    });
-    const caller = appRouter.createCaller(makeContext(7));
-    const result = await caller.storefront.publicConfig();
-    expect(result?.fallback).toBe(true);
-    expect(result?.templateKey).toBe("modern");
-    // Read-time fallback never mutates or deletes the immutable version.
+    // Read-time fallback never mutates or deletes the immutable versions.
     expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
   });
 
-  it("serves the real config (no fallback flag) when the snapshot is valid", async () => {
-    mocks.getPublishedStorefront.mockResolvedValueOnce({
-      versionNumber: 5,
-      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
-      publishedAt: new Date(),
-    });
+  it("serves the real config (no fallback flag) when the newest snapshot is valid", async () => {
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      snapshotRow(5, JSON.stringify(DEFAULT_MODERN_CONFIG)),
+    ]);
     const caller = appRouter.createCaller(makeContext(7));
     const result = await caller.storefront.publicConfig();
     expect(result?.fallback).toBe(false);
@@ -298,15 +310,13 @@ describe("storefront versions — immutability & draft/publish separation", () =
     expect(rollbackBlock).not.toMatch(/\.update\(/);
   });
 
-  it("publicConfig reads the published version only, never the draft", async () => {
-    mocks.getPublishedStorefront.mockResolvedValueOnce({
-      versionNumber: 9,
-      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
-      publishedAt: new Date(),
-    });
+  it("publicConfig reads published versions only, never the draft", async () => {
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      { versionNumber: 9, snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG), publishedAt: new Date() },
+    ]);
     const caller = appRouter.createCaller(makeContext(7));
     await caller.storefront.publicConfig();
-    expect(mocks.getPublishedStorefront).toHaveBeenCalledWith(7);
+    expect(mocks.listStorefrontVersionSnapshots).toHaveBeenCalledWith(7);
     expect(mocks.getStorefrontDraft).not.toHaveBeenCalled();
   });
 
@@ -319,6 +329,53 @@ describe("storefront versions — immutability & draft/publish separation", () =
     });
     expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
     expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("storefront.managed — published health for the merchant banner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("flags the published history as degraded when the newest snapshot is corrupt", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce(null);
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 3,
+      snapshotJson: "{broken",
+      publishedAt: new Date(),
+    });
+    mocks.listStorefrontVersions.mockResolvedValueOnce([]);
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      { versionNumber: 3, snapshotJson: "{broken", publishedAt: new Date() },
+      { versionNumber: 2, snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG), publishedAt: new Date() },
+    ]);
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.managed();
+
+    expect(result.publishedHealth.ok).toBe(false);
+    expect(result.publishedHealth.latestVersionNumber).toBe(3);
+    expect(result.publishedHealth.servedVersionNumber).toBe(2);
+    expect(result.publishedHealth.servedFallback).toBe(true);
+    expect(result.publishedHealth.reason).toBeTruthy();
+  });
+
+  it("reports healthy when the newest snapshot is valid", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce(null);
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 4,
+      snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      publishedAt: new Date(),
+    });
+    mocks.listStorefrontVersions.mockResolvedValueOnce([]);
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      { versionNumber: 4, snapshotJson: JSON.stringify(DEFAULT_MODERN_CONFIG), publishedAt: new Date() },
+    ]);
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.managed();
+    expect(result.publishedHealth.ok).toBe(true);
+    expect(result.publishedHealth.servedVersionNumber).toBe(4);
   });
 });
 

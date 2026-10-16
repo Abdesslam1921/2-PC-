@@ -42,6 +42,29 @@ export async function getPublishedStorefront(storeId: number): Promise<{
   return row ?? null;
 }
 
+/**
+ * Newest-first snapshots with their raw JSON, used to resolve the live config:
+ * if the newest published snapshot is corrupt, the storefront still serves the
+ * newest EARLIER valid version instead of going down.
+ */
+export async function listStorefrontVersionSnapshots(
+  storeId: number,
+  limit = 100
+): Promise<Array<{ versionNumber: number; snapshotJson: string; publishedAt: Date }>> {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      versionNumber: storefrontVersions.versionNumber,
+      snapshotJson: storefrontVersions.snapshotJson,
+      publishedAt: storefrontVersions.publishedAt,
+    })
+    .from(storefrontVersions)
+    .where(eq(storefrontVersions.storeId, storeId))
+    .orderBy(desc(storefrontVersions.versionNumber))
+    .limit(limit);
+}
+
 export async function listStorefrontVersions(storeId: number) {
   const db = await getDb();
   if (!db) return [];

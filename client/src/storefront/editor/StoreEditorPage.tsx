@@ -15,6 +15,7 @@ import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { ContentPanel } from "@/storefront/editor/ContentPanel";
 import { SectionSettingsDialog } from "@/storefront/editor/SectionSettingsDialog";
 import { ThemePanel } from "@/storefront/editor/ThemePanel";
+import { PublishedHealthBanner } from "@/storefront/editor/PublishedHealthBanner";
 import { useStoreDraft } from "@/storefront/editor/useStoreDraft";
 import { trpc } from "@/lib/trpc";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
@@ -349,6 +350,8 @@ export default function StoreEditorPage() {
           ) : null}
         </div>
       </div>
+
+      <PublishedHealthBanner health={managed.data?.publishedHealth} />
 
       {/* Body: side panel (RTL start/right) + preview + docked section editor.
           The settings column only exists on desktop (≥xl); from lg to xl the
