@@ -376,6 +376,29 @@ describe("storefront.managed — published health for the merchant banner", () =
     const result = await caller.storefront.managed();
     expect(result.publishedHealth.ok).toBe(true);
     expect(result.publishedHealth.servedVersionNumber).toBe(4);
+    expect(result.publishedHealth.normalizationDrops).toBe(0);
+  });
+
+  it("exposes how many old values normalization dropped", async () => {
+    const oldConfig: any = JSON.parse(JSON.stringify(DEFAULT_MODERN_CONFIG));
+    oldConfig.theme = { density: "compact" };
+    oldConfig.sections[0].visible = true;
+    const json = JSON.stringify(oldConfig);
+    mocks.getStorefrontDraft.mockResolvedValueOnce(null);
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 4,
+      snapshotJson: json,
+      publishedAt: new Date(),
+    });
+    mocks.listStorefrontVersions.mockResolvedValueOnce([]);
+    mocks.listStorefrontVersionSnapshots.mockResolvedValueOnce([
+      { versionNumber: 4, snapshotJson: json, publishedAt: new Date() },
+    ]);
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.managed();
+    expect(result.publishedHealth.ok).toBe(true);
+    expect(result.publishedHealth.normalizationDrops).toBeGreaterThan(0);
   });
 });
 

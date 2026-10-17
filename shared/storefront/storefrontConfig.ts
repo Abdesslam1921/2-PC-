@@ -7,6 +7,10 @@
  */
 import { z } from "zod";
 import {
+  recordNormalizationDrop,
+  type StorefrontNormalizationReport,
+} from "./normalization";
+import {
   normalizeStorefrontThemeConfig,
   storefrontThemeConfigSchema,
 } from "./themeSchema";
@@ -85,6 +89,14 @@ function isValidStyleValue(key: string, value: unknown): boolean {
   const allowed = STYLE_ENUM_VALUES[key];
   if (allowed) return typeof value === "string" && allowed.includes(value);
   return true;
+}
+
+/** Safe reason detail for an invalid setting value (never logs the value). */
+function styleValueRuleName(key: string): string {
+  const rule = SECTION_STYLE_VALUE_RULES[key];
+  if (rule) return rule;
+  if (STYLE_ENUM_VALUES[key]) return "enum";
+  return "unknown";
 }
 
 /** Repeatable section item (category tiles, benefit cards, ...). */
@@ -184,21 +196,49 @@ const isPrimitive = (value: unknown): value is string | number | boolean =>
  * Use this only for STORED data (published versions, drafts). Merchant input
  * must still go through the strict `validateStorefrontConfig`.
  */
-export function normalizeStorefrontConfig(input: unknown): unknown {
+export function normalizeStorefrontConfig(
+  input: unknown,
+  report?: StorefrontNormalizationReport
+): unknown {
   if (!input || typeof input !== "object" || Array.isArray(input)) return input;
   const src = input as Record<string, unknown>;
   const out: Record<string, unknown> = { ...src };
 
   if ("theme" in src) {
-    out.theme = normalizeStorefrontThemeConfig(src.theme);
+    out.theme = normalizeStorefrontThemeConfig(src.theme, report);
   }
 
   if (Array.isArray(src.sections)) {
     out.sections = src.sections
-      .map(raw => {
-        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+      .map((raw, sectionIndex) => {
+        const sectionPath = `sections[${sectionIndex}]`;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+          recordNormalizationDrop(report, {
+            path: sectionPath,
+            key: String(sectionIndex),
+            section: sectionPath,
+            reason: "invalid-section-entry",
+            detail: Array.isArray(raw) ? "array" : typeof raw,
+          });
+          return null;
+        }
         const section = raw as Record<string, unknown>;
+        const sectionLabel =
+          typeof section.id === "string"
+            ? section.id
+            : typeof section.type === "string"
+              ? section.type
+              : sectionPath;
         // Drop unknown top-level section keys (removed/renamed fields).
+        for (const key of Object.keys(section)) {
+          if (SECTION_KEYS.includes(key)) continue;
+          recordNormalizationDrop(report, {
+            path: `${sectionPath}.${key}`,
+            key,
+            section: sectionLabel,
+            reason: "unknown-section-key",
+          });
+        }
         const normalized: Record<string, unknown> = {};
         for (const key of SECTION_KEYS) {
           if (key in section) normalized[key] = section[key];
@@ -208,6 +248,13 @@ export function normalizeStorefrontConfig(input: unknown): unknown {
           typeof normalized.type === "string" &&
           !SECTION_TYPE_SET.has(normalized.type)
         ) {
+          recordNormalizationDrop(report, {
+            path: `${sectionPath}.type`,
+            key: "type",
+            section: sectionLabel,
+            reason: "unknown-section-type",
+            detail: normalized.type,
+          });
           return null;
         }
         // Settings: keep only safe primitives with a valid key and value rule.
@@ -220,9 +267,35 @@ export function normalizeStorefrontConfig(input: unknown): unknown {
           for (const [key, value] of Object.entries(
             normalized.settings as Record<string, unknown>
           )) {
-            if (!SETTING_KEY.test(key)) continue;
-            if (!isPrimitive(value)) continue;
-            if (!isValidStyleValue(key, value)) continue;
+            if (!SETTING_KEY.test(key)) {
+              recordNormalizationDrop(report, {
+                path: `${sectionPath}.settings.${key}`,
+                key,
+                section: sectionLabel,
+                reason: "invalid-setting-key",
+              });
+              continue;
+            }
+            if (!isPrimitive(value)) {
+              recordNormalizationDrop(report, {
+                path: `${sectionPath}.settings.${key}`,
+                key,
+                section: sectionLabel,
+                reason: "non-primitive-setting-value",
+                detail: Array.isArray(value) ? "array" : typeof value,
+              });
+              continue;
+            }
+            if (!isValidStyleValue(key, value)) {
+              recordNormalizationDrop(report, {
+                path: `${sectionPath}.settings.${key}`,
+                key,
+                section: sectionLabel,
+                reason: "invalid-setting-value",
+                detail: styleValueRuleName(key),
+              });
+              continue;
+            }
             kept[key] = value;
           }
           normalized.settings = kept;
@@ -230,15 +303,32 @@ export function normalizeStorefrontConfig(input: unknown): unknown {
         // Items: drop unknown item keys (retired item fields).
         if (Array.isArray(normalized.items)) {
           const items = normalized.items
-            .map(itemRaw => {
+            .map((itemRaw, itemIndex) => {
+              const itemPath = `${sectionPath}.items[${itemIndex}]`;
               if (
                 !itemRaw ||
                 typeof itemRaw !== "object" ||
                 Array.isArray(itemRaw)
               ) {
+                recordNormalizationDrop(report, {
+                  path: itemPath,
+                  key: String(itemIndex),
+                  section: sectionLabel,
+                  reason: "invalid-item-entry",
+                  detail: Array.isArray(itemRaw) ? "array" : typeof itemRaw,
+                });
                 return null;
               }
               const item = itemRaw as Record<string, unknown>;
+              for (const key of Object.keys(item)) {
+                if (ITEM_KEYS.includes(key)) continue;
+                recordNormalizationDrop(report, {
+                  path: `${itemPath}.${key}`,
+                  key,
+                  section: sectionLabel,
+                  reason: "unknown-item-key",
+                });
+              }
               const kept: Record<string, unknown> = {};
               for (const key of ITEM_KEYS) {
                 if (key in item) kept[key] = item[key];
@@ -261,12 +351,14 @@ export function normalizeStorefrontConfig(input: unknown): unknown {
 
 /**
  * Validate a STORED storefront config: normalize first (drop fields the current
- * contract no longer understands), then apply the strict schema.
+ * contract no longer understands), then apply the strict schema. Every dropped
+ * value is appended to `report` when provided.
  */
 export function validateStoredStorefrontConfig(
-  input: unknown
+  input: unknown,
+  report?: StorefrontNormalizationReport
 ): StorefrontValidationResult {
-  return validateStorefrontConfig(normalizeStorefrontConfig(input));
+  return validateStorefrontConfig(normalizeStorefrontConfig(input, report));
 }
 
 /** Default Modern configuration — the one-click opt-in starting point. */

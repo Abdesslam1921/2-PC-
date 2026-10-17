@@ -16,6 +16,10 @@
 
 import { z } from "zod";
 import {
+  recordNormalizationDrop,
+  type StorefrontNormalizationReport,
+} from "./normalization";
+import {
   STOREFRONT_GRID_STYLES,
   STOREFRONT_HERO_STRUCTURES,
   STOREFRONT_RADIUS_PHILOSOPHIES,
@@ -153,11 +157,25 @@ export type StorefrontThemeConfig = z.infer<typeof storefrontThemeConfigSchema>;
  * snapshot, this drops only the unknown groups / unknown token keys / values
  * that no longer satisfy the current schema, and keeps everything else intact.
  * Purely additive to validation: it never invents values.
+ *
+ * Every dropped group/token/value is appended to `report` (when provided) so
+ * the server can log what normalization hid instead of losing it silently.
  */
 export function normalizeStorefrontThemeConfig(
-  input: unknown
+  input: unknown,
+  report?: StorefrontNormalizationReport
 ): Record<string, unknown> {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+  if (input === undefined) return {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    recordNormalizationDrop(report, {
+      path: "theme",
+      key: "theme",
+      section: "theme",
+      reason: "invalid-theme-payload",
+      detail: Array.isArray(input) ? "array" : typeof input,
+    });
+    return {};
+  }
   const src = input as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   const groups: Array<[string, readonly string[], z.ZodTypeAny]> = [
@@ -175,16 +193,54 @@ export function normalizeStorefrontThemeConfig(
     ["shadows", shadowNames, shadowValueSchema],
     ["effects", effectNames, effectValueSchema],
   ];
+  const knownGroups = new Set(groups.map(([group]) => group));
+  for (const group of Object.keys(src)) {
+    if (knownGroups.has(group)) continue;
+    recordNormalizationDrop(report, {
+      path: `theme.${group}`,
+      key: group,
+      section: "theme",
+      reason: "unknown-theme-group",
+    });
+  }
   for (const [group, allowedNames, valueSchema] of groups) {
     const value = src[group];
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    if (value === undefined) continue;
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      recordNormalizationDrop(report, {
+        path: `theme.${group}`,
+        key: group,
+        section: "theme",
+        reason: "invalid-theme-group",
+        detail: Array.isArray(value) ? "array" : typeof value,
+      });
+      continue;
+    }
     const allowed = new Set<string>(allowedNames);
     const kept: Record<string, unknown> = {};
     for (const [key, tokenValue] of Object.entries(
       value as Record<string, unknown>
     )) {
-      if (!allowed.has(key)) continue; // removed/unknown token → drop
+      if (!allowed.has(key)) {
+        // removed/unknown token → drop
+        recordNormalizationDrop(report, {
+          path: `theme.${group}.${key}`,
+          key,
+          section: "theme",
+          reason: "unknown-theme-token",
+          detail: group,
+        });
+        continue;
+      }
       if (valueSchema.safeParse(tokenValue).success) kept[key] = tokenValue;
+      else
+        recordNormalizationDrop(report, {
+          path: `theme.${group}.${key}`,
+          key,
+          section: "theme",
+          reason: "invalid-theme-value",
+          detail: group,
+        });
     }
     if (Object.keys(kept).length) out[group] = kept;
   }

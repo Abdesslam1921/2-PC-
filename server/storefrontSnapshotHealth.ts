@@ -11,6 +11,7 @@
  */
 import { validateStoredStorefrontConfig } from "../shared/storefront/storefrontConfig";
 import type { StorefrontConfig } from "../shared/storefront/storefrontConfig";
+import type { StorefrontNormalizationDrop } from "../shared/storefront/normalization";
 
 export interface StorefrontVersionSnapshot {
   versionNumber: number;
@@ -29,6 +30,12 @@ export interface PublishedHealth {
   servedFallback: boolean;
   /** Validation failure message of the newest version when `ok` is false. */
   reason: string | null;
+  /**
+   * Number of stored values the normalization layer dropped while evaluating
+   * the published history (old/removed fields, invalid token values, ...).
+   * It is surfaced so silent normalization cannot hide data problems.
+   */
+  normalizationDrops: number;
 }
 
 export interface EvaluatedPublished {
@@ -37,6 +44,8 @@ export interface EvaluatedPublished {
   /** The snapshot that config came from (null → Modern default). */
   servedVersion: StorefrontVersionSnapshot | null;
   health: PublishedHealth;
+  /** Details of every normalized value dropped during evaluation. */
+  normalization: StorefrontNormalizationDrop[];
 }
 
 function parseSnapshot(json: string): unknown | null {
@@ -58,6 +67,7 @@ export function evaluatePublishedSnapshots(
   let servedIndex = -1;
   let servedData: StorefrontConfig | null = null;
   let firstReason: string | null = null;
+  const normalization: StorefrontNormalizationDrop[] = [];
 
   for (let index = 0; index < versionsNewestFirst.length; index += 1) {
     const version = versionsNewestFirst[index];
@@ -66,7 +76,7 @@ export function evaluatePublishedSnapshots(
       firstReason = firstReason ?? "JSON غير قابل للتحليل (corrupt)";
       continue;
     }
-    const valid = validateStoredStorefrontConfig(parsed);
+    const valid = validateStoredStorefrontConfig(parsed, normalization);
     if (valid.ok && valid.data) {
       servedIndex = index;
       servedData = valid.data;
@@ -85,10 +95,11 @@ export function evaluatePublishedSnapshots(
     // (an earlier version, or the Modern default when nothing is valid).
     servedFallback: servedIndex !== 0,
     reason: servedIndex === 0 ? null : firstReason,
+    normalizationDrops: normalization.length,
   };
 
   if (!servedVersion || !servedData) {
-    return { config: null, servedVersion: null, health };
+    return { config: null, servedVersion: null, health, normalization };
   }
-  return { config: servedData, servedVersion, health };
+  return { config: servedData, servedVersion, health, normalization };
 }

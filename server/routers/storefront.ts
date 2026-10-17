@@ -18,6 +18,7 @@ import {
   saveStorefrontDraft,
 } from "../storefrontDb";
 import { evaluatePublishedSnapshots } from "../storefrontSnapshotHealth";
+import { logStorefrontNormalization } from "../storefrontNormalizationLog";
 import { storagePut } from "../storage";
 import { hasActiveBundle } from "../db";
 import {
@@ -28,6 +29,7 @@ import {
   validateStorefrontConfig,
 } from "../../shared/storefront/storefrontConfig";
 import type { StorefrontConfig } from "../../shared/storefront/storefrontConfig";
+import type { StorefrontNormalizationReport } from "../../shared/storefront/normalization";
 
 const TEMPLATE_DEFAULTS = TEMPLATE_DEFAULT_CONFIGS;
 
@@ -52,7 +54,12 @@ async function templateSeedConfig(
       : publishedSnapshotJson;
   if (snapshotJson) {
     try {
-      const valid = validateStoredStorefrontConfig(JSON.parse(snapshotJson));
+      const report: StorefrontNormalizationReport = [];
+      const valid = validateStoredStorefrontConfig(
+        JSON.parse(snapshotJson),
+        report
+      );
+      logStorefrontNormalization("templateSeedConfig", storeId, report);
       if (valid.ok && valid.data && valid.data.templateKey === templateKey) {
         return { config: valid.data, seededFrom: "published" };
       }
@@ -94,9 +101,12 @@ async function seedAndPublishTemplate(input: {
   const currentPublished = await getPublishedStorefront(input.storeId);
   if (currentPublished) {
     try {
+      const report: StorefrontNormalizationReport = [];
       const current = validateStoredStorefrontConfig(
-        JSON.parse(currentPublished.snapshotJson)
+        JSON.parse(currentPublished.snapshotJson),
+        report
       );
+      logStorefrontNormalization("seedAndPublish:published", input.storeId, report);
       if (current.ok && current.data?.templateKey === input.templateKey) {
         return {
           versionNumber: currentPublished.versionNumber,
@@ -165,8 +175,13 @@ export const storefrontRouter = router({
      *   2. the newest EARLIER valid version (last good rollback),
      *   3. only if no version is valid → the Modern default.
      */
-    const { config: validConfig, servedVersion, health } =
-      evaluatePublishedSnapshots(versions);
+    const {
+      config: validConfig,
+      servedVersion,
+      health,
+      normalization,
+    } = evaluatePublishedSnapshots(versions);
+    logStorefrontNormalization("publicConfig", ctx.store.id, normalization);
     const servedFallback = !health.ok;
     let config: StorefrontConfig;
     if (validConfig) {
@@ -216,7 +231,12 @@ export const storefrontRouter = router({
     let draftConfig = null;
     if (draft) {
       try {
-        const v = validateStoredStorefrontConfig(JSON.parse(draft.configJson));
+        const report: StorefrontNormalizationReport = [];
+        const v = validateStoredStorefrontConfig(
+          JSON.parse(draft.configJson),
+          report
+        );
+        logStorefrontNormalization("managed:draft", storeId, report);
         draftConfig = v.ok ? v.data ?? null : null;
       } catch {
         draftConfig = null;
@@ -225,9 +245,12 @@ export const storefrontRouter = router({
     let publishedTemplateKey: string | null = null;
     if (published) {
       try {
+        const report: StorefrontNormalizationReport = [];
         const v = validateStoredStorefrontConfig(
-          JSON.parse(published.snapshotJson)
+          JSON.parse(published.snapshotJson),
+          report
         );
+        logStorefrontNormalization("managed:published", storeId, report);
         publishedTemplateKey = v.ok ? v.data?.templateKey ?? null : null;
       } catch {
         publishedTemplateKey = null;
@@ -238,7 +261,8 @@ export const storefrontRouter = router({
      * merchant when the newest published snapshot is corrupt and the store is
      * rendering an earlier version (or the Modern fallback).
      */
-    const { health } = evaluatePublishedSnapshots(snapshots);
+    const { health, normalization } = evaluatePublishedSnapshots(snapshots);
+    logStorefrontNormalization("managed:publishedHistory", storeId, normalization);
     return {
       isOverride,
       draft: draft
@@ -302,7 +326,12 @@ export const storefrontRouter = router({
         });
       }
       // A stored draft may predate a schema field removal: normalise first.
-      const valid = validateStoredStorefrontConfig(JSON.parse(draft.configJson));
+      const report: StorefrontNormalizationReport = [];
+      const valid = validateStoredStorefrontConfig(
+        JSON.parse(draft.configJson),
+        report
+      );
+      logStorefrontNormalization("publish:draft", storeId, report);
       if (!valid.ok || !valid.data) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -351,9 +380,12 @@ export const storefrontRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "الإصدار غير موجود." });
       }
       // The source snapshot may be old: normalise removed fields before validating.
+      const report: StorefrontNormalizationReport = [];
       const valid = validateStoredStorefrontConfig(
-        JSON.parse(source.snapshotJson)
+        JSON.parse(source.snapshotJson),
+        report
       );
+      logStorefrontNormalization("rollback:source", storeId, report);
       if (!valid.ok || !valid.data) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -465,9 +497,12 @@ export const storefrontRouter = router({
       let existingConfig: unknown = null;
       if (existing) {
         try {
+          const report: StorefrontNormalizationReport = [];
           const v = validateStoredStorefrontConfig(
-            JSON.parse(existing.configJson)
+            JSON.parse(existing.configJson),
+            report
           );
+          logStorefrontNormalization("startEditing:draft", storeId, report);
           existingKey = v.ok ? v.data?.templateKey ?? null : null;
           existingConfig = v.ok ? v.data ?? null : null;
         } catch {

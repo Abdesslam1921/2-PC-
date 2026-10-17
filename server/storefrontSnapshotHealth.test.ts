@@ -84,6 +84,57 @@ describe("normalizeStorefrontConfig — old snapshots stay valid", () => {
     const normalized = normalizeStorefrontConfig(DEFAULT_BOLD_CONFIG) as any;
     expect(normalized).toEqual(DEFAULT_BOLD_CONFIG);
   });
+
+  it("reports every dropped value with its key, section, and reason", () => {
+    const report: any[] = [];
+    validateStoredStorefrontConfig(oldSnapshot(), report);
+
+    expect(report).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: "theme.density",
+          key: "density",
+          section: "theme",
+          reason: "unknown-theme-group",
+        }),
+        expect.objectContaining({
+          path: "theme.colors.--sf-removed-token",
+          key: "--sf-removed-token",
+          section: "theme",
+          reason: "unknown-theme-token",
+        }),
+        expect.objectContaining({
+          key: "visible",
+          section: "hero",
+          reason: "unknown-section-key",
+        }),
+        expect.objectContaining({
+          key: "styleRadius",
+          section: "hero",
+          reason: "invalid-setting-value",
+          detail: "length",
+        }),
+        expect.objectContaining({
+          key: "type",
+          section: "retired",
+          reason: "unknown-section-type",
+          detail: "carousel",
+        }),
+        expect.objectContaining({
+          key: "link",
+          section: "benefits",
+          reason: "unknown-item-key",
+        }),
+      ])
+    );
+    // Nothing is invented and every drop is accounted for.
+    expect(report.length).toBeGreaterThanOrEqual(7);
+    for (const drop of report) {
+      expect(drop.value).toBeUndefined();
+      expect(typeof drop.key).toBe("string");
+      expect(typeof drop.reason).toBe("string");
+    }
+  });
 });
 
 describe("evaluatePublishedSnapshots — last good version, Modern only as a last resort", () => {
@@ -114,13 +165,30 @@ describe("evaluatePublishedSnapshots — last good version, Modern only as a las
   });
 
   it("resolves an OLD-format snapshot to the last good version instead of Modern", () => {
-    const { config, health } = evaluatePublishedSnapshots([
+    const { config, health, normalization } = evaluatePublishedSnapshots([
       row(3, "{broken"),
       row(2, oldSnapshot()),
       row(1, DEFAULT_MODERN_CONFIG),
     ]);
     expect(health.servedVersionNumber).toBe(2);
     expect(config?.templateKey).toBe("modern");
+    // Silent normalization is now observable: count + details are returned.
+    expect(health.normalizationDrops).toBeGreaterThanOrEqual(7);
+    expect(normalization.length).toBe(health.normalizationDrops);
+    expect(normalization).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "styleRadius", section: "hero" }),
+        expect.objectContaining({ key: "type", section: "retired" }),
+      ])
+    );
+  });
+
+  it("reports zero normalization drops for an already-valid snapshot", () => {
+    const { health, normalization } = evaluatePublishedSnapshots([
+      row(3, DEFAULT_BOLD_CONFIG),
+    ]);
+    expect(health.normalizationDrops).toBe(0);
+    expect(normalization).toEqual([]);
   });
 
   it("falls back to Modern (config null) only when every version is invalid", () => {

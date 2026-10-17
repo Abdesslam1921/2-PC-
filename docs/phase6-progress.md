@@ -143,6 +143,10 @@
 - **لا تطبيق هجرة (migration) بلا موافقة صريحة:** تُولَّد وتُعرض الـSQL فقط، وينتظر التطبيق. بلا تغيير بصري في المتجر.
 - لا أدّعي فحص ما لم أفحصه: كل بند «مفحوص فعلًا» أو «غير مفحوص + السبب».
 - أي خطر أمني يُبلَّغ فورًا قبل الإصلاح مع درجة الخطورة.
+- **قاعدة دائمة — تغيير مخطط إعدادات المتجر:** أي تغيير في `shared/storefront/storefrontConfig.ts` أو `shared/storefront/themeSchema.ts` (حذف حقل/قسم/نوع، إعادة تسمية، أو تشديد قيمة) **يجب** أن يأتي معه:
+  1. خطوة تطبيع (normalization) صريحة للقطات القديمة (Draft + Published) قبل التحقق الصارم، مع تسجيل كل قيمة تُحذف (المفتاح/القسم/السبب) وعدّادها في `publishedHealth`.
+  2. تشغيل `scripts/storefront-snapshots-audit.ts` على قاعدة البيانات الحقيقية **قبل النشر**، وإرفاق نتيجته في تقرير البند (عدد الصالح/المطبع/الفاسد + أسباب الحذف).
+  لا يُعتبر التغيير مكتملًا بدون هذين الشرطين.
 
 ---
 
@@ -440,4 +444,22 @@
 - **فحص حي موسَّع:** `scripts/storefront-versions-check.ts` → **12/12 PASS** (أُضيف: لقطة أحدث فاسدة تُحَل لآخر إصدار صالح + تُبلَّغ للبانر).
 - **قراءة فقط:** `scripts/storefront-snapshots-audit.ts` (1 متجر · 41 نسخة · 0 فاسدة).
 
+
+
+---
+
+## سجل التنفيذ — الخطوة الأولى من البند 2 (17-10-2026): جعل التطبيع مرئيًا
+
+### ما تغيّر
+- **تقرير تطبيع منظم:** `shared/storefront/normalization.ts` (نوع `StorefrontNormalizationDrop` + أسباب ثابتة). كل قيمة يحذفها التطبيع تُسجَّل بـ`path`/`key`/`section`/`reason` (+`detail` آمن فقط، **بلا القيمة نفسها**).
+- **`normalizeStorefrontConfig(input, report?)` و`normalizeStorefrontThemeConfig(input, report?)` و`validateStoredStorefrontConfig(input, report?)`:** تُعيد نفس الناتج تمامًا، لكنها تملأ التقرير بكل: مفتاح قسم مجهول/متقاعد، نوع قسم متقاعد، مفتاح/قيمة إعداد غير صالحة، عنصر/مفتاح عنصر متقاعد، مجموعة/توكن ثيم مجهول أو غير صالح. التطبيع **لا يخترع قيمًا** (اختبار `toEqual` قائم).
+- **تسجيل سيرفر:** `server/storefrontNormalizationLog.ts` يكتب سطرًا لكل حذف (JSON: context/storeId/key/section/reason/path/detail) مع **كتم التكرار** في الذاكرة (اللقطات غير قابلة للتعديل، فلا نُغرق السجل عند كل زيارة).
+- **عدّاد في `publishedHealth`:** `publishedHealth.normalizationDrops` = عدد القيم التي حذفها التطبيع أثناء تقييم تاريخ النشر، و`evaluatePublishedSnapshots` يُرجع التفاصيل في `normalization`. طُبّق التسجيل في `publicConfig` · `managed` (draft/published/history) · `templateSeedConfig` · `seedAndPublish` · `publish` · `rollback` · `startEditing`.
+- **سكربت التدقيق:** `scripts/storefront-snapshots-audit.ts` صار يفرّق بين strict-valid / valid-after-normalization / still-invalid، ويطبع أسباب الحذف مع المفتاح والقسم والسبب.
+
+### تحقق فعلي
+- `pnpm check` → **0 أخطاء**.
+- `vitest run server/storefrontSnapshotHealth.test.ts server/storefrontNormalizationLog.test.ts server/routers/storefront.test.ts` → **37/37 نجحت**.
+- `scripts/storefront-snapshots-audit.ts` (قراءة فقط على DB الحقيقية): متجر واحد · **41 نسخة كلها strict-valid** · **0 drops** حاليًا.
+- **لا migration** (لا تغيير مخطط DB).
 
