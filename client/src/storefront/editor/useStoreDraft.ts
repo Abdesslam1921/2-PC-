@@ -232,6 +232,7 @@ export function useStoreDraft() {
     const res = await saveDraft.mutateAsync({
       config: valid.data,
       expectedVersion: conflict,
+      force: true,
     });
     if (res.conflict) {
       setConflict(res.currentVersion ?? conflict);

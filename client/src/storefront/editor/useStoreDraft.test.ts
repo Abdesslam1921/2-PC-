@@ -143,6 +143,7 @@ describe("useStoreDraft â€” autosave concurrency", () => {
 
     expect(mocks.saveDraft.mutateAsync).toHaveBeenCalledTimes(2);
     expect(mocks.saveDraft.mutateAsync.mock.calls[1][0].expectedVersion).toBe(9);
+    expect(mocks.saveDraft.mutateAsync.mock.calls[1][0].force).toBe(true);
     expect(result.current.conflict).toBeNull();
     expect(result.current.dirty).toBe(false);
   });

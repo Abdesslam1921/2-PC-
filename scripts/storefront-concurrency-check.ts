@@ -10,11 +10,18 @@
  *       distinct immutable versions, no 500),
  *   (d) the draft row/per-version unique constraints behave as assumed.
  *
- * Everything runs on a PROBE store that had no draft and no probe rows. Tests
- * (a) and (b) run entirely inside transactions that are rolled back. Test (c)
- * needs one committed probe version so the second connection can observe the
- * unique-key race (MySQL cannot show an uncommitted row to another session);
- * every probe row is deleted and the script verifies 0 rows remain.
+ * SAFETY: this script NEVER reads, writes or deletes rows belonging to a real
+ * store. It creates a dedicated probe OWNER + probe STORE whose slug/openId
+ * start with `probesfconcurrency-`, runs every check against that store only,
+ * and deletes exactly those rows in `finally`. Cleanup is guarded: the store is
+ * deleted only when its id, ownerId and slug still match the probe row created
+ * by this run. A startup sweep removes stale probe stores (same prefix, older
+ * than one day) left by an interrupted run; it cannot match a real store.
+ *
+ * Tests (a) and (b) run entirely inside transactions that are rolled back.
+ * Test (c) needs one committed probe version so the second connection can
+ * observe the unique-key race (MySQL cannot show an uncommitted row to another
+ * session); every probe row is deleted at the end.
  *
  * The connections use READ COMMITTED so a retry after a duplicate-key error
  * sees the row committed by the other session (production calls run in
@@ -41,6 +48,13 @@ const url = env
   .trim()
   .replace(/^['"]|['"]$/g, "");
 
+/** Dedicated-test prefix. No real store/user may match it. */
+const PROBE_PREFIX = "probesfconcurrency-";
+const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const PROBE_SLUG = `${PROBE_PREFIX}store-${RUN_ID}`;
+const PROBE_OPEN_ID = `${PROBE_PREFIX}owner-${RUN_ID}`;
+const PROBE_EMAIL = `${PROBE_OPEN_ID}@probe.invalid`;
+
 type Result = { name: string; ok: boolean; detail: string };
 const results: Result[] = [];
 const check = (name: string, ok: boolean, detail = "") =>
@@ -65,30 +79,78 @@ const dbB = drizzle(connB) as unknown as StorefrontDb;
 let probeStoreId: number | undefined;
 let probeOwnerId: number | undefined;
 let probeDraftCreated = false;
-let probeVersionId: number | undefined;
 let txA = false;
 let txB = false;
+
+/**
+ * Cleanup guard: only ever touch rows that still belong to the dedicated probe
+ * store/owner created by this script. Never delete by bare storeId alone.
+ */
+const isProbeStore = async (): Promise<boolean> => {
+  if (!probeStoreId || !probeOwnerId) return false;
+  const [rows]: any = await connA.query(
+    "SELECT id, ownerId, slug FROM stores WHERE id = ?",
+    [probeStoreId]
+  );
+  return (
+    rows.length === 1 &&
+    Number(rows[0].ownerId) === probeOwnerId &&
+    String(rows[0].slug) === PROBE_SLUG
+  );
+};
 
 try {
   // READ COMMITTED: a duplicate-key retry must see the other session's commit.
   await connA.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
   await connB.query("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED");
 
-  const [stores]: any = await connA.query(
-    `SELECT s.id, s.ownerId
-       FROM stores s
-       LEFT JOIN storefront_drafts d ON d.storeId = s.id
-      WHERE d.storeId IS NULL
-      ORDER BY s.id
-      LIMIT 1`
+  // Sweep probe stores left by an interrupted run (prefix + age only).
+  const [stale]: any = await connA.query(
+    `SELECT id, ownerId FROM stores
+      WHERE slug LIKE '${PROBE_PREFIX}%'
+        AND createdAt < NOW() - INTERVAL 1 DAY`
   );
-  if (!stores.length) {
-    throw new Error(
-      "No store without a draft exists — cannot probe draft concurrency safely."
+  for (const row of stale) {
+    await connA.query("DELETE FROM storefront_versions WHERE storeId = ?", [
+      row.id,
+    ]);
+    await connA.query("DELETE FROM storefront_drafts WHERE storeId = ?", [
+      row.id,
+    ]);
+    await connA.query("DELETE FROM storefront_audit_logs WHERE storeId = ?", [
+      row.id,
+    ]);
+    await connA.query(
+      "DELETE FROM stores WHERE id = ? AND slug LIKE ?",
+      [row.id, `${PROBE_PREFIX}%`]
+    );
+    await connA.query(
+      "DELETE FROM users WHERE id = ? AND openId LIKE ?",
+      [row.ownerId, `${PROBE_PREFIX}%`]
     );
   }
-  probeStoreId = Number(stores[0].id);
-  probeOwnerId = Number(stores[0].ownerId);
+
+  // Dedicated test identities: no real merchant row is selected or touched.
+  const [ownerInsert]: any = await connA.query(
+    `INSERT INTO users (openId, name, email, loginMethod, role)
+     VALUES (?, 'Storefront Concurrency Probe Owner', ?, 'probe', 'user')`,
+    [PROBE_OPEN_ID, PROBE_EMAIL]
+  );
+  probeOwnerId = Number(ownerInsert.insertId);
+  const [storeInsert]: any = await connA.query(
+    `INSERT INTO stores (ownerId, name, slug, language, isActive)
+     VALUES (?, 'Storefront Concurrency Probe Store', ?, 'dz-ar', 1)`,
+    [probeOwnerId, PROBE_SLUG]
+  );
+  probeStoreId = Number(storeInsert.insertId);
+
+  check(
+    "probe store is dedicated (never a real store)",
+    (await isProbeStore()) &&
+      Number(probeStoreId) > 0 &&
+      Number(probeOwnerId) > 0,
+    `storeId=${probeStoreId} ownerId=${probeOwnerId} slug=${PROBE_SLUG}`
+  );
 
   // Committed probe draft (the only row this script creates outside rollback).
   await connA.query(
@@ -287,11 +349,10 @@ try {
       ORDER BY versionNumber DESC LIMIT 1`,
     [probeStoreId]
   );
-  probeVersionId = versionRow[0]?.id ? Number(versionRow[0].id) : undefined;
   check(
     "the committed publish probe is visible",
-    !!probeVersionId,
-    probeVersionId ? `id=${probeVersionId}` : ""
+    !!versionRow[0]?.id,
+    versionRow[0]?.id ? `id=${versionRow[0].id}` : ""
   );
 } catch (error) {
   check(
@@ -300,8 +361,7 @@ try {
     error instanceof Error ? error.message : String(error)
   );
 } finally {
-  // Release any open transaction; only the explicitly committed probe version
-  // and the setup draft remain, and both are deleted below.
+  // Release any open transaction.
   try {
     if (txA) await connA.query("ROLLBACK");
     if (txB) await connB.query("ROLLBACK");
@@ -309,33 +369,67 @@ try {
     /* connection already gone */
   }
 
-  if (probeStoreId) {
-    // Delete by the probe note as well: covers a crash between COMMIT and the
-    // id lookup above.
-    await connA.query(
-      "DELETE FROM storefront_versions WHERE storeId = ? AND note LIKE 'concurrency-probe-%'",
-      [probeStoreId]
-    );
+  let cleanupAllowed = false;
+  try {
+    cleanupAllowed = await isProbeStore();
+  } catch {
+    cleanupAllowed = false;
   }
-  if (probeDraftCreated && probeStoreId) {
+
+  if (!cleanupAllowed) {
+    check(
+      "cleanup skipped: probe store guard failed (no real row touched)",
+      !probeStoreId && !probeOwnerId,
+      probeStoreId ? `storeId=${probeStoreId}` : "nothing created"
+    );
+  } else {
+    // Delete ONLY rows belonging to the dedicated probe store.
+    await connA.query("DELETE FROM storefront_versions WHERE storeId = ?", [
+      probeStoreId,
+    ]);
     await connA.query("DELETE FROM storefront_drafts WHERE storeId = ?", [
       probeStoreId,
     ]);
-  }
+    await connA.query("DELETE FROM storefront_audit_logs WHERE storeId = ?", [
+      probeStoreId,
+    ]);
+    await connA.query("DELETE FROM stores WHERE id = ? AND slug = ?", [
+      probeStoreId,
+      PROBE_SLUG,
+    ]);
+    await connA.query("DELETE FROM users WHERE id = ? AND openId = ?", [
+      probeOwnerId,
+      PROBE_OPEN_ID,
+    ]);
 
-  if (probeStoreId) {
     const [leftVersions]: any = await connA.query(
-      "SELECT COUNT(*) AS n FROM storefront_versions WHERE storeId = ? AND note LIKE 'concurrency-probe-%'",
+      "SELECT COUNT(*) AS n FROM storefront_versions WHERE storeId = ?",
       [probeStoreId]
     );
     const [leftDraft]: any = await connA.query(
       "SELECT COUNT(*) AS n FROM storefront_drafts WHERE storeId = ?",
       [probeStoreId]
     );
+    const [leftAudit]: any = await connA.query(
+      "SELECT COUNT(*) AS n FROM storefront_audit_logs WHERE storeId = ?",
+      [probeStoreId]
+    );
+    const [leftStore]: any = await connA.query(
+      "SELECT COUNT(*) AS n FROM stores WHERE id = ?",
+      [probeStoreId]
+    );
+    const [leftOwner]: any = await connA.query(
+      "SELECT COUNT(*) AS n FROM users WHERE id = ?",
+      [probeOwnerId]
+    );
     check(
       "zero probe rows remain (cleanup verified)",
-      Number(leftVersions[0].n) === 0 && Number(leftDraft[0].n) === 0,
-      `versions=${leftVersions[0].n} drafts=${leftDraft[0].n}`
+      Number(leftVersions[0].n) === 0 &&
+        Number(leftDraft[0].n) === 0 &&
+        Number(leftAudit[0].n) === 0 &&
+        Number(leftStore[0].n) === 0 &&
+        Number(leftOwner[0].n) === 0,
+      `versions=${leftVersions[0].n} drafts=${leftDraft[0].n} audit=${leftAudit[0].n} stores=${leftStore[0].n} users=${leftOwner[0].n}`
     );
   }
 

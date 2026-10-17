@@ -352,6 +352,51 @@ describe("storefront versions — immutability & draft/publish separation", () =
     expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
     expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
   });
+
+  it("records an explicit force-save with a force flag in the audit log", async () => {
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({ conflict: false, version: 10 });
+    const caller = appRouter.createCaller(makeOwnerContext(7));
+    await caller.storefront.saveDraft({
+      config: DEFAULT_MODERN_CONFIG,
+      expectedVersion: 9,
+      force: true,
+    });
+    expect(mocks.recordStorefrontAuditLog).toHaveBeenCalledTimes(1);
+    const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
+    expect(audit.action).toBe("draft_force_save");
+    expect(JSON.parse(audit.metadataJson)).toMatchObject({
+      forced: true,
+      version: 10,
+      expectedVersion: 9,
+    });
+  });
+
+  it("keeps a normal save audited as draft_save (no force marker)", async () => {
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({ conflict: false, version: 3 });
+    const caller = appRouter.createCaller(makeOwnerContext(7));
+    await caller.storefront.saveDraft({
+      config: DEFAULT_MODERN_CONFIG,
+      expectedVersion: 2,
+    });
+    const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
+    expect(audit.action).toBe("draft_save");
+    expect(JSON.parse(audit.metadataJson).forced).toBe(false);
+  });
+
+  it("does not audit a forced save that lost a further race (CONFLICT)", async () => {
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({
+      conflict: true,
+      currentVersion: 11,
+    });
+    const caller = appRouter.createCaller(makeOwnerContext(7));
+    const result = await caller.storefront.saveDraft({
+      config: DEFAULT_MODERN_CONFIG,
+      expectedVersion: 9,
+      force: true,
+    });
+    expect(result).toEqual({ conflict: true, currentVersion: 11 });
+    expect(mocks.recordStorefrontAuditLog).not.toHaveBeenCalled();
+  });
 });
 
 describe("storefront.managed — published health for the merchant banner", () => {

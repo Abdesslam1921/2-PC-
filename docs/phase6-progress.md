@@ -516,3 +516,49 @@
 - فرض الحفظ (`forceSave`) هو كتابة **صريحة بطلب المستخدم** فوق النسخة الأحدث؛ ليست تلقائية. لا يوجد دمج سطر-بسطر (merge UI) — الخياران هما تحميل الأحدث أو فرض الحفظ.
 - البند **3ب (سباقات الطلبات)** لم يُلمس كما طُلب.
 
+---
+
+## سجل التنفيذ — الخطوة الأولى من 3أ (17-10-2026): سلامة سكربتات التحقق + عقد النشر + تدقيق فرض الحفظ
+
+### 1) تسرّب صفوف probe إلى متجر حقيقي — **مُبلَّغ ومُنظَّف**
+- **السكربت السابق** `scripts/storefront-concurrency-check.ts` كان يختار **أول متجر حقيقي بلا مسودة** (`ORDER BY s.id LIMIT 1`) ويُنشئ عليه مسودة/نسخة ثم يحذفهما.
+- **المتجر المستخدم فعليًا:** `storeId = 1` (اسمه «متجر Abde Sslam»، `ownerId = 8850001`).
+- **الصفوف التي كُتبت:** مسودة `storefront_drafts.id = 90002` (`concurrencyVersion` 1→2، تحمل علامة `PROBE NEWER`) + نسخة `storefront_versions.id = 690007` (`versionNumber = 1`، `note = 'concurrency-probe-publish'`، لقطة تحمل `PROBE PUBLISH`)، بتاريخ `2026-10-17 10:00:44–47Z`.
+- **التنظيف الفعلي:** حُذف الصفّان بمعرّفيهما + شرط العلامة:
+  - `DELETE FROM storefront_versions WHERE id=690007 AND storeId=1 AND note='concurrency-probe-publish' AND snapshotJson LIKE '%PROBE PUBLISH%'` → **1 صف**.
+  - `DELETE FROM storefront_drafts WHERE id=90002 AND storeId=1 AND configJson LIKE '%PROBE NEWER%'` → **1 صف**.
+  - تحقّق بعد الحذف: `storefront_versions(storeId=1)=0` · `storefront_drafts(storeId=1)=0` · أي `note LIKE 'concurrency-probe-%'` في القاعدة = **0**.
+- **السبب الجذري:** لم يكن هناك حاجز يمنع اختيار متجر حقيقي؛ والتنظيف كان يعتمد على `storeId` وحده. (سجل التشغيل السابق ادّعى «0 صفوف متبقية» لكن القاعدة أظهرت العكس — لا نخفي ذلك.)
+
+### 2) قاعدة جديدة: سكربتات التحقق الحية لا تلمس صفوف متجر حقيقي
+- السكربت أُعيد بناؤه: يُنشئ **مالكًا ومتجرًا تجريبيين مخصّصين** ببادئة `probesfconcurrency-` (openId/slug/email فريدة لكل تشغيل)، ويعمل **فقط** على `storeId` الذي أنشأه.
+- **حاجز التنظيف:** `isProbeStore()` يتحقق من `id + ownerId + slug` قبل أي حذف؛ لو فشل الحاجز **لا يُحذف أي صف** ويُسجّل FAIL.
+- **تنظيف مؤكّد:** حذف versions/drafts/audit لهذا المتجر ثم المتجر ثم المالك، والتحقق من **0** في الجداول الخمسة.
+- **كنس بقايا التشغيلات المنقطعة:** يحذف فقط متاجر تحمل نفس البادئة وعمرها > يوم (لا يمكن أن تطابق متجرًا حقيقيًا).
+- **تشغيل حي فعلي (13/13 PASS):** `storeId=270001`، `ownerId=14610001`، `slug=probesfconcurrency-store-1792235564723-1lgflk` — كل الصفوف حُذفت (`versions=0 drafts=0 audit=0 stores=0 users=0`).
+
+### 3) عقد `storefront.publish` — كل المواضع تمرّر `expectedDraftVersion`
+- **المواضع الثلاثة (كل ما في `client/src`):**
+  - `client/src/storefront/editor/useStoreDraft.ts:255` → `expectedDraftVersion: flushed.version`.
+  - `client/src/storefront/builder/BuilderPage.tsx:390` → `expectedDraftVersion: saved.version` (بعد flush).
+  - `client/src/storefront/builder/ThemeEditorPage.tsx:221` → `expectedDraftVersion: saved.version` (بعد flush).
+- **اختبار جديد:** `client/src/storefront/publishContract.test.ts` يمسح كل `client/src`، يثبت أن قائمة الناشرين هي الملفات الثلاثة بالضبط، وأن **كل** نداء `publish.mutateAsync({...})` يحتوي `expectedDraftVersion`.
+
+### 4) تسجيل «فرض حفظ تعديلاتي» في `storefront_audit_logs`
+- `storefront.saveDraft` يقبل `force?: boolean` (علامة تدقيق فقط؛ الكتابة تبقى CAS).
+- عند النجاح: `action = 'draft_force_save'` و`metadataJson = { version, forced: true, expectedVersion }`؛ والحفظ العادي يبقى `draft_save` مع `forced: false`.
+- عند خسارة سباق جديد: **CONFLICT بلا كتابة وبلا سجل**.
+- الواجهة: `useStoreDraft.forceSave` و`BuilderPage.forceSave` يرسلان `force: true`.
+- **لا migration** (استُخدم `metadataJson` الموجود + قيمة action جديدة).
+- **اختبارات:** 3 حالات جديدة في `server/routers/storefront.test.ts` + تأكيد `force: true` في `useStoreDraft.test.ts`.
+
+### نتائج التشغيل
+- `pnpm check` → **0 أخطاء**.
+- اختبارات مستهدفة: `storefront.test.ts` (31) · `storefrontDb.test.ts` (10) · `useStoreDraft.test.ts` (6) · `publishContract.test.ts` (2) → **49/49 نجحت**.
+- `pnpm test` الكامل → **572 ناجح · 8 فاشل · 3 متخطّى (583)**؛ الثمانية هي **نفس baseline المعروفة** (OAuth/Meta/connecteurs/واجهات UI/SSR) → **صفر انحدار**.
+- **البند 3ب لم يُلمس.**
+
+### على المستخدم معرفته
+- **حذف صفّي probe من متجر حقيقي وقع فعلًا** (بمعرّفيهما أعلاه) بعد إثبات العلامات؛ لم تُحذف أي صفوف أخرى، ولم تكن هناك نسخة منشورة حقيقية للمتجر قبلها.
+- لا تغيير في مخطط DB في هذه الخطوة.
+

@@ -310,6 +310,12 @@ export const storefrontRouter = router({
       z.object({
         config: z.unknown(),
         expectedVersion: z.number().int().min(0),
+        /**
+         * Explicit "force save my edits" action from the conflict banner. It
+         * is an audit marker only: the write still uses compare-and-swap, and
+         * a further concurrent change is reported as CONFLICT, never forced.
+         */
+        force: z.boolean().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -331,9 +337,13 @@ export const storefrontRouter = router({
           actorId: userId,
           actorRole: role,
           isOverride,
-          action: "draft_save",
+          action: input.force ? "draft_force_save" : "draft_save",
           entityType: "draft",
-          metadataJson: JSON.stringify({ version: result.version }),
+          metadataJson: JSON.stringify({
+            version: result.version,
+            forced: input.force === true,
+            expectedVersion: input.expectedVersion,
+          }),
         });
       }
       return result;

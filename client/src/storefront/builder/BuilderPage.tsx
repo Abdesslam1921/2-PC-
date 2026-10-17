@@ -350,7 +350,11 @@ export default function BuilderPage() {
 
   const forceSave = async () => {
     if (!config || conflict === null) return;
-    const res = await saveDraft.mutateAsync({ config, expectedVersion: conflict });
+    const res = await saveDraft.mutateAsync({
+      config,
+      expectedVersion: conflict,
+      force: true,
+    });
     if (res.conflict) {
       toast.error("تعذّر الحفظ: تغيّرت المسودة مرة أخرى.");
       return;
