@@ -1,19 +1,23 @@
 /**
- * LIVE verification of the order-creation races against the REAL database.
+ * LIVE verification of the confirmation-time inventory policy and order races
+ * against the REAL database.
  *
  * Two explicit MySQL connections create a dedicated probe owner/store/products/
  * offers/agents, then exercise the production functions concurrently:
- *   (a) atomic stock reservation and all-or-nothing multi-line orders,
+ *   (a) `new`/`abandoned` never deduct; the first confirmed-or-later transition
+ *       deducts once, atomically, and names the product on shortage,
  *   (b) unique order numbers under concurrent inserts,
  *   (c) round-robin Call Center assignment without corrupting the rotation,
  *   (d) double submit (same phone + same lines) creating ONE order,
- *   (e) createCod atomicity (order + items + stock + usedCount + assignment),
- *   (f) idempotent status effects (stock, order_profits, order_returns).
+ *   (e) createCod atomicity (order + items + offer usedCount + assignment),
+ *   (f) manual confirmed orders deduct at creation,
+ *   (g) return/cancel restores once; duplicate/concurrent webhooks do not
+ *       deduct or restore twice; order_profits/order_returns stay single rows.
  *
- * SAFETY: never reads, writes or deletes a real store's rows. Every probe
- * row carries the dedicated `probesforder` identity and is created by this
- * run; cleanup deletes exactly those ids (guarded by store id + ownerId +
- * slug) and verifies zero rows remain.
+ * SAFETY: never reads, writes or deletes a real store's rows. Every probe row
+ * carries the dedicated `probesforder` identity and is created by this run;
+ * cleanup deletes exactly those ids (guarded by store id + ownerId + slug) and
+ * verifies zero rows remain.
  *
  * Usage: pnpm exec tsx scripts/orders-concurrency-check.ts
  */
@@ -23,8 +27,8 @@ import { createConnection, type Connection } from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
 import {
-  applyOrderInventoryLifecycle,
   createCodOrder,
+  createManualOrder,
   updateStoreOrderStatus,
 } from "../server/db";
 import { applyShipmentStatus } from "../server/forshipDb";
@@ -67,6 +71,7 @@ let offerMax1 = 0;
 let agent1 = 0;
 let agent2 = 0;
 const orderIds: number[] = [];
+const manualOrderIds: number[] = [];
 
 const q = async (conn: Connection, sql: string, values: unknown[] = []) => {
   const [rows] = (await conn.query(sql, values)) as [any, unknown];
@@ -108,11 +113,7 @@ const createProduct = async (title: string, inventory: number) => {
   return Number(res.insertId);
 };
 
-const createOffer = async (
-  name: string,
-  productId: number,
-  maxUses: number
-) => {
+const createOffer = async (name: string, productId: number, maxUses: number) => {
   const res = await q(
     connA,
     `INSERT INTO offers
@@ -145,6 +146,13 @@ const inventoryOf = async (productId: number) => {
   return Number(rows[0]?.inventory ?? -1);
 };
 
+const setInventory = async (productId: number, value: number) => {
+  await q(connA, "UPDATE store_products SET inventory = ? WHERE id = ?", [
+    value,
+    productId,
+  ]);
+};
+
 const variantStockOf = async (variantId: number) => {
   const rows = await q(
     connA,
@@ -152,6 +160,16 @@ const variantStockOf = async (variantId: number) => {
     [variantId]
   );
   return Number(rows[0]?.stock ?? -1);
+};
+
+const orderRow = async (orderId: number) => {
+  const rows = await q(
+    connA,
+    `SELECT fulfillmentStatus, inventoryDeductedAt, inventoryRestoredAt
+       FROM store_orders WHERE id = ?`,
+    [orderId]
+  );
+  return rows[0];
 };
 
 const ordersForPhone = async (phone: string) => {
@@ -173,6 +191,9 @@ const agentForOrder = async (orderId: number) => {
     Number(row.confirmationAgentId)
   );
 };
+
+const confirm = (orderId: number) =>
+  updateStoreOrderStatus(probeStoreId!, orderId, "confirmed");
 
 try {
   const ownerRes = await q(
@@ -225,119 +246,239 @@ try {
   );
   agent1 = Number(a1.insertId);
   agent2 = Number(a2.insertId);
-  const agentRows = await q(
-    connA,
-    "SELECT id, enabled FROM call_center_agents WHERE storeId = ? ORDER BY id",
-    [probeStoreId]
-  );
-  check(
-    "two enabled probe agents exist",
-    agentRows.length === 2 && agentRows.every((row: { enabled: number }) => Number(row.enabled) === 1),
-    JSON.stringify(agentRows)
-  );
 
-  // (a1) Last unit: exactly one of two concurrent orders wins.
-  const stockRace = await Promise.allSettled([
-    createCodOrder(customer("0559900001"), [{ productId: productA, quantity: 1 }]),
-    createCodOrder(customer("0559900002"), [{ productId: productA, quantity: 1 }]),
+  // (a1) new does not deduct; the first confirmed transition deducts once.
+  const single = await createCodOrder(customer("0559900101"), [
+    { productId: productA, quantity: 1 },
   ]);
-  const stockWins = stockRace.filter(r => r.status === "fulfilled") as Array<
-    PromiseFulfilledResult<Awaited<ReturnType<typeof createCodOrder>>>
-  >;
+  orderIds.push(single.id);
   check(
-    "last unit: exactly one of two concurrent orders succeeds",
-    stockWins.length === 1 &&
-      stockRace.filter(r => r.status === "rejected").length === 1
-  );
-  check(
-    "last unit: inventory is 0 (no oversell)",
-    (await inventoryOf(productA)) === 0,
+    "new order does not deduct inventory",
+    (await inventoryOf(productA)) === 1 &&
+      (await orderRow(single.id)).inventoryDeductedAt == null,
     `inventory=${await inventoryOf(productA)}`
   );
-  const inventoryViaB = await q(
-    connB,
-    "SELECT inventory FROM store_products WHERE id = ?",
-    [productA]
-  );
+  await confirm(single.id);
+  const afterConfirm = await orderRow(single.id);
   check(
-    "second connection observes the same final stock",
-    Number(inventoryViaB[0].inventory) === 0,
-    `connB=${inventoryViaB[0].inventory}`
+    "confirmed transition deducts once",
+    (await inventoryOf(productA)) === 0 &&
+      afterConfirm.fulfillmentStatus === "confirmed" &&
+      afterConfirm.inventoryDeductedAt != null,
+    `inventory=${await inventoryOf(productA)}`
   );
-  const ordersA = (
-    await q(
-      connA,
-      "SELECT COUNT(*) n FROM store_order_items WHERE productId = ?",
-      [productA]
-    )
-  )[0].n;
-  check("last unit: only one order row exists", Number(ordersA) === 1);
-  stockWins.forEach(r => orderIds.push(r.value.id));
+  const deductedAt = String(afterConfirm.inventoryDeductedAt);
+  for (const status of ["processing", "shipped", "delivered"] as const) {
+    await updateStoreOrderStatus(probeStoreId, single.id, status);
+  }
+  const afterChain = await orderRow(single.id);
+  check(
+    "later statuses do not deduct again",
+    (await inventoryOf(productA)) === 0 &&
+      String(afterChain.inventoryDeductedAt) === deductedAt &&
+      afterChain.inventoryRestoredAt == null,
+    `inventory=${await inventoryOf(productA)}`
+  );
 
-  // (a2) Multi-line all-or-nothing.
-  const beforeC = await inventoryOf(productC);
-  const multi = await Promise.allSettled([
-    createCodOrder(customer("0559900003"), [
-      { productId: productC, quantity: 1 },
-      { productId: productD, quantity: 1 },
-    ]),
+  // (a2) Last unit: two new orders are created, only one confirmation wins.
+  await setInventory(productA, 1);
+  const race = await Promise.all([
+    createCodOrder(customer("0559900102"), [{ productId: productA, quantity: 1 }]),
+    createCodOrder(customer("0559900103"), [{ productId: productA, quantity: 1 }]),
   ]);
+  race.forEach(order => orderIds.push(order.id));
   check(
-    "multi-line order fails when one line is out of stock",
-    multi[0].status === "rejected"
+    "two new orders can be created for the last unit (no early stock check)",
+    (await inventoryOf(productA)) === 1 &&
+      race.every(order => order.id > 0)
+  );
+  const confirmations = await Promise.allSettled(
+    race.map(order => confirm(order.id))
+  );
+  const confirmedWins = confirmations.filter(r => r.status === "fulfilled");
+  const confirmErrors = confirmations.filter(
+    (r): r is PromiseRejectedResult => r.status === "rejected"
+  );
+  const shortageMessage =
+    confirmErrors[0]?.reason instanceof Error
+      ? confirmErrors[0].reason.message
+      : "";
+  check(
+    "confirming the last unit: exactly one wins",
+    confirmedWins.length === 1 && confirmErrors.length === 1,
+    `wins=${confirmedWins.length} errors=${confirmErrors.length}`
+  );
+  check(
+    "shortage message names the product",
+    shortageMessage.includes("Probe A"),
+    shortageMessage
+  );
+  const raceStates = await Promise.all(race.map(order => orderRow(order.id)));
+  check(
+    "the loser stays new and is not marked deducted",
+    raceStates.filter(state => state.fulfillmentStatus === "new").length === 1 &&
+      raceStates.filter(state => state.inventoryDeductedAt == null).length === 1
+  );
+
+  // (a3) Multi-line all-or-nothing at confirmation.
+  await setInventory(productC, 5);
+  const multi = await createCodOrder(customer("0559900104"), [
+    { productId: productC, quantity: 1 },
+    { productId: productD, quantity: 1 },
+  ]);
+  orderIds.push(multi.id);
+  check(
+    "multi-line order can be created while one line has no stock",
+    (await inventoryOf(productC)) === 5
+  );
+  const multiConfirm = await Promise.allSettled([confirm(multi.id)]);
+  check(
+    "multi-line confirmation fails when one line is out of stock",
+    multiConfirm[0].status === "rejected"
   );
   check(
     "multi-line failure leaves the first line's stock untouched",
-    (await inventoryOf(productC)) === beforeC,
-    `before=${beforeC} after=${await inventoryOf(productC)}`
+    (await inventoryOf(productC)) === 5,
+    `inventory=${await inventoryOf(productC)}`
   );
   check(
-    "multi-line failure leaves no order/items",
-    (await ordersForPhone("0559900003")).length === 0
+    "multi-line failure leaves the order new and undeducted",
+    (await orderRow(multi.id)).fulfillmentStatus === "new" &&
+      (await orderRow(multi.id)).inventoryDeductedAt == null
   );
 
-  // (a3) Variant stock race.
-  const variantRace = await Promise.allSettled([
-    createCodOrder(customer("0559900004"), [
+  // (a4) Variant last unit at confirmation.
+  const variantRace = await Promise.all([
+    createCodOrder(customer("0559900105"), [
       { productId: productE, variantId: variantE, quantity: 1 },
     ]),
-    createCodOrder(customer("0559900005"), [
+    createCodOrder(customer("0559900106"), [
       { productId: productE, variantId: variantE, quantity: 1 },
     ]),
   ]);
-  const variantWins = variantRace.filter(r => r.status === "fulfilled") as Array<
-    PromiseFulfilledResult<Awaited<ReturnType<typeof createCodOrder>>>
-  >;
+  variantRace.forEach(order => orderIds.push(order.id));
+  const variantConfirms = await Promise.allSettled(
+    variantRace.map(order => confirm(order.id))
+  );
   check(
-    "variant last unit: exactly one concurrent order succeeds",
-    variantWins.length === 1 &&
-      variantRace.filter(r => r.status === "rejected").length === 1
+    "variant last unit: exactly one confirmation wins",
+    variantConfirms.filter(r => r.status === "fulfilled").length === 1 &&
+      variantConfirms.filter(r => r.status === "rejected").length === 1
   );
   check(
     "variant stock cannot go negative",
     (await variantStockOf(variantE)) === 0,
     `stock=${await variantStockOf(variantE)}`
   );
-  variantWins.forEach(r => orderIds.push(r.value.id));
 
-  // (c) Two concurrent orders must take different agents.
-  const twoAssignments = await Promise.all([
-    createCodOrder(customer("0559900010"), [{ productId: productB, quantity: 1 }]),
-    createCodOrder(customer("0559900011"), [{ productId: productB, quantity: 1 }]),
-  ]);
-  twoAssignments.forEach(order => orderIds.push(order.id));
-  const twoAgents = await Promise.all(twoAssignments.map(o => agentForOrder(o.id)));
+  // (a5) Manual orders: confirmed deducts at creation; new does not.
+  const beforeManual = await inventoryOf(productB);
+  const manualConfirmed = await createManualOrder(probeStoreId, {
+    productId: productB,
+    quantity: 2,
+    customerName: "Probe Manual",
+    customerPhone: "0559900107",
+    wilaya: "الجزائر",
+    fulfillmentStatus: "confirmed",
+  });
+  orderIds.push(manualConfirmed.orderId);
+  manualOrderIds.push(manualConfirmed.orderId);
   check(
-    "two concurrent orders get two different agents",
-    twoAgents.every(ids => ids.length === 1 && ids[0] > 0) &&
-      twoAgents[0][0] !== twoAgents[1][0],
-    `agents=${JSON.stringify(twoAgents)} expected=${agent1}/${agent2}`
+    "manual order created as confirmed deducts at creation",
+    (await inventoryOf(productB)) === beforeManual - 2 &&
+      (await orderRow(manualConfirmed.orderId)).inventoryDeductedAt != null,
+    `before=${beforeManual} after=${await inventoryOf(productB)}`
+  );
+  const manualNew = await createManualOrder(probeStoreId, {
+    productId: productB,
+    quantity: 1,
+    customerName: "Probe Manual New",
+    customerPhone: "0559900108",
+    wilaya: "الجزائر",
+    fulfillmentStatus: "new",
+  });
+  orderIds.push(manualNew.orderId);
+  manualOrderIds.push(manualNew.orderId);
+  check(
+    "manual order created as new does not deduct",
+    (await inventoryOf(productB)) === beforeManual - 2 &&
+      (await orderRow(manualNew.orderId)).inventoryDeductedAt == null
+  );
+  const manualInvalid = await Promise.allSettled([
+    createManualOrder(probeStoreId, {
+      productId: productD,
+      quantity: 1,
+      customerName: "Probe Manual OOS",
+      customerPhone: "0559900109",
+      wilaya: "الجزائر",
+      fulfillmentStatus: "confirmed",
+    }),
+  ]);
+  check(
+    "manual confirmed order with no stock is rejected and names the product",
+    manualInvalid[0].status === "rejected" &&
+      String(
+        manualInvalid[0].status === "rejected"
+          ? manualInvalid[0].reason
+          : ""
+      ).includes("Probe D")
+  );
+
+  // (a6) Cancel before shipping restores once; cancel after shipping does not.
+  const cancelOrder = await createCodOrder(customer("0559900110"), [
+    { productId: productB, quantity: 2 },
+  ]);
+  orderIds.push(cancelOrder.id);
+  await confirm(cancelOrder.id);
+  const beforeCancel = await inventoryOf(productB);
+  await Promise.all([
+    updateStoreOrderStatus(probeStoreId, cancelOrder.id, "cancelled"),
+    updateStoreOrderStatus(probeStoreId, cancelOrder.id, "cancelled"),
+  ]);
+  check(
+    "cancel of a confirmed-not-shipped order restores stock once",
+    (await inventoryOf(productB)) === beforeCancel + 2 &&
+      (await orderRow(cancelOrder.id)).inventoryRestoredAt != null,
+    `before=${beforeCancel} after=${await inventoryOf(productB)}`
+  );
+
+  const shippedCancel = await createCodOrder(customer("0559900111"), [
+    { productId: productB, quantity: 2 },
+  ]);
+  orderIds.push(shippedCancel.id);
+  await confirm(shippedCancel.id);
+  await updateStoreOrderStatus(probeStoreId, shippedCancel.id, "at_carrier");
+  const beforeShippedCancel = await inventoryOf(productB);
+  await updateStoreOrderStatus(probeStoreId, shippedCancel.id, "cancelled");
+  check(
+    "cancel after at_carrier does not restore stock",
+    (await inventoryOf(productB)) === beforeShippedCancel &&
+      (await orderRow(shippedCancel.id)).inventoryRestoredAt == null,
+    `before=${beforeShippedCancel} after=${await inventoryOf(productB)}`
+  );
+
+  // (a7) Returned restores once, even when applied repeatedly/concurrently.
+  const returnOrder = await createCodOrder(customer("0559900112"), [
+    { productId: productB, quantity: 2 },
+  ]);
+  orderIds.push(returnOrder.id);
+  await confirm(returnOrder.id);
+  const beforeReturn = await inventoryOf(productB);
+  await Promise.all([
+    updateStoreOrderStatus(probeStoreId, returnOrder.id, "returned"),
+    updateStoreOrderStatus(probeStoreId, returnOrder.id, "returned"),
+  ]);
+  await updateStoreOrderStatus(probeStoreId, returnOrder.id, "returned");
+  check(
+    "returned restores stock once",
+    (await inventoryOf(productB)) === beforeReturn + 2,
+    `before=${beforeReturn} after=${await inventoryOf(productB)}`
   );
 
   // (b) Unique order numbers + (c) balanced rotation under pressure.
   const burst = await Promise.all(
     Array.from({ length: 8 }, (_, index) =>
-      createCodOrder(customer(`05599001${String(index + 20).padStart(2, "0")}`), [
+      createCodOrder(customer(`05599002${String(index + 20).padStart(2, "0")}`), [
         { productId: productB, quantity: 1 },
       ])
     )
@@ -359,35 +500,37 @@ try {
     burstAgents.every(ids => ids.length === 1) &&
       agent1Count === 4 &&
       agent2Count === 4,
-    `agent1=${agent1Count}/${agent1} agent2=${agent2Count}/${agent2} assignments=${JSON.stringify(counts)}`
+    `agent1=${agent1Count}/${agent1} agent2=${agent2Count}/${agent2}`
   );
 
-  // (d) Double submit.
-  const doublePhone = "0559900030";
-  const beforeB = await inventoryOf(productB);
+  // (d) Double submit: same phone + same line creates ONE order.
+  const doublePhone = "0559900130";
+  const beforeDouble = await inventoryOf(productB);
   const doubleSubmit = await Promise.all([
     createCodOrder(customer(doublePhone), [{ productId: productB, quantity: 1 }]),
     createCodOrder(customer(doublePhone), [{ productId: productB, quantity: 1 }]),
   ]);
-  const third = await createCodOrder(customer(doublePhone), [
-    { productId: productB, quantity: 1 },
-  ]);
+  orderIds.push(doubleSubmit[0].id);
   check(
     "double submit returns the same order id (idempotent)",
-    doubleSubmit[0].id === doubleSubmit[1].id && third.id === doubleSubmit[0].id,
+    doubleSubmit[0].id === doubleSubmit[1].id &&
+      (await ordersForPhone(doublePhone)).length === 1,
     doubleSubmit.map(order => order.id).join(",")
   );
   check(
-    "double submit creates one order and deducts one unit",
-    (await ordersForPhone(doublePhone)).length === 1 &&
-      (await inventoryOf(productB)) === beforeB - 1,
-    `orders=${(await ordersForPhone(doublePhone)).length} inventory=${await inventoryOf(productB)}`
+    "double submit does not deduct before confirmation",
+    (await inventoryOf(productB)) === beforeDouble
   );
-  orderIds.push(doubleSubmit[0].id);
+  await confirm(doubleSubmit[0].id);
+  check(
+    "confirming the deduplicated order deducts exactly one unit",
+    (await inventoryOf(productB)) === beforeDouble - 1
+  );
 
-  // (e1) Offer usage commits with order + stock.
+  // (e) Quantity offer multiplier: creation reserves usage, confirmation
+  // deducts the correct number of inventory units (2 per offer).
   const beforeOfferC = await inventoryOf(productC);
-  const offerOrder = await createCodOrder(customer("0559900040"), [
+  const offerOrder = await createCodOrder(customer("0559900140"), [
     { productId: productC, offerId: offerMax5, quantity: 1 },
   ]);
   orderIds.push(offerOrder.id);
@@ -395,19 +538,23 @@ try {
     await q(connA, "SELECT usedCount FROM offers WHERE id = ?", [offerMax5])
   )[0];
   check(
-    "quantity offer: usedCount and stock commit together",
-    Number(offerRow.usedCount) === 1 &&
-      (await inventoryOf(productC)) === beforeOfferC - 2,
-    `used=${offerRow.usedCount} inventory=${await inventoryOf(productC)}`
+    "quantity offer usage is consumed at creation",
+    Number(offerRow.usedCount) === 1 && (await inventoryOf(productC)) === beforeOfferC
+  );
+  await confirm(offerOrder.id);
+  check(
+    "confirmation deducts the offer multiplier (2 units)",
+    (await inventoryOf(productC)) === beforeOfferC - 2,
+    `before=${beforeOfferC} after=${await inventoryOf(productC)}`
   );
 
-  // (e2) maxUses=1 race: one order survives, the loser rolls back fully.
+  // (e2) maxUses=1 race: one order survives; the loser rolls back fully.
   const beforeRaceC = await inventoryOf(productC);
   const offerRace = await Promise.allSettled([
-    createCodOrder(customer("0559900041"), [
+    createCodOrder(customer("0559900141"), [
       { productId: productC, offerId: offerMax1, quantity: 1 },
     ]),
-    createCodOrder(customer("0559900042"), [
+    createCodOrder(customer("0559900142"), [
       { productId: productC, offerId: offerMax1, quantity: 1 },
     ]),
   ]);
@@ -424,89 +571,63 @@ try {
   );
   offerWins.forEach(order => orderIds.push(order.id));
   check(
-    "maxUses race: usedCount=1 and only one stock deduction survives",
+    "maxUses race: usedCount=1 and no stock deduction happened at creation",
     Number(offerUsed.usedCount) === 1 &&
-      (await inventoryOf(productC)) === beforeRaceC - 2,
+      (await inventoryOf(productC)) === beforeRaceC,
     `used=${offerUsed.usedCount} inventory=${await inventoryOf(productC)}`
   );
 
-  // (f1) Returned lifecycle applied twice restores stock once.
-  const restoreOrder = await createCodOrder(customer("0559900050"), [
-    { productId: productB, quantity: 2 },
-  ]);
-  orderIds.push(restoreOrder.id);
-  const beforeRestore = await inventoryOf(productB);
-  await Promise.all([
-    applyOrderInventoryLifecycle(probeStoreId, restoreOrder.id, "returned"),
-    applyOrderInventoryLifecycle(probeStoreId, restoreOrder.id, "returned"),
-  ]);
-  await applyOrderInventoryLifecycle(probeStoreId, restoreOrder.id, "returned");
-  check(
-    "returned lifecycle is idempotent (stock restored once)",
-    (await inventoryOf(productB)) === beforeRestore + 2,
-    `before=${beforeRestore} after=${await inventoryOf(productB)}`
-  );
-
-  // (f2) Cancellation status restores reserved stock exactly once.
-  const cancelOrder = await createCodOrder(customer("0559900051"), [
+  // (g1) Duplicate delivered webhook: deduct once + one order_profits row.
+  const deliveredOrder = await createCodOrder(customer("0559900150"), [
     { productId: productB, quantity: 1 },
   ]);
-  orderIds.push(cancelOrder.id);
-  const beforeCancel = await inventoryOf(productB);
-  await Promise.all([
-    updateStoreOrderStatus(probeStoreId, cancelOrder.id, "cancelled"),
-    updateStoreOrderStatus(probeStoreId, cancelOrder.id, "cancelled"),
-  ]);
-  check(
-    "cancelled status restores stock once",
-    (await inventoryOf(productB)) === beforeCancel + 1,
-    `before=${beforeCancel} after=${await inventoryOf(productB)}`
-  );
-
-  // (f3) Duplicate delivered webhook -> one order_profits row.
-  const profitOrder = await createCodOrder(customer("0559900052"), [
-    { productId: productB, quantity: 1 },
-  ]);
-  orderIds.push(profitOrder.id);
-  const shipmentRes = await q(
+  orderIds.push(deliveredOrder.id);
+  const beforeDelivered = await inventoryOf(productB);
+  const deliveredShipmentRes = await q(
     connA,
     `INSERT INTO order_shipments
        (order_id, merchant_id, carrier_id, tracking_number, external_status_label,
         status_history, sync_method, check_count)
      VALUES (?, ?, 990001, ?, 'initial', '[]', 'webhook', 0)`,
-    [profitOrder.id, probeOwnerId, `${PROBE_PREFIX}track-${profitOrder.id}`]
+    [deliveredOrder.id, probeOwnerId, `${PROBE_PREFIX}track-${deliveredOrder.id}`]
   );
-  const [profitShipment] = await dbA
+  const [deliveredShipment] = await dbA
     .select()
     .from(orderShipments)
-    .where(eq(orderShipments.id, Number(shipmentRes.insertId)))
+    .where(eq(orderShipments.id, Number(deliveredShipmentRes.insertId)))
     .limit(1);
   const deliveredComputed = computeShipmentUpdate(
-    profitShipment,
+    deliveredShipment,
     "probe-delivered",
     { mapsTo: "delivered", isFinal: true },
     new Date()
   );
   await Promise.all([
-    applyShipmentStatus(profitShipment, "probe-delivered", deliveredComputed),
-    applyShipmentStatus(profitShipment, "probe-delivered", deliveredComputed),
+    applyShipmentStatus(deliveredShipment, "probe-delivered", deliveredComputed),
+    applyShipmentStatus(deliveredShipment, "probe-delivered", deliveredComputed),
   ]);
   const profitRows = await q(
     connA,
     "SELECT COUNT(*) n FROM order_profits WHERE order_id = ?",
-    [profitOrder.id]
+    [deliveredOrder.id]
   );
   check(
     "duplicate delivered webhook writes one order_profits row",
     Number(profitRows[0].n) === 1,
     `rows=${profitRows[0].n}`
   );
+  check(
+    "delivered webhook deducts stock once",
+    (await inventoryOf(productB)) === beforeDelivered - 1 &&
+      (await orderRow(deliveredOrder.id)).inventoryDeductedAt != null
+  );
 
-  // (f4) Duplicate returned webhook -> one order_returns row + one restore.
-  const returnOrder = await createCodOrder(customer("0559900053"), [
+  // (g2) Duplicate returned webhook: restore once + one order_returns row.
+  const returnWebhookOrder = await createCodOrder(customer("0559900151"), [
     { productId: productB, quantity: 1 },
   ]);
-  orderIds.push(returnOrder.id);
+  orderIds.push(returnWebhookOrder.id);
+  await confirm(returnWebhookOrder.id);
   const beforeWebhookReturn = await inventoryOf(productB);
   const returnShipmentRes = await q(
     connA,
@@ -514,7 +635,11 @@ try {
        (order_id, merchant_id, carrier_id, tracking_number, external_status_label,
         status_history, sync_method, check_count)
      VALUES (?, ?, 990002, ?, 'initial', '[]', 'webhook', 0)`,
-    [returnOrder.id, probeOwnerId, `${PROBE_PREFIX}track-${returnOrder.id}`]
+    [
+      returnWebhookOrder.id,
+      probeOwnerId,
+      `${PROBE_PREFIX}track-${returnWebhookOrder.id}`,
+    ]
   );
   const [returnShipment] = await dbA
     .select()
@@ -534,7 +659,7 @@ try {
   const returnRows = await q(
     connA,
     "SELECT COUNT(*) n FROM order_returns WHERE order_id = ?",
-    [returnOrder.id]
+    [returnWebhookOrder.id]
   );
   check(
     "duplicate returned webhook writes one order_returns row",
@@ -543,17 +668,28 @@ try {
   );
   check(
     "duplicate returned webhook restores stock once",
-    (await inventoryOf(productB)) === beforeWebhookReturn + 1,
-    `before=${beforeWebhookReturn} after=${await inventoryOf(productB)}`
+    (await inventoryOf(productB)) === beforeWebhookReturn + 1
   );
 
+  check(
+    "second connection observes the same final stock",
+    Number(
+      (
+        await q(connB, "SELECT inventory FROM store_products WHERE id = ?", [
+          productB,
+        ])
+      )[0].inventory
+    ) === (await inventoryOf(productB))
+  );
+
+  const assignedIds = orderIds.filter(id => !manualOrderIds.includes(id));
   const assignmentRows = await q(
     connA,
     `SELECT orderId, COUNT(DISTINCT confirmationAgentId) n
        FROM store_order_items
       WHERE orderId IN (?)
       GROUP BY orderId`,
-    [orderIds.length ? orderIds : [0]]
+    [assignedIds.length ? assignedIds : [0]]
   );
   check(
     "every probe order carries exactly one assigned agent",

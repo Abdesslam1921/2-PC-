@@ -4,35 +4,87 @@ import { describe, expect, it } from "vitest";
 const dbSource = () => readFileSync("server/db.ts", "utf8");
 const callCenterSource = () => readFileSync("server/callCenterDb.ts", "utf8");
 const routerSource = () => readFileSync("server/routers/orders.ts", "utf8");
+const forshipSource = () => readFileSync("server/forshipDb.ts", "utf8");
+
+function sliceBetween(source: string, from: string, to: string) {
+  const start = source.indexOf(from);
+  const end = source.indexOf(to, start + from.length);
+  return start >= 0 && end > start ? source.slice(start, end) : "";
+}
 
 describe("order race guards (source-level)", () => {
-  it("reserves stock atomically with a >= predicate and affectedRows check", () => {
-    const source = dbSource();
-    const reserve = source.slice(
-      source.indexOf("async function reserveOrderStock"),
-      source.indexOf("export async function createCodOrder")
+  it("does NOT deduct inventory when a COD order is created as new", () => {
+    const create = sliceBetween(
+      dbSource(),
+      "export async function createCodOrder",
+      "type DigitalOrderLineInput"
     );
-    expect(reserve).toContain("gte(storeProductVariants.stock, quantity)");
-    expect(reserve).toContain("gte(storeProducts.inventory, quantity)");
-    expect(reserve).toContain("sql`${storeProductVariants.stock} - ${quantity}`");
-    expect(reserve).toContain("sql`${storeProducts.inventory} - ${quantity}`");
-    expect(reserve).toContain("affectedRows(update) !== 1");
+    expect(create).not.toContain("reserveOrderStock");
+    expect(create).not.toContain("inventoryDeductedAt");
+    expect(create).not.toContain("remaining <");
   });
 
-  it("runs stock, order, items, offers and assignment in one transaction", () => {
-    const source = dbSource();
-    const create = source.slice(
-      source.indexOf("export async function createCodOrder"),
-      source.indexOf("type DigitalOrderLineInput")
+  it("deducts atomically on the first confirmed-or-later status", () => {
+    const deduct = sliceBetween(
+      dbSource(),
+      "async function deductOrderInventoryInTransaction",
+      "async function restoreOrderInventoryInTransaction"
     );
-    expect(create).toContain("reserveOrderStock(");
-    expect(create).toContain("inventoryDeductedAt: stockReserved");
-    expect(create).toContain("insertOrderWithUniqueNumber(");
-    expect(create).toContain("assignNewOrderToCallCenterAgentInTransaction");
-    expect(create).toContain("usedCount: line.quantityOffer.usedCount + line.quantity");
-    // Assignment is inside the transaction, so the router must not fire a
-    // second, out-of-transaction assignment for createCod.
-    expect(routerSource()).not.toContain("void assignNewOrderToCallCenterAgent({\n              storeId,\n              orderId: result.id");
+    expect(deduct).toContain("gte(storeProductVariants.stock, quantity)");
+    expect(deduct).toContain("gte(storeProducts.inventory, quantity)");
+    expect(deduct).toContain("sql`${storeProductVariants.stock} - ${quantity}`");
+    expect(deduct).toContain("sql`${storeProducts.inventory} - ${quantity}`");
+    expect(deduct).toContain("affectedRows(update) !== 1");
+    expect(deduct).toContain("inventoryDeductedAt: now");
+    expect(deduct).toContain("inventoryRestoredAt: null");
+  });
+
+  it("locks the order row and updates stock + status in one transaction", () => {
+    const status = sliceBetween(
+      dbSource(),
+      "export async function updateStoreOrderStatus",
+      "export async function deleteArchivedOrder"
+    );
+    expect(status).toContain("db.transaction");
+    expect(status).toContain('.for("update")');
+    expect(status).toContain("applyOrderInventoryForStatus");
+    expect(status.indexOf("applyOrderInventoryForStatus")).toBeLessThan(
+      status.indexOf("fulfillmentStatus }")
+    );
+  });
+
+  it("restores on return, and on cancellation only before shipping", () => {
+    const apply = sliceBetween(
+      dbSource(),
+      "async function applyOrderInventoryForStatus",
+      "export async function applyOrderInventoryLifecycle"
+    );
+    expect(apply).toContain('targetStatus === "returned"');
+    expect(apply).toContain("isShippedOrBeyond(order.fulfillmentStatus)");
+    expect(apply).toContain("!shippedOrBeyond");
+    expect(apply).toContain("inventoryRestoredAt");
+  });
+
+  it("deducts a manual confirmed order at creation, but not new/abandoned", () => {
+    const manual = sliceBetween(
+      dbSource(),
+      "export async function createManualOrder",
+      "export async function clearAbandonedOrdersForPhone"
+    );
+    expect(manual).toContain('fulfillmentStatus === "confirmed"');
+    expect(manual).toContain("gte(storeProducts.inventory, quantity)");
+    expect(manual).toContain("inventoryDeductedAt: deductAtCreation ? new Date() : null");
+    expect(manual).toContain("db.transaction");
+  });
+
+  it("routes terminal webhooks through the same locked status transition", () => {
+    const handle = sliceBetween(
+      forshipSource(),
+      "async function handleFinalEvent",
+      "async function recordOrderProfit"
+    );
+    expect(handle).toContain("updateStoreOrderStatus");
+    expect(handle).not.toContain("applyOrderInventoryLifecycle");
   });
 
   it("serialises double submits per phone and returns the existing order", () => {
@@ -51,22 +103,11 @@ describe("order race guards (source-level)", () => {
     expect(source).toContain("orderNumberForId(orderId)");
   });
 
-  it("restores stock on every terminal non-delivered status", () => {
-    const source = dbSource();
-    expect(source).toContain("if (shouldRestoreInventory(fulfillmentStatus))");
-    expect(source).toContain("shouldRestoreInventory(data.fulfillmentStatus)");
-  });
-
-  it("serialises round-robin assignment with FOR UPDATE and claims the at_carrier deduction", () => {
+  it("serialises round-robin assignment with FOR UPDATE and runs it in the order transaction", () => {
     const source = callCenterSource();
     expect(source).toContain('.for("update")');
     expect(source).toContain("assignNewOrderToCallCenterAgentInTransaction");
-    const inventory = dbSource().slice(
-      dbSource().indexOf('if (event === "at_carrier")'),
-      dbSource().indexOf('if (!order.inventoryDeductedAt || order.inventoryRestoredAt)')
-    );
-    expect(inventory).toContain("if (order.inventoryDeductedAt) return order;");
-    expect(inventory).toContain("isNull(storeOrders.inventoryDeductedAt)");
-    expect(dbSource()).toContain("isNull(storeOrders.inventoryRestoredAt)");
+    expect(dbSource()).toContain("assignNewOrderToCallCenterAgentInTransaction");
+    expect(routerSource()).not.toContain("void assignNewOrderToCallCenterAgent({\n              storeId,\n              orderId: result.id");
   });
 });

@@ -81,9 +81,10 @@ import { normalizeAlgerianMobile } from "./phone";
 import {
   ORDER_DUPLICATE_WINDOW_MS,
   isDuplicateOrderWindow,
+  isShippedOrBeyond,
   orderLineSignature,
   orderNumberForId,
-  shouldReserveInventoryAtCreation,
+  shouldDeductInventoryAtStatus,
   shouldRestoreInventory,
 } from "./orderConcurrency";
 
@@ -1951,52 +1952,6 @@ async function findRecentDuplicateOrder(
   return null;
 }
 
-/** Reserve stock inside the order transaction: UPDATE ... WHERE stock >= qty. */
-async function reserveOrderStock(
-  tx: any,
-  storeId: number | null,
-  lines: Array<{
-    product: typeof storeProducts.$inferSelect;
-    variant?: typeof storeProductVariants.$inferSelect;
-    quantity: number;
-    inventoryQuantity: number;
-  }>
-): Promise<boolean> {
-  let reserved = false;
-  for (const line of lines) {
-    if (!shouldReserveInventoryAtCreation(line.product)) continue;
-    const quantity = line.inventoryQuantity;
-    const update = line.variant
-      ? await tx
-          .update(storeProductVariants)
-          .set({ stock: sql`${storeProductVariants.stock} - ${quantity}` })
-          .where(
-            and(
-              eq(storeProductVariants.id, line.variant.id),
-              eq(storeProductVariants.productId, line.product.id),
-              gte(storeProductVariants.stock, quantity)
-            )
-          )
-      : await tx
-          .update(storeProducts)
-          .set({ inventory: sql`${storeProducts.inventory} - ${quantity}` })
-          .where(
-            and(
-              eq(storeProducts.id, line.product.id),
-              storeId != null ? eq(storeProducts.storeId, storeId) : undefined,
-              gte(storeProducts.inventory, quantity)
-            )
-          );
-    if (affectedRows(update) !== 1) {
-      throw new Error(
-        `الكمية المطلوبة من «${line.product.title}» غير متوفرة حاليًا.`
-      );
-    }
-    reserved = true;
-  }
-  return reserved;
-}
-
 /** Distinct temporary number for the INSERT; the final number uses the row id. */
 async function insertOrderWithUniqueNumber(
   tx: any,
@@ -2217,13 +2172,6 @@ export async function createCodOrder(
       const inventoryQuantity = quantityOffer
         ? quantityOffer.quantity * line.quantity
         : line.quantity;
-      if (product.trackInventory && !product.continueSelling) {
-        const remaining = variant ? variant.stock : product.inventory;
-        if (remaining < inventoryQuantity)
-          throw new Error(
-            `الكمية المطلوبة من «${product.title}» غير متوفرة حاليًا.`
-          );
-      }
 
       resolvedLines.push({
         product,
@@ -2315,14 +2263,6 @@ export async function createCodOrder(
         };
       }
     }
-
-    // Reserve stock atomically BEFORE writing the order: every line is an
-    // `UPDATE ... WHERE stock >= qty`; one failure rolls the whole order back.
-    const stockReserved = await reserveOrderStock(
-      tx,
-      storeId ?? null,
-      resolvedLines
-    );
 
     if (!ownerId || !resolvedLines.length)
       throw new Error("لا يمكن إنشاء طلب فارغ.");
@@ -2466,15 +2406,29 @@ export async function createCodOrder(
       0
     );
     const discountCents = Math.max(percentDiscountCents, bundleDiscountCents);
-    const appliedOffers = bundles.length
-      ? bundles.map(bundle => ({
-          offerId: bundle.offerId,
-          name: bundle.name,
-          discountAmount: bundle.discountAmount,
-          freeDelivery: bundle.freeDelivery,
-          times: bundle.times,
-        }))
-      : null;
+    const inventorySnapshot = resolvedLines
+      .filter(line => line.inventoryQuantity !== line.quantity)
+      .map(line => ({
+        productId: line.product.id,
+        variantId: line.variant?.id ?? null,
+        unitPrice: line.unitPrice,
+        lineQuantity: line.quantity,
+        inventoryQuantity: line.inventoryQuantity,
+      }));
+    const appliedOffers = [
+      ...bundles.map(bundle => ({
+        kind: "bundle" as const,
+        offerId: bundle.offerId,
+        name: bundle.name,
+        discountAmount: bundle.discountAmount,
+        freeDelivery: bundle.freeDelivery,
+        times: bundle.times,
+      })),
+      ...(inventorySnapshot.length
+        ? [{ kind: "inventory" as const, lines: inventorySnapshot }]
+        : []),
+    ];
+    const appliedOffersValue = appliedOffers.length ? appliedOffers : null;
     const subtotal = fromCents(subtotalCents);
     const discountAmount = fromCents(discountCents);
     const total = fromCents(
@@ -2502,9 +2456,6 @@ export async function createCodOrder(
       deliveryCostSnapshot: deliveryFee,
       appliedOffers,
       total,
-      // Stock was reserved above; mark it so the at_carrier lifecycle is a
-      // no-op and a return restores exactly once.
-      inventoryDeductedAt: stockReserved ? new Date() : null,
       attributionSource: customer.attributionSource?.trim() || null,
       fbclid: customer.fbclid?.trim() || null,
       utmSource: customer.utmSource?.trim() || null,
@@ -2621,6 +2572,7 @@ export async function createCodOrder(
         "./callCenterDb"
       );
       await assignNewOrderToCallCenterAgentInTransaction(tx as never, {
+        ownerId,
         storeId,
         orderId,
         customerPhone: customer.customerPhone,
@@ -3604,61 +3556,91 @@ export async function createManualOrder(
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
-  const [product] = await db
-    .select()
-    .from(storeProducts)
-    .where(
-      and(
-        eq(storeProducts.id, input.productId),
-        eq(storeProducts.storeId, storeId)
+  return db.transaction(async tx => {
+    const [product] = await tx
+      .select()
+      .from(storeProducts)
+      .where(
+        and(
+          eq(storeProducts.id, input.productId),
+          eq(storeProducts.storeId, storeId)
+        )
       )
-    )
-    .limit(1);
-  if (!product) throw new Error("المنتج غير متاح.");
-  const quantity = Math.max(1, Math.trunc(input.quantity || 1));
-  const unitPrice = product.price ?? "0.00";
-  const subtotal = (Number(unitPrice) * quantity).toFixed(2);
-  const created = await insertOrderWithUniqueNumber(db, {
-    ownerId: product.ownerId,
-    storeId,
-    customerName: input.customerName.trim(),
-    customerPhone: input.customerPhone.trim(),
-    wilaya: input.wilaya.trim(),
-    municipality: input.municipality?.trim() || null,
-    deliveryMethod: "home",
-    address: input.address?.trim() || "",
-    paymentMethod: "cod",
-    paymentStatus: "pending",
-    fulfillmentStatus: input.fulfillmentStatus ?? "new",
-    subtotal,
-    discountAmount: "0.00",
-    deliveryFee: "0.00",
-    deliveryCostSnapshot: "0.00",
-    total: subtotal,
+      .limit(1);
+    if (!product) throw new Error("المنتج غير متاح.");
+    const quantity = Math.max(1, Math.trunc(input.quantity || 1));
+    const unitPrice = product.price ?? "0.00";
+    const subtotal = (Number(unitPrice) * quantity).toFixed(2);
+    const fulfillmentStatus = input.fulfillmentStatus ?? "new";
+    /**
+     * A manual order created directly as `confirmed` follows the same rule as
+     * the first confirmation transition: deduct once, atomically. `new` and
+     * `abandoned` never deduct.
+     */
+    const deductAtCreation = fulfillmentStatus === "confirmed";
+    if (
+      deductAtCreation &&
+      product.trackInventory &&
+      !product.continueSelling
+    ) {
+      const update = await tx
+        .update(storeProducts)
+        .set({ inventory: sql`${storeProducts.inventory} - ${quantity}` })
+        .where(
+          and(
+            eq(storeProducts.id, product.id),
+            eq(storeProducts.storeId, storeId),
+            gte(storeProducts.inventory, quantity)
+          )
+        );
+      if (affectedRows(update) !== 1)
+        throw new Error(
+          `الكمية غير كافية للمنتج «${product.title}»؛ تعذّر تأكيد الطلب.`
+        );
+    }
+    const created = await insertOrderWithUniqueNumber(tx, {
+      ownerId: product.ownerId,
+      storeId,
+      customerName: input.customerName.trim(),
+      customerPhone: input.customerPhone.trim(),
+      wilaya: input.wilaya.trim(),
+      municipality: input.municipality?.trim() || null,
+      deliveryMethod: "home",
+      address: input.address?.trim() || "",
+      paymentMethod: "cod",
+      paymentStatus: "pending",
+      fulfillmentStatus,
+      subtotal,
+      discountAmount: "0.00",
+      deliveryFee: "0.00",
+      deliveryCostSnapshot: "0.00",
+      total: subtotal,
+      inventoryDeductedAt: deductAtCreation ? new Date() : null,
+    });
+    const orderId = created.insertId;
+    if (!orderId) throw new Error("تعذر إنشاء الطلب.");
+    const orderNumber = await finalizeOrderNumber(
+      tx,
+      orderId,
+      created.temporaryNumber
+    );
+    const cost = resolveCostSnapshot(product);
+    await tx.insert(storeOrderItems).values({
+      orderId,
+      productId: product.id,
+      title: product.title,
+      sku: product.sku ?? null,
+      unitPrice,
+      quantity,
+      lineTotal: subtotal,
+      productCostSnapshot: cost.productCost,
+      packagingCostSnapshot: cost.packagingCost,
+      procurementDeliveryCostSnapshot: cost.procurementDeliveryCost,
+      returnCostSnapshot: cost.returnCost,
+      returnDeliveryFreeSnapshot: cost.returnDeliveryFree,
+    });
+    return { orderId, orderNumber } as const;
   });
-  const orderId = created.insertId;
-  if (!orderId) throw new Error("تعذر إنشاء الطلب.");
-  const orderNumber = await finalizeOrderNumber(
-    db,
-    orderId,
-    created.temporaryNumber
-  );
-  const cost = resolveCostSnapshot(product);
-  await db.insert(storeOrderItems).values({
-    orderId,
-    productId: product.id,
-    title: product.title,
-    sku: product.sku ?? null,
-    unitPrice,
-    quantity,
-    lineTotal: subtotal,
-    productCostSnapshot: cost.productCost,
-    packagingCostSnapshot: cost.packagingCost,
-    procurementDeliveryCostSnapshot: cost.procurementDeliveryCost,
-    returnCostSnapshot: cost.returnCost,
-    returnDeliveryFreeSnapshot: cost.returnDeliveryFree,
-  });
-  return { orderId, orderNumber } as const;
 }
 
 /** Drop the abandoned draft rows once the same phone places a real order. */
@@ -3784,6 +3766,266 @@ function affectedRows(result: unknown) {
   );
 }
 
+type InventorySnapshotLine = {
+  productId: number;
+  variantId: number | null;
+  unitPrice: string;
+  lineQuantity: number;
+  inventoryQuantity: number;
+};
+
+/**
+ * Quantity offers reserve more inventory units than the order line quantity
+ * (e.g. "2 pieces for X" × 1 line = 2 units). The exact multiplier is stored
+ * in `appliedOffers` as a `kind: "inventory"` snapshot at creation time, so
+ * confirmation later never has to re-resolve a changed offer.
+ */
+function inventorySnapshotFromOffers(appliedOffers: unknown): InventorySnapshotLine[] {
+  let value: unknown = appliedOffers;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(value)) return [];
+  const entry = value.find(
+    item =>
+      item &&
+      typeof item === "object" &&
+      (item as { kind?: unknown }).kind === "inventory"
+  ) as { lines?: unknown } | undefined;
+  if (!entry || !Array.isArray(entry.lines)) return [];
+  return entry.lines.flatMap(line => {
+    if (!line || typeof line !== "object") return [];
+    const record = line as Record<string, unknown>;
+    const productId = Number(record.productId);
+    const lineQuantity = Number(record.lineQuantity);
+    const inventoryQuantity = Number(record.inventoryQuantity);
+    if (
+      !Number.isFinite(productId) ||
+      !Number.isFinite(lineQuantity) ||
+      !Number.isFinite(inventoryQuantity)
+    )
+      return [];
+    return [
+      {
+        productId,
+        variantId:
+          record.variantId == null ? null : Number(record.variantId),
+        unitPrice: String(record.unitPrice ?? ""),
+        lineQuantity,
+        inventoryQuantity,
+      },
+    ];
+  });
+}
+
+function inventoryQuantityForItem(
+  item: typeof storeOrderItems.$inferSelect,
+  snapshot: InventorySnapshotLine[]
+) {
+  const match = snapshot.find(
+    line =>
+      line.productId === Number(item.productId) &&
+      line.variantId === (item.variantId ?? null) &&
+      line.unitPrice === String(item.unitPrice) &&
+      line.lineQuantity === Number(item.quantity)
+  );
+  return match?.inventoryQuantity ?? Number(item.quantity);
+}
+
+/** Deduct every tracked line atomically; any shortage throws and rolls back. */
+async function deductOrderInventoryInTransaction(
+  tx: any,
+  order: typeof storeOrders.$inferSelect
+) {
+  const items = (
+    await tx
+      .select()
+      .from(storeOrderItems)
+      .where(eq(storeOrderItems.orderId, order.id))
+  ).sort(
+    (
+      a: typeof storeOrderItems.$inferSelect,
+      b: typeof storeOrderItems.$inferSelect
+    ) =>
+      a.productId - b.productId || (a.variantId ?? 0) - (b.variantId ?? 0)
+  );
+  const snapshot = inventorySnapshotFromOffers(order.appliedOffers);
+  for (const item of items) {
+    const [product] = await tx
+      .select()
+      .from(storeProducts)
+      .where(
+        and(
+          eq(storeProducts.id, item.productId),
+          order.storeId != null
+            ? eq(storeProducts.storeId, order.storeId)
+            : undefined
+        )
+      )
+      .limit(1);
+    if (!product)
+      throw new Error(
+        `المنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`
+      );
+    if (!product.trackInventory || product.continueSelling) continue;
+    const quantity = inventoryQuantityForItem(item, snapshot);
+    let variant: typeof storeProductVariants.$inferSelect | undefined;
+    if (item.variantId) {
+      const [foundVariant] = await tx
+        .select()
+        .from(storeProductVariants)
+        .where(
+          and(
+            eq(storeProductVariants.id, item.variantId),
+            eq(storeProductVariants.productId, item.productId)
+          )
+        )
+        .limit(1);
+      variant = foundVariant;
+      if (!variant)
+        throw new Error(
+          `الخيار المحدد للمنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`
+        );
+    }
+    const update = variant
+      ? await tx
+          .update(storeProductVariants)
+          .set({ stock: sql`${storeProductVariants.stock} - ${quantity}` })
+          .where(
+            and(
+              eq(storeProductVariants.id, variant.id),
+              eq(storeProductVariants.productId, item.productId),
+              gte(storeProductVariants.stock, quantity)
+            )
+          )
+      : await tx
+          .update(storeProducts)
+          .set({ inventory: sql`${storeProducts.inventory} - ${quantity}` })
+          .where(
+            and(
+              eq(storeProducts.id, product.id),
+              order.storeId != null
+                ? eq(storeProducts.storeId, order.storeId)
+                : undefined,
+              gte(storeProducts.inventory, quantity)
+            )
+          );
+    if (affectedRows(update) !== 1)
+      throw new Error(
+        `الكمية غير كافية للمنتج «${item.title}»؛ تعذّر تأكيد الطلب.`
+      );
+  }
+  const now = new Date();
+  await tx
+    .update(storeOrders)
+    .set({ inventoryDeductedAt: now, inventoryRestoredAt: null })
+    .where(eq(storeOrders.id, order.id));
+  order.inventoryDeductedAt = now;
+  order.inventoryRestoredAt = null;
+}
+
+/** Restore every tracked line once; guarded by `inventoryRestoredAt`. */
+async function restoreOrderInventoryInTransaction(
+  tx: any,
+  order: typeof storeOrders.$inferSelect
+) {
+  const items = (
+    await tx
+      .select()
+      .from(storeOrderItems)
+      .where(eq(storeOrderItems.orderId, order.id))
+  ).sort(
+    (
+      a: typeof storeOrderItems.$inferSelect,
+      b: typeof storeOrderItems.$inferSelect
+    ) =>
+      a.productId - b.productId || (a.variantId ?? 0) - (b.variantId ?? 0)
+  );
+  const snapshot = inventorySnapshotFromOffers(order.appliedOffers);
+  for (const item of items) {
+    const [product] = await tx
+      .select()
+      .from(storeProducts)
+      .where(
+        and(
+          eq(storeProducts.id, item.productId),
+          order.storeId != null
+            ? eq(storeProducts.storeId, order.storeId)
+            : undefined
+        )
+      )
+      .limit(1);
+    if (!product || !product.trackInventory || product.continueSelling) continue;
+    const quantity = inventoryQuantityForItem(item, snapshot);
+    let variant: typeof storeProductVariants.$inferSelect | undefined;
+    if (item.variantId) {
+      const [foundVariant] = await tx
+        .select()
+        .from(storeProductVariants)
+        .where(
+          and(
+            eq(storeProductVariants.id, item.variantId),
+            eq(storeProductVariants.productId, item.productId)
+          )
+        )
+        .limit(1);
+      variant = foundVariant;
+    }
+    if (variant)
+      await tx
+        .update(storeProductVariants)
+        .set({ stock: sql`${storeProductVariants.stock} + ${quantity}` })
+        .where(eq(storeProductVariants.id, variant.id));
+    else
+      await tx
+        .update(storeProducts)
+        .set({ inventory: sql`${storeProducts.inventory} + ${quantity}` })
+        .where(eq(storeProducts.id, product.id));
+  }
+  const now = new Date();
+  await tx
+    .update(storeOrders)
+    .set({ inventoryRestoredAt: now })
+    .where(eq(storeOrders.id, order.id));
+  order.inventoryRestoredAt = now;
+}
+
+/**
+ * First confirmed-or-later transition deducts once; return restores once.
+ * Cancellation restores only when the parcel has NOT left the merchant.
+ * The caller must hold `SELECT ... FOR UPDATE` on the order row.
+ */
+async function applyOrderInventoryForStatus(
+  tx: any,
+  order: typeof storeOrders.$inferSelect,
+  targetStatus: string
+) {
+  if (
+    shouldDeductInventoryAtStatus(targetStatus) &&
+    (!order.inventoryDeductedAt || order.inventoryRestoredAt)
+  ) {
+    await deductOrderInventoryInTransaction(tx, order);
+  }
+  if (
+    shouldRestoreInventory(targetStatus) &&
+    order.inventoryDeductedAt &&
+    !order.inventoryRestoredAt
+  ) {
+    const shippedOrBeyond = isShippedOrBeyond(order.fulfillmentStatus);
+    if (targetStatus === "returned" || !shippedOrBeyond) {
+      await restoreOrderInventoryInTransaction(tx, order);
+    }
+  }
+}
+
+/**
+ * Inventory-only helper kept for callers that already changed the shipment
+ * state themselves. New status changes should use updateStoreOrderStatus.
+ */
 export async function applyOrderInventoryLifecycle(
   storeId: number,
   orderId: number,
@@ -3796,133 +4038,21 @@ export async function applyOrderInventoryLifecycle(
       .select()
       .from(storeOrders)
       .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)))
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!order)
       throw new Error("الطلب غير موجود أو لا تملك صلاحية الوصول إليه.");
-    if (event === "at_carrier") {
-      if (order.inventoryDeductedAt) return order;
-      const claimed = await tx
-        .update(storeOrders)
-        .set({ inventoryDeductedAt: new Date() })
-        .where(
-          and(
-            eq(storeOrders.id, orderId),
-            eq(storeOrders.storeId, storeId),
-            isNull(storeOrders.inventoryDeductedAt)
-          )
-        );
-      if (affectedRows(claimed) !== 1) return order;
-      const items = await tx
-        .select()
-        .from(storeOrderItems)
-        .where(eq(storeOrderItems.orderId, orderId));
-      for (const item of items) {
-        const [variant] = item.variantId
-          ? await tx
-              .select()
-              .from(storeProductVariants)
-              .where(
-                and(
-                  eq(storeProductVariants.id, item.variantId),
-                  eq(storeProductVariants.productId, item.productId)
-                )
-              )
-              .limit(1)
-          : [];
-        const [product] = await tx
-          .select()
-          .from(storeProducts)
-          .where(
-            and(
-              eq(storeProducts.id, item.productId),
-              eq(storeProducts.storeId, storeId)
-            )
-          )
-          .limit(1);
-        if (!product || !product.trackInventory || product.continueSelling)
-          continue;
-        const update = variant
-          ? await tx
-              .update(storeProductVariants)
-              .set({ stock: sql`${storeProductVariants.stock} - ${item.quantity}` })
-              .where(
-                and(
-                  eq(storeProductVariants.id, variant.id),
-                  gte(storeProductVariants.stock, item.quantity)
-                )
-              )
-          : await tx
-              .update(storeProducts)
-              .set({
-                inventory: sql`${storeProducts.inventory} - ${item.quantity}`,
-              })
-              .where(
-                and(
-                  eq(storeProducts.id, product.id),
-                  gte(storeProducts.inventory, item.quantity)
-                )
-              );
-        if (affectedRows(update) !== 1)
-          throw new Error(
-            `تعذر خصم مخزون «${item.title}» عند رفع الطلب لشركة الشحن.`
-          );
-      }
-      return { ...order, inventoryDeductedAt: new Date() };
-    }
-    if (!order.inventoryDeductedAt || order.inventoryRestoredAt) return order;
-    const claimed = await tx
-      .update(storeOrders)
-      .set({ inventoryRestoredAt: new Date() })
-      .where(
-        and(
-          eq(storeOrders.id, orderId),
-          eq(storeOrders.storeId, storeId),
-          isNotNull(storeOrders.inventoryDeductedAt),
-          isNull(storeOrders.inventoryRestoredAt)
-        )
-      );
-    if (affectedRows(claimed) !== 1) return order;
-    const items = await tx
+    await applyOrderInventoryForStatus(
+      tx,
+      order,
+      event === "at_carrier" ? "at_carrier" : "returned"
+    );
+    const [updated] = await tx
       .select()
-      .from(storeOrderItems)
-      .where(eq(storeOrderItems.orderId, orderId));
-    for (const item of items) {
-      const [variant] = item.variantId
-        ? await tx
-            .select()
-            .from(storeProductVariants)
-            .where(
-              and(
-                eq(storeProductVariants.id, item.variantId),
-                eq(storeProductVariants.productId, item.productId)
-              )
-            )
-            .limit(1)
-        : [];
-      const [product] = await tx
-        .select()
-        .from(storeProducts)
-        .where(
-          and(
-            eq(storeProducts.id, item.productId),
-            eq(storeProducts.storeId, storeId)
-          )
-        )
-        .limit(1);
-      if (!product || !product.trackInventory || product.continueSelling)
-        continue;
-      if (variant)
-        await tx
-          .update(storeProductVariants)
-          .set({ stock: variant.stock + item.quantity })
-          .where(eq(storeProductVariants.id, variant.id));
-      else
-        await tx
-          .update(storeProducts)
-          .set({ inventory: product.inventory + item.quantity })
-          .where(eq(storeProducts.id, product.id));
-    }
-    return { ...order, inventoryRestoredAt: new Date() };
+      .from(storeOrders)
+      .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)))
+      .limit(1);
+    return updated;
   });
 }
 
@@ -3946,21 +4076,30 @@ export async function updateStoreOrderStatus(
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
-  if (fulfillmentStatus === "at_carrier")
-    await applyOrderInventoryLifecycle(storeId, orderId, "at_carrier");
-  if (shouldRestoreInventory(fulfillmentStatus))
-    await applyOrderInventoryLifecycle(storeId, orderId, "returned");
-  await db
-    .update(storeOrders)
-    .set({ fulfillmentStatus })
-    .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)));
-  const [order] = await db
-    .select()
-    .from(storeOrders)
-    .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)))
-    .limit(1);
-  if (!order) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
-  return order;
+  return db.transaction(async tx => {
+    /**
+     * Lock the order first: a duplicate webhook and a manual sync (or two
+     * confirmations) serialise here, so deduction/restoration happens once.
+     */
+    const [order] = await tx
+      .select()
+      .from(storeOrders)
+      .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)))
+      .limit(1)
+      .for("update");
+    if (!order) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
+    await applyOrderInventoryForStatus(tx, order, fulfillmentStatus);
+    await tx
+      .update(storeOrders)
+      .set({ fulfillmentStatus })
+      .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)));
+    const [updated] = await tx
+      .select()
+      .from(storeOrders)
+      .where(and(eq(storeOrders.id, orderId), eq(storeOrders.storeId, storeId)))
+      .limit(1);
+    return updated;
+  });
 }
 
 export async function deleteArchivedOrder(storeId: number, orderId: number) {
@@ -5176,22 +5315,27 @@ export async function updateOrderCarrierData(
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
-  if (data.fulfillmentStatus === "at_carrier")
-    await applyOrderInventoryLifecycle(storeId, orderId, "at_carrier");
-  if (
-    data.fulfillmentStatus &&
-    shouldRestoreInventory(data.fulfillmentStatus)
-  )
-    await applyOrderInventoryLifecycle(storeId, orderId, "returned");
-  await db
-    .update(storeOrders)
-    .set(data)
-    .where(and(eq(storeOrders.storeId, storeId), eq(storeOrders.id, orderId)));
-  const [order] = await db
-    .select()
-    .from(storeOrders)
-    .where(and(eq(storeOrders.storeId, storeId), eq(storeOrders.id, orderId)))
-    .limit(1);
+  const order = await db.transaction(async tx => {
+    const [current] = await tx
+      .select()
+      .from(storeOrders)
+      .where(and(eq(storeOrders.storeId, storeId), eq(storeOrders.id, orderId)))
+      .limit(1)
+      .for("update");
+    if (!current) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
+    if (data.fulfillmentStatus)
+      await applyOrderInventoryForStatus(tx, current, data.fulfillmentStatus);
+    await tx
+      .update(storeOrders)
+      .set(data)
+      .where(and(eq(storeOrders.storeId, storeId), eq(storeOrders.id, orderId)));
+    const [updated] = await tx
+      .select()
+      .from(storeOrders)
+      .where(and(eq(storeOrders.storeId, storeId), eq(storeOrders.id, orderId)))
+      .limit(1);
+    return updated;
+  });
   if (!order) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
   if (data.carrierStatus) {
     import("./trackingRetarget")

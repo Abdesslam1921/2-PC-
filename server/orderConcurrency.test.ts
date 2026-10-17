@@ -4,7 +4,8 @@ import {
   isDuplicateOrderWindow,
   orderLineSignature,
   orderNumberForId,
-  shouldReserveInventoryAtCreation,
+  isShippedOrBeyond,
+  shouldDeductInventoryAtStatus,
   shouldRestoreInventory,
 } from "./orderConcurrency";
 
@@ -84,24 +85,21 @@ describe("order numbers and inventory lifecycle", () => {
     );
   });
 
-  it("reserves stock only for tracked products that do not continue selling", () => {
-    expect(
-      shouldReserveInventoryAtCreation({
-        trackInventory: true,
-        continueSelling: false,
-      })
-    ).toBe(true);
-    expect(
-      shouldReserveInventoryAtCreation({
-        trackInventory: true,
-        continueSelling: true,
-      })
-    ).toBe(false);
-    expect(
-      shouldReserveInventoryAtCreation({
-        trackInventory: false,
-        continueSelling: false,
-      })
-    ).toBe(false);
+  it("deducts on the first confirmed-or-later status", () => {
+    ["confirmed", "processing", "at_carrier", "shipped", "delivered"].forEach(
+      status => expect(shouldDeductInventoryAtStatus(status)).toBe(true)
+    );
+    ["new", "review", "abandoned", "cancelled", "returned"].forEach(status =>
+      expect(shouldDeductInventoryAtStatus(status)).toBe(false)
+    );
+  });
+
+  it("treats at_carrier and later as physically shipped", () => {
+    ["at_carrier", "shipped", "delivered", "returned"].forEach(status =>
+      expect(isShippedOrBeyond(status)).toBe(true)
+    );
+    ["new", "review", "confirmed", "processing", "cancelled"].forEach(status =>
+      expect(isShippedOrBeyond(status)).toBe(false)
+    );
   });
 });

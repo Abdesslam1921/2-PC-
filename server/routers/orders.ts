@@ -416,6 +416,7 @@ export const ordersRouter = router({
       const storeId = getStoreId(ctx);
       const result = await createManualOrder(storeId, input);
       void assignNewOrderToCallCenterAgent({
+        ownerId: ctx.user.id,
         storeId,
         orderId: result.orderId,
         customerPhone: input.customerPhone,

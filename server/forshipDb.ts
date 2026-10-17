@@ -12,7 +12,7 @@ import {
   type OrderShipment,
 } from "../drizzle/schema";
 import { getDb } from "./db";
-import { applyOrderInventoryLifecycle } from "./db";
+import { updateStoreOrderStatus } from "./db";
 import { decryptSecret, encryptSecret } from "./secureSecrets";
 import { ECOTRACK_STATUS_MAP } from "./forshipCore";
 import { notifyOrderTrackingStatus } from "./trackingRetarget";
@@ -532,22 +532,47 @@ async function handleFinalEvent(
     .limit(1);
   if (!order) return;
 
+  const finalFulfillment = event === "delivered" ? "delivered" : "returned";
+  /**
+   * Route the terminal event through the same locked status transition as a
+   * manual sync: deduct on the first confirmed-or-later status, restore once on
+   * return. A duplicate webhook and a concurrent manual sync serialise on the
+   * order row, so neither effect is applied twice.
+   */
+  if (order.storeId != null) {
+    try {
+      await updateStoreOrderStatus(order.storeId, order.id, finalFulfillment);
+    } catch (error) {
+      // A delivered parcel must still be recorded even if a legacy order was
+      // never confirmed and its stock is short. Log for reconciliation.
+      console.warn(
+        `[Inventory] terminal ${event} transition for order ${order.id} could not update stock:`,
+        error instanceof Error ? error.message : error
+      );
+      await db
+        .update(storeOrders)
+        .set({ fulfillmentStatus: finalFulfillment })
+        .where(eq(storeOrders.id, order.id));
+    }
+  } else {
+    await db
+      .update(storeOrders)
+      .set({ fulfillmentStatus: finalFulfillment })
+      .where(eq(storeOrders.id, order.id));
+  }
+
   if (event === "delivered") {
     await recordOrderProfit(db, order.id, order.ownerId);
   } else {
-    if (order.storeId != null)
-      await applyOrderInventoryLifecycle(order.storeId, order.id, "returned");
     await recordOrderReturn(db, order.id, order.ownerId);
   }
 
   // Keep the legacy order row in sync with the ForShip terminal state.
-  const finalFulfillment = event === "delivered" ? "delivered" : "returned";
   await db
     .update(storeOrders)
     .set({
       carrierStatus: shipment.externalStatusLabel ?? undefined,
       carrierStatusUpdatedAt: new Date(),
-      fulfillmentStatus: finalFulfillment,
     })
     .where(eq(storeOrders.id, order.id));
 }

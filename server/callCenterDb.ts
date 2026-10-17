@@ -13,6 +13,7 @@ import {
   storeOrderItems,
   storeOrders,
   storeProducts,
+  stores,
 } from "../drizzle/schema";
 import {
   getDb,
@@ -97,17 +98,46 @@ export type CallCenterDistributionSettings = {
   productIds: number[];
 };
 
-function parseProductIds(raw: string | null | undefined): number[] {
-  if (!raw) return [];
+type StoredCallCenterSettings = {
+  productIds: number[];
+  lastAssignedAgentId: number | null;
+};
+
+function normalizeProductIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(item => Number(item))
+    .filter(item => Number.isInteger(item) && item > 0);
+}
+
+/**
+ * `productIdsJson` historically held a bare array. We now also keep the last
+ * assigned agent in the SAME row (backward-compatible object shape) so the
+ * round-robin state advances in lockstep with assignment, without a migration.
+ */
+function parseStoredSettings(raw: string | null | undefined): StoredCallCenterSettings {
+  if (!raw) return { productIds: [], lastAssignedAgentId: null };
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(value => Number(value))
-      .filter(value => Number.isInteger(value) && value > 0);
+    if (Array.isArray(parsed))
+      return { productIds: normalizeProductIds(parsed), lastAssignedAgentId: null };
+    if (parsed && typeof parsed === "object") {
+      const record = parsed as Record<string, unknown>;
+      const last = Number(record.lastAssignedAgentId);
+      return {
+        productIds: normalizeProductIds(record.productIds),
+        lastAssignedAgentId:
+          Number.isInteger(last) && last > 0 ? last : null,
+      };
+    }
   } catch {
-    return [];
+    /* fall through */
   }
+  return { productIds: [], lastAssignedAgentId: null };
+}
+
+function parseProductIds(raw: string | null | undefined): number[] {
+  return parseStoredSettings(raw).productIds;
 }
 
 const DEFAULT_DISTRIBUTION_SETTINGS: CallCenterDistributionSettings = {
@@ -175,10 +205,18 @@ export async function saveCallCenterDistributionSettings(
             )
         ).map(row => row.id)
       : [];
-  const productIdsJson =
-    input.distributionScope === "specific"
-      ? JSON.stringify(validProductIds)
-      : null;
+  const [existing] = await db
+    .select({ productIdsJson: callCenterSettings.productIdsJson })
+    .from(callCenterSettings)
+    .where(eq(callCenterSettings.storeId, storeId))
+    .limit(1);
+  const lastAssignedAgentId = parseStoredSettings(
+    existing?.productIdsJson
+  ).lastAssignedAgentId;
+  const productIdsJson = JSON.stringify({
+    productIds: validProductIds,
+    lastAssignedAgentId,
+  });
   await db
     .insert(callCenterSettings)
     .values({
@@ -207,6 +245,7 @@ export async function assignNewOrderToCallCenterAgent(input: {
   orderId: number;
   customerPhone: string;
   productIds: number[];
+  ownerId?: number;
 }) {
   try {
     const db = await getDb();
@@ -232,6 +271,7 @@ export async function assignNewOrderToCallCenterAgentInTransaction(
     orderId: number;
     customerPhone: string;
     productIds: number[];
+    ownerId?: number;
   }
 ) {
   return assignNewOrderToCallCenterAgentUnsafe(input, executor);
@@ -243,21 +283,67 @@ async function assignNewOrderToCallCenterAgentUnsafe(
     orderId: number;
     customerPhone: string;
     productIds: number[];
+    ownerId?: number;
   },
   executor?: any
 ) {
   if (!input.storeId || !input.orderId) return null;
   const db = executor ?? (await getDb());
   if (!db) return null;
-  // Store-level round-robin gate: master switch + optional product scope.
-  const distribution = await getCallCenterDistributionSettings(input.storeId);
-  if (!isOrderInDistributionScope(distribution, input.productIds)) return null;
+
   /**
-   * Serialise assignment per store: lock every enabled agent row until this
-   * transaction commits. The next order then reads the committed assignment
-   * and picks the following agent — two concurrent orders cannot choose the
-   * same "next" agent or corrupt the rotation.
+   * The settings row is the rotation state as well as the distribution gate.
+   * Lock it FOR UPDATE: assignments serialise on this row, so two concurrent
+   * orders cannot read the same "last assigned" and pick the same agent.
    */
+  let [settingsRow] = (await db
+    .select()
+    .from(callCenterSettings)
+    .where(eq(callCenterSettings.storeId, input.storeId))
+    .limit(1)
+    .for("update")) as Array<typeof callCenterSettings.$inferSelect>;
+
+  let ownerId = settingsRow?.ownerId ?? input.ownerId ?? null;
+  if (!ownerId) {
+    const [store] = (await db
+      .select({ ownerId: stores.ownerId })
+      .from(stores)
+      .where(eq(stores.id, input.storeId))
+      .limit(1)) as Array<{ ownerId: number }>;
+    ownerId = store?.ownerId ?? null;
+  }
+  if (!settingsRow && ownerId) {
+    await db
+      .insert(callCenterSettings)
+      .values({
+        ownerId,
+        storeId: input.storeId,
+        autoDistribute: true,
+        distributionScope: "all",
+        productIdsJson: JSON.stringify({
+          productIds: [],
+          lastAssignedAgentId: null,
+        }),
+      })
+      .onDuplicateKeyUpdate({ set: { autoDistribute: true } });
+    [settingsRow] = (await db
+      .select()
+      .from(callCenterSettings)
+      .where(eq(callCenterSettings.storeId, input.storeId))
+      .limit(1)
+      .for("update")) as Array<typeof callCenterSettings.$inferSelect>;
+  }
+
+  const stored = parseStoredSettings(settingsRow?.productIdsJson);
+  const distribution: CallCenterDistributionSettings = settingsRow
+    ? {
+        autoDistribute: settingsRow.autoDistribute,
+        distributionScope: settingsRow.distributionScope,
+        productIds: stored.productIds,
+      }
+    : DEFAULT_DISTRIBUTION_SETTINGS;
+  if (!isOrderInDistributionScope(distribution, input.productIds)) return null;
+
   const agents = (await db
     .select({
       id: callCenterAgents.id,
@@ -322,38 +408,27 @@ async function assignNewOrderToCallCenterAgentUnsafe(
         ?.agentId ?? null;
   }
 
-  const recentAssigned = (await db
-    .select({ agentId: storeOrderItems.confirmationAgentId })
-    .from(storeOrderItems)
-    .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
-    .where(
-      and(eq(storeOrders.storeId, input.storeId), ne(storeOrders.id, input.orderId))
-    )
-    .orderBy(desc(storeOrders.createdAt))
-    /**
-     * Locking read: under REPEATABLE READ a plain SELECT would use the
-     * transaction's old snapshot and miss assignments committed by concurrent
-     * orders. `FOR UPDATE` always reads the latest committed rows, so the
-     * rotation advances correctly while the agent-row lock serialises writers.
-     */
-    .for("update")) as Array<{
-    agentId: number | null;
-  }>;
-  const lastAssignedAgentId =
-    recentAssigned.find(
-      row => row.agentId && eligibleIds.includes(row.agentId)
-    )?.agentId ?? null;
-
   const agentId = pickRoundRobinAgentId(
     eligibleIds,
     stickyAgentId,
-    lastAssignedAgentId
+    stored.lastAssignedAgentId
   );
   if (!agentId) return null;
   await db
     .update(storeOrderItems)
     .set({ confirmationAgentId: agentId })
     .where(eq(storeOrderItems.orderId, input.orderId));
+  if (settingsRow) {
+    await db
+      .update(callCenterSettings)
+      .set({
+        productIdsJson: JSON.stringify({
+          productIds: stored.productIds,
+          lastAssignedAgentId: agentId,
+        }),
+      })
+      .where(eq(callCenterSettings.storeId, input.storeId));
+  }
   return agents.find(agent => agent.id === agentId) ?? { id: agentId, email: "" };
 }
 

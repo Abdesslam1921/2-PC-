@@ -1,8 +1,8 @@
 /**
- * Pure helpers for order-creation concurrency.
+ * Pure helpers for order-creation concurrency and inventory transitions.
  *
  * Kept free of DB imports so the rules (duplicate window, line signature,
- * order-number shape, inventory restoration map) are unit-testable.
+ * order-number shape, confirmation/return status maps) are unit-testable.
  */
 
 /** Double-submit window: same phone + same lines inside this window is a retry. */
@@ -48,7 +48,40 @@ export function orderNumberForId(orderId: number): string {
   return `ABD-${String(orderId).padStart(6, "0")}`;
 }
 
-/** Terminal, non-delivered statuses must give the reserved stock back. */
+/**
+ * Stock is deducted on the FIRST transition to one of these statuses, or when
+ * an order is created already in one of them (manual confirmed order). Orders
+ * in `new`/`review`/`abandoned` never deduct.
+ */
+const DEDUCT_INVENTORY_STATUSES = new Set([
+  "confirmed",
+  "processing",
+  "at_carrier",
+  "shipped",
+  "delivered",
+]);
+
+export function shouldDeductInventoryAtStatus(status: string): boolean {
+  return DEDUCT_INVENTORY_STATUSES.has(status);
+}
+
+/** Statuses that mean the parcel physically left the merchant. */
+const SHIPPED_OR_BEYOND_STATUSES = new Set([
+  "at_carrier",
+  "shipped",
+  "delivered",
+  "returned",
+]);
+
+export function isShippedOrBeyond(status: string): boolean {
+  return SHIPPED_OR_BEYOND_STATUSES.has(status);
+}
+
+/**
+ * Return always restores. Cancellation-like statuses restore only when the
+ * order never left the merchant (checked by the DB helper); `delivered` never
+ * restores.
+ */
 const RESTORE_INVENTORY_STATUSES = new Set([
   "returned",
   "cancelled",
@@ -58,14 +91,6 @@ const RESTORE_INVENTORY_STATUSES = new Set([
   "abandoned",
 ]);
 
-export function shouldRestoreInventory(fulfillmentStatus: string): boolean {
-  return RESTORE_INVENTORY_STATUSES.has(fulfillmentStatus);
-}
-
-/** Statuses that reserve stock at creation and keep it reserved. */
-export function shouldReserveInventoryAtCreation(input: {
-  trackInventory: boolean;
-  continueSelling: boolean;
-}): boolean {
-  return input.trackInventory && !input.continueSelling;
+export function shouldRestoreInventory(status: string): boolean {
+  return RESTORE_INVENTORY_STATUSES.has(status);
 }
