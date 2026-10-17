@@ -19,6 +19,7 @@ import {
 } from "../storefrontDb";
 import { evaluatePublishedSnapshots } from "../storefrontSnapshotHealth";
 import { logStorefrontNormalization } from "../storefrontNormalizationLog";
+import { isStorefrontVersionConflict } from "../storefrontConcurrency";
 import { storagePut } from "../storage";
 import { hasActiveBundle } from "../db";
 import {
@@ -68,6 +69,21 @@ async function templateSeedConfig(
     }
   }
   return { config: TEMPLATE_DEFAULTS[templateKey], seededFrom: "defaults" };
+}
+
+const DRAFT_CONFLICT_MESSAGE =
+  "غيّرتَ هذه المسودة من جلسة/تبويب آخر. لم نكتب فوق النسخة الأحدث — أعد التحميل ثم أعد المحاولة.";
+
+/** Map the DB's typed version-number conflict to a clear API error (not 500). */
+function throwVersionWriteError(error: unknown): never {
+  if (isStorefrontVersionConflict(error)) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message:
+        "تعذّر إنشاء الإصدار بسبب عملية نشر/تراجع متزامنة. أعد المحاولة — لم يُفقد أي شيء.",
+    });
+  }
+  throw error;
 }
 
 /** Owner-only guard (admin override is allowed but always audited). */
@@ -129,21 +145,30 @@ async function seedAndPublishTemplate(input: {
     throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   }
   const existing = await getStorefrontDraft(input.storeId);
-  await saveStorefrontDraft({
+  const saved = await saveStorefrontDraft({
     ownerId: input.userId,
     storeId: input.storeId,
     configJson: JSON.stringify(valid.data),
     expectedVersion: existing ? existing.concurrencyVersion : 0,
     updatedBy: input.userId,
   });
-  const { versionNumber } = await createStorefrontVersion({
-    ownerId: input.userId,
-    storeId: input.storeId,
-    snapshotJson: JSON.stringify(valid.data),
-    sourceDraftVersion: existing ? existing.concurrencyVersion + 1 : 1,
-    publishedBy: input.userId,
-    note: `enable ${input.templateKey} (${seed.seededFrom})`,
-  });
+  if (saved.conflict) {
+    // Do not publish a draft that belongs to another editor session.
+    throw new TRPCError({ code: "CONFLICT", message: DRAFT_CONFLICT_MESSAGE });
+  }
+  let versionNumber: number;
+  try {
+    ({ versionNumber } = await createStorefrontVersion({
+      ownerId: input.userId,
+      storeId: input.storeId,
+      snapshotJson: JSON.stringify(valid.data),
+      sourceDraftVersion: saved.version ?? (existing ? existing.concurrencyVersion + 1 : 1),
+      publishedBy: input.userId,
+      note: `enable ${input.templateKey} (${seed.seededFrom})`,
+    }));
+  } catch (error) {
+    throwVersionWriteError(error);
+  }
   await recordStorefrontAuditLog({
     storeId: input.storeId,
     actorId: input.userId,
@@ -315,7 +340,17 @@ export const storefrontRouter = router({
     }),
 
   publish: protectedProcedure
-    .input(z.object({ note: z.string().trim().max(255).optional() }))
+    .input(
+      z.object({
+        note: z.string().trim().max(255).optional(),
+        /**
+         * The exact draft version the editor is showing. Publishing a draft
+         * the merchant never saw (because another tab saved in between) is
+         * refused with CONFLICT instead of silently publishing the newer one.
+         */
+        expectedDraftVersion: z.number().int().min(1),
+      })
+    )
     .mutation(async ({ ctx, input }) => {
       const { storeId, isOverride, userId, role } = assertOwner(ctx);
       const draft = await getStorefrontDraft(storeId);
@@ -323,6 +358,12 @@ export const storefrontRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "لا توجد مسودة للنشر.",
+        });
+      }
+      if (draft.concurrencyVersion !== input.expectedDraftVersion) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: DRAFT_CONFLICT_MESSAGE,
         });
       }
       // A stored draft may predate a schema field removal: normalise first.
@@ -347,14 +388,19 @@ export const storefrontRouter = router({
       const publishConfig = (await hasActiveBundle(storeId))
         ? ensureOffersSection(valid.data)
         : valid.data;
-      const { versionNumber } = await createStorefrontVersion({
-        ownerId: userId,
-        storeId,
-        snapshotJson: JSON.stringify(publishConfig),
-        sourceDraftVersion: draft.concurrencyVersion,
-        publishedBy: userId,
-        note: input.note ?? null,
-      });
+      let versionNumber: number;
+      try {
+        ({ versionNumber } = await createStorefrontVersion({
+          ownerId: userId,
+          storeId,
+          snapshotJson: JSON.stringify(publishConfig),
+          sourceDraftVersion: draft.concurrencyVersion,
+          publishedBy: userId,
+          note: input.note ?? null,
+        }));
+      } catch (error) {
+        throwVersionWriteError(error);
+      }
       await recordStorefrontAuditLog({
         storeId,
         actorId: userId,
@@ -393,15 +439,25 @@ export const storefrontRouter = router({
         });
       }
       // Rollback never mutates history: it creates a NEW equivalent version.
-      const { versionNumber } = await createStorefrontVersion({
-        ownerId: userId,
-        storeId,
-        snapshotJson: JSON.stringify(valid.data),
-        sourceDraftVersion: null,
-        publishedBy: userId,
-        note: `rollback to v${input.versionNumber}`,
-      });
-      // Also restore the DRAFT to the rolled-back config so the editor reflects it.
+      let versionNumber: number;
+      try {
+        ({ versionNumber } = await createStorefrontVersion({
+          ownerId: userId,
+          storeId,
+          snapshotJson: JSON.stringify(valid.data),
+          sourceDraftVersion: null,
+          publishedBy: userId,
+          note: `rollback to v${input.versionNumber}`,
+        }));
+      } catch (error) {
+        throwVersionWriteError(error);
+      }
+      /**
+       * Also restore the DRAFT to the rolled-back config so the editor reflects
+       * it — but never overwrite a newer draft written by another tab. In that
+       * case the publish (new version) stands and the draft conflict is
+       * reported explicitly, so the merchant can reload and decide.
+       */
       const draft = await getStorefrontDraft(storeId);
       const saved = await saveStorefrontDraft({
         ownerId: userId,
@@ -419,10 +475,14 @@ export const storefrontRouter = router({
         entityType: "version",
         fromVersion: input.versionNumber,
         toVersion: versionNumber,
+        metadataJson: JSON.stringify({ draftConflict: saved.conflict }),
       });
       return {
         versionNumber,
-        draftVersion: saved.version ?? 0,
+        draftConflict: saved.conflict,
+        draftVersion: saved.conflict
+          ? saved.currentVersion ?? draft?.concurrencyVersion ?? 0
+          : saved.version ?? 0,
         config: valid.data,
       };
     }),
@@ -530,6 +590,10 @@ export const storefrontRouter = router({
         expectedVersion: existing ? existing.concurrencyVersion : 0,
         updatedBy: userId,
       });
+      if (saved.conflict) {
+        // Another tab saved while the merchant was choosing a template.
+        throw new TRPCError({ code: "CONFLICT", message: DRAFT_CONFLICT_MESSAGE });
+      }
       await recordStorefrontAuditLog({
         storeId,
         actorId: userId,

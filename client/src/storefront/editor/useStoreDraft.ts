@@ -7,6 +7,9 @@ import type { StorefrontConfig } from "@shared/storefront/storefrontConfig";
 
 const SEED_KEY = "sf-builder-seed";
 
+/** Debounced autosave window: rapid edits are batched into one draft save. */
+export const AUTOSAVE_DEBOUNCE_MS = 1000;
+
 /**
  * Configs are used exactly as stored, except for the untouched stock category
  * tiles that older template defaults shipped: they are dropped on load so they
@@ -22,6 +25,14 @@ export function normalizeConfig(next: StorefrontConfig): StorefrontConfig {
  * One global undo/redo stack over the whole config, one autosave pipeline with
  * optimistic concurrency, and flush-before-publish. It reuses the SAME
  * `storefront_drafts`/`versions` API — no new endpoints.
+ *
+ * Concurrency rules:
+ * - Autosave is debounced and NEVER publishes.
+ * - A stale save is reported as a conflict; it is never auto-rebased over the
+ *   newer server draft (no silent last-write-wins). The merchant explicitly
+ *   chooses "reload latest" or "force-save my edits".
+ * - Publish sends the exact draft version it flushed, so a publish can never
+ *   silently publish a newer draft the merchant did not see.
  */
 export function useStoreDraft() {
   const managed = trpc.storefront.managed.useQuery();
@@ -41,6 +52,11 @@ export function useStoreDraft() {
   const [histVersion, setHistVersion] = useState(0);
   const initialized = useRef(false);
   const seeded = useRef(false);
+  /** Latest local config, used to detect edits that landed during a save. */
+  const configRef = useRef<StorefrontConfig | null>(null);
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   // Seed from startEditing (instant), then reconcile with the server draft.
   useEffect(() => {
@@ -65,20 +81,31 @@ export function useStoreDraft() {
     if (!managed.data) return;
     const draft = managed.data.draft;
     if (!draft?.config) return;
+    const serverVersion = draft.version ?? 0;
+
     if (initialized.current && config?.templateKey === draft.config.templateKey) {
-      // Reconcile the concurrency version so autosave never uses a stale one
-      // (a stale baseVersion would raise a conflict and keep Publish disabled).
-      setBaseVersion(draft.version ?? 0);
+      /**
+       * Never move the concurrency base forward silently while local edits are
+       * pending: that would let the next autosave overwrite a newer server
+       * draft. A dirty editor gets an explicit conflict instead.
+       */
+      if (serverVersion !== baseVersion) {
+        if (dirty) setConflict(serverVersion);
+        else setBaseVersion(serverVersion);
+      }
       return;
     }
     if (seeded.current) {
-      setBaseVersion(draft.version ?? 0);
+      if (serverVersion !== baseVersion) {
+        if (dirty) setConflict(serverVersion);
+        else setBaseVersion(serverVersion);
+      }
       return;
     }
     setConfigState(normalizeConfig(draft.config));
-    setBaseVersion(draft.version ?? 0);
+    setBaseVersion(serverVersion);
     initialized.current = true;
-  }, [managed.data, config?.templateKey]);
+  }, [managed.data, config?.templateKey, baseVersion, dirty]);
 
   const update = useCallback(
     (next: StorefrontConfig) => {
@@ -127,54 +154,59 @@ export function useStoreDraft() {
     setHistVersion(v => v + 1);
   }, []);
 
-  // Autosave (debounced). A single in-flight save at a time prevents the stale
-  // `expectedVersion` races that caused spurious conflicts.
+  // Autosave (debounced, one in-flight save at a time). It never publishes.
   const savingRef = useRef(false);
   useEffect(() => {
-    if (!config || !dirty) return;
+    if (!config || !dirty || conflict !== null) return;
     if (savingRef.current) return;
+    const payload = config;
     const handle = setTimeout(async () => {
       savingRef.current = true;
       setSaving(true);
       try {
-        let res = await saveDraft.mutateAsync({
-          config,
+        const res = await saveDraft.mutateAsync({
+          config: payload,
           expectedVersion: baseVersion,
         });
         if (res.conflict) {
-          // Rebase on the server version and retry once so local edits are kept
-          // (single-merchant editor). Non-blocking notice instead of a banner.
-          res = await saveDraft.mutateAsync({
-            config,
-            expectedVersion: res.currentVersion ?? 0,
-          });
-          if (res.conflict) {
-            setConflict(res.currentVersion ?? 0);
-            toast.message("تم اكتشاف تعديل من جلسة أخرى — أُعيدت المزامنة.");
-          }
+          /**
+           * Do NOT auto-rebase and overwrite. Keep local edits and ask the
+           * merchant to reload or explicitly force-save.
+           */
+          setConflict(res.currentVersion ?? 0);
+          toast.error(
+            "المسودة تغيّرت من جلسة أخرى — لم نكتب فوق النسخة الأحدث. اختر «تحميل الأحدث» أو «فرض حفظ تعديلاتي»."
+          );
+          return;
         }
-        if (!res.conflict) {
-          setBaseVersion(res.version ?? baseVersion);
-          setDirty(false);
-        }
+        setBaseVersion(res.version ?? baseVersion);
+        // An edit may have landed while this request was in flight: only clear
+        // dirty when the saved payload is still the current config.
+        if (configRef.current === payload) setDirty(false);
       } catch {
-        /* retry on next change */
+        /* keep local changes; the next edit/debounce retries */
       } finally {
         savingRef.current = false;
         setSaving(false);
       }
-    }, 1000);
+    }, AUTOSAVE_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [config, dirty, baseVersion, saveDraft]);
+  }, [config, dirty, baseVersion, conflict, saveDraft]);
 
   /** Save the current config now (used before publish / on demand). */
-  const flushSave = useCallback(async (): Promise<boolean> => {
-    if (!config) return false;
+  const flushSave = useCallback(async (): Promise<{
+    ok: boolean;
+    version?: number;
+  }> => {
+    if (!config) return { ok: false };
     const valid = validateStorefrontConfig(config);
     if (!valid.ok) {
       toast.error(valid.message ?? "الإعداد غير صالح.");
-      return false;
+      return { ok: false };
     }
+    // Nothing pending and a real draft version already exists: no write needed.
+    if (!dirty && baseVersion > 0) return { ok: true, version: baseVersion };
+
     const res = await saveDraft.mutateAsync({
       config: valid.data,
       expectedVersion: baseVersion,
@@ -182,39 +214,51 @@ export function useStoreDraft() {
     if (res.conflict) {
       setConflict(res.currentVersion ?? 0);
       toast.error("المسودة تغيّرت من مكان آخر — لم يُحفظ/يُنشر.");
-      return false;
+      return { ok: false };
     }
     if (res.version) setBaseVersion(res.version);
     setDirty(false);
+    return { ok: true, version: res.version ?? baseVersion };
+  }, [config, dirty, baseVersion, saveDraft]);
+
+  /** Explicit user action from the conflict banner: overwrite once. */
+  const forceSave = useCallback(async (): Promise<boolean> => {
+    if (!config || conflict === null) return false;
+    const valid = validateStorefrontConfig(config);
+    if (!valid.ok) {
+      toast.error(valid.message ?? "الإعداد غير صالح.");
+      return false;
+    }
+    const res = await saveDraft.mutateAsync({
+      config: valid.data,
+      expectedVersion: conflict,
+    });
+    if (res.conflict) {
+      setConflict(res.currentVersion ?? conflict);
+      toast.error("تعذّر الحفظ: تغيّرت المسودة مرة أخرى. أعد المحاولة.");
+      return false;
+    }
+    setBaseVersion(res.version ?? conflict);
+    setDirty(false);
+    setConflict(null);
+    toast.success("تم حفظ تعديلاتك فوق النسخة الأحدث بناءً على طلبك.");
     return true;
-  }, [config, baseVersion, saveDraft]);
+  }, [config, conflict, saveDraft]);
 
   const publish = useCallback(async () => {
     try {
-      const ok = await flushSave();
-      if (!ok) return;
-      const res = await publishMutation.mutateAsync({});
+      const flushed = await flushSave();
+      if (!flushed.ok || !flushed.version) return;
+      const res = await publishMutation.mutateAsync({
+        // Publish exactly the draft version the merchant just saw/saved.
+        expectedDraftVersion: flushed.version,
+      });
       toast.success(`تم النشر — الإصدار ${res.versionNumber}`);
       await utils.storefront.managed.invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذّر النشر.");
     }
   }, [flushSave, publishMutation, utils]);
-
-  const rollback = useCallback(
-    async (versionNumber: number) => {
-      try {
-        const res = await rollbackMutation.mutateAsync({ versionNumber });
-        toast.success(`تم التراجع — أُنشئ الإصدار ${res.versionNumber}`);
-        if (res.config) replaceConfig(res.config);
-        setBaseVersion(res.draftVersion ?? baseVersion);
-        await utils.storefront.managed.invalidate();
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "تعذّر التراجع.");
-      }
-    },
-    [rollbackMutation, replaceConfig, utils, baseVersion]
-  );
 
   const reloadLatest = useCallback(async () => {
     const fresh = await managed.refetch();
@@ -223,6 +267,28 @@ export function useStoreDraft() {
     setBaseVersion(draft?.version ?? 0);
     setConflict(null);
   }, [managed, replaceConfig]);
+
+  const rollback = useCallback(
+    async (versionNumber: number) => {
+      try {
+        const res = await rollbackMutation.mutateAsync({ versionNumber });
+        toast.success(`تم التراجع — أُنشئ الإصدار ${res.versionNumber}`);
+        if (res.draftConflict) {
+          toast.message(
+            "المسودة تغيّرت من تبويب آخر، فلم نكتب فوقها. حُمّلت أحدث مسودة من الخادم."
+          );
+          await reloadLatest();
+        } else {
+          if (res.config) replaceConfig(res.config);
+          setBaseVersion(res.draftVersion ?? baseVersion);
+        }
+        await utils.storefront.managed.invalidate();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "تعذّر التراجع.");
+      }
+    },
+    [rollbackMutation, replaceConfig, reloadLatest, utils, baseVersion]
+  );
 
   return {
     managed,
@@ -241,6 +307,7 @@ export function useStoreDraft() {
     baseVersion,
     setBaseVersion,
     flushSave,
+    forceSave,
     publish,
     rollback,
     reloadLatest,

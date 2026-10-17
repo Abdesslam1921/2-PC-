@@ -229,6 +229,28 @@ describe("storefront template seeding", () => {
     expect(mocks.getPublishedStorefront).not.toHaveBeenCalled();
   });
 
+  it("template switch refuses to overwrite a newer draft (CONFLICT)", async () => {
+    mocks.getPublishedStorefront.mockResolvedValueOnce({
+      versionNumber: 39,
+      snapshotJson: JSON.stringify(DEFAULT_MINIMAL_CONFIG),
+      publishedAt: new Date(),
+    });
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      concurrencyVersion: 3,
+    });
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({
+      conflict: true,
+      currentVersion: 4,
+    });
+
+    const caller = appRouter.createCaller(makeOwnerContext(30001));
+    await expect(
+      caller.storefront.startEditing({ templateKey: "bold" })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.recordStorefrontAuditLog).not.toHaveBeenCalled();
+  });
+
   it("activating the template that is already live changes nothing", async () => {
     mocks.getPublishedStorefront.mockResolvedValueOnce({
       versionNumber: 41,
@@ -415,7 +437,10 @@ describe("storefront publish — immutable snapshot + audit + tenancy", () => {
     mocks.createStorefrontVersion.mockResolvedValueOnce({ versionNumber: 4 });
 
     const caller = appRouter.createCaller(makeOwnerContext(7, 42));
-    const result = await caller.storefront.publish({ note: "go live" });
+    const result = await caller.storefront.publish({
+      note: "go live",
+      expectedDraftVersion: 4,
+    });
 
     expect(result.versionNumber).toBe(4);
     expect(mocks.createStorefrontVersion).toHaveBeenCalledTimes(1);
@@ -433,13 +458,47 @@ describe("storefront publish — immutable snapshot + audit + tenancy", () => {
   it("publish refuses when there is no draft", async () => {
     mocks.getStorefrontDraft.mockResolvedValueOnce(null);
     const caller = appRouter.createCaller(makeOwnerContext(7, 42));
-    await expect(caller.storefront.publish({})).rejects.toThrow(/مسودة/);
+    await expect(
+      caller.storefront.publish({ expectedDraftVersion: 1 })
+    ).rejects.toThrow(/مسودة/);
     expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+  });
+
+  it("refuses to publish a draft version the editor never saw (stale draft)", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      concurrencyVersion: 5,
+    });
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(
+      caller.storefront.publish({ expectedDraftVersion: 4 })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.createStorefrontVersion).not.toHaveBeenCalled();
+    expect(mocks.recordStorefrontAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("maps a concurrent version-number race to CONFLICT, not 500", async () => {
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
+      concurrencyVersion: 4,
+    });
+    mocks.createStorefrontVersion.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate"), {
+        code: "STOREFRONT_VERSION_CONFLICT",
+      })
+    );
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(
+      caller.storefront.publish({ expectedDraftVersion: 4 })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.recordStorefrontAuditLog).not.toHaveBeenCalled();
   });
 
   it("a foreign non-admin user cannot publish or roll back", async () => {
     const caller = appRouter.createCaller(makeForeignUserContext(7, 999));
-    await expect(caller.storefront.publish({})).rejects.toMatchObject({
+    await expect(
+      caller.storefront.publish({ expectedDraftVersion: 1 })
+    ).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
     await expect(
@@ -499,6 +558,51 @@ describe("storefront rollback — creates a new version, never mutates history",
     });
     // The draft is restored so the editor reflects the rolled-back config.
     expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("rollback never overwrites a newer draft: it reports the draft conflict", async () => {
+    mocks.getStorefrontVersionByNumber.mockResolvedValueOnce({
+      versionNumber: 1,
+      snapshotJson: v1Config,
+    });
+    mocks.getStorefrontDraft.mockResolvedValueOnce({
+      configJson: JSON.stringify(DEFAULT_BOLD_CONFIG),
+      concurrencyVersion: 6,
+    });
+    mocks.createStorefrontVersion.mockResolvedValueOnce({ versionNumber: 4 });
+    mocks.saveStorefrontDraft.mockResolvedValueOnce({
+      conflict: true,
+      currentVersion: 8,
+    });
+
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    const result = await caller.storefront.rollback({ versionNumber: 1 });
+
+    // The publish (new immutable version) happened, but the newer draft stands.
+    expect(result.versionNumber).toBe(4);
+    expect(result.draftConflict).toBe(true);
+    expect(result.draftVersion).toBe(8);
+    expect(mocks.createStorefrontVersion).toHaveBeenCalledTimes(1);
+    expect(mocks.saveStorefrontDraft).toHaveBeenCalledTimes(1);
+    const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
+    expect(audit.metadataJson).toContain('"draftConflict":true');
+  });
+
+  it("rollback maps a concurrent version-number race to CONFLICT", async () => {
+    mocks.getStorefrontVersionByNumber.mockResolvedValueOnce({
+      versionNumber: 1,
+      snapshotJson: v1Config,
+    });
+    mocks.createStorefrontVersion.mockRejectedValueOnce(
+      Object.assign(new Error("duplicate"), {
+        code: "STOREFRONT_VERSION_CONFLICT",
+      })
+    );
+    const caller = appRouter.createCaller(makeOwnerContext(7, 42));
+    await expect(
+      caller.storefront.rollback({ versionNumber: 1 })
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect(mocks.saveStorefrontDraft).not.toHaveBeenCalled();
   });
 
   it("rollback to a version that does not belong to the store is NOT_FOUND", async () => {

@@ -210,11 +210,16 @@ export default function ThemeEditorPage() {
         toast.error("المسودة تغيّرت من مكان آخر — لم يُنشر.");
         return;
       }
-      if (saved.version) {
-        setBaseVersion(saved.version);
-        setDirty(false);
+      if (!saved.version) {
+        toast.error("تعذّر تحديد نسخة المسودة للنشر. أعد المحاولة.");
+        return;
       }
-      const res = await publish.mutateAsync({});
+      setBaseVersion(saved.version);
+      setDirty(false);
+      const res = await publish.mutateAsync({
+        // Publish exactly the draft version that was just flushed.
+        expectedDraftVersion: saved.version,
+      });
       toast.success(`تم نشر الثيم — الإصدار ${res.versionNumber}`);
       await utils.storefront.managed.invalidate();
     } catch (e) {
@@ -225,12 +230,28 @@ export default function ThemeEditorPage() {
     try {
       const res = await rollback.mutateAsync({ versionNumber });
       toast.success(`تم التراجع — الإصدار ${res.versionNumber}`);
-      if (res.config) {
-        setBaseConfig(res.config);
-        setTheme((res.config.theme ?? {}) as Record<string, unknown>);
+      if (res.draftConflict) {
+        toast.message(
+          "المسودة تغيّرت من تبويب آخر، فلم نكتب فوقها. حُمّلت أحدث مسودة."
+        );
+        const fresh = await managed.refetch();
+        if (fresh.data?.draft?.config) {
+          setBaseConfig(fresh.data.draft.config);
+          setTheme(
+            (fresh.data.draft.config.theme ?? {}) as Record<string, unknown>
+          );
+        }
+        setBaseVersion(fresh.data?.draft?.version ?? 0);
+        setConflict(null);
         setDirty(false);
+      } else {
+        if (res.config) {
+          setBaseConfig(res.config);
+          setTheme((res.config.theme ?? {}) as Record<string, unknown>);
+          setDirty(false);
+        }
+        setBaseVersion(res.draftVersion ?? baseVersion);
       }
-      setBaseVersion(res.draftVersion ?? baseVersion);
       await utils.storefront.managed.invalidate();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "تعذّر التراجع.");
@@ -333,8 +354,29 @@ export default function ThemeEditorPage() {
       </div>
 
       {conflict !== null ? (
-        <div className="bg-[#FEF3E2] px-3.5 py-2 text-[12.5px] font-bold text-[#8A4B00]">
-          المسودة تغيّرت من مكان آخر (نسخة {conflict}). أوقفنا الحفظ التلقائي.
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-[#FEF3E2] px-3.5 py-2 text-[12.5px] font-bold text-[#8A4B00]">
+          <span>
+            المسودة تغيّرت من مكان آخر (نسخة {conflict}). أوقفنا الحفظ التلقائي
+            ولم نكتب فوق النسخة الأحدث.
+          </span>
+          <Button
+            variant="outline"
+            className="h-8 rounded-lg text-xs"
+            onClick={async () => {
+              const fresh = await managed.refetch();
+              if (fresh.data?.draft?.config) {
+                setBaseConfig(fresh.data.draft.config);
+                setTheme(
+                  (fresh.data.draft.config.theme ?? {}) as Record<string, unknown>
+                );
+              }
+              setBaseVersion(fresh.data?.draft?.version ?? 0);
+              setConflict(null);
+              setDirty(false);
+            }}
+          >
+            تحميل الأحدث
+          </Button>
         </div>
       ) : null}
       {templateKey === "bold" ? (

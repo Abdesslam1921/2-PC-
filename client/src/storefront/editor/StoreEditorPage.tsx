@@ -65,8 +65,7 @@ export default function StoreEditorPage() {
     dirty,
     saving,
     conflict,
-    setConflict,
-    setBaseVersion,
+    forceSave,
     publish,
     reloadLatest,
   } = useStoreDraft();
@@ -339,6 +338,7 @@ export default function StoreEditorPage() {
           </span>
           <Button
             onClick={publish}
+            disabled={conflict !== null}
             className="h-9 gap-1.5 rounded-lg px-3 text-xs font-extrabold"
           >
             <Rocket className="size-4" /> نشر
@@ -352,6 +352,27 @@ export default function StoreEditorPage() {
       </div>
 
       <PublishedHealthBanner health={managed.data?.publishedHealth} />
+
+      {conflict !== null ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f3d9a6] bg-[#FEF3E2] px-3.5 py-2.5 text-[12.5px] font-bold text-[#8A4B00]">
+          <span>
+            المسودة تغيّرت من جلسة أخرى (نسخة {conflict}). أوقفنا الحفظ التلقائي
+            ولم نكتب فوق النسخة الأحدث.
+          </span>
+          <div className="flex gap-2">
+            <Button
+              onClick={reloadLatest}
+              variant="outline"
+              className="h-8 rounded-lg text-xs"
+            >
+              تحميل الأحدث
+            </Button>
+            <Button onClick={forceSave} className="h-8 rounded-lg text-xs">
+              فرض حفظ تعديلاتي
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Body: side panel (RTL start/right) + preview + docked section editor.
           The settings column only exists on desktop (≥xl); from lg to xl the

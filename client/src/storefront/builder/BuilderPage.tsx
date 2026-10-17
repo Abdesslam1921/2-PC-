@@ -375,11 +375,16 @@ export default function BuilderPage() {
         toast.error("المسودة تغيّرت من مكان آخر — لم يُنشر.");
         return;
       }
-      if (saved.version) {
-        setBaseVersion(saved.version);
-        markSaved();
+      if (!saved.version) {
+        toast.error("تعذّر تحديد نسخة المسودة للنشر. أعد المحاولة.");
+        return;
       }
-      const res = await publish.mutateAsync({});
+      setBaseVersion(saved.version);
+      markSaved();
+      const res = await publish.mutateAsync({
+        // Publish exactly the draft version that was just flushed.
+        expectedDraftVersion: saved.version,
+      });
       toast.success(`تم النشر — الإصدار ${res.versionNumber}`);
       await utils.storefront.managed.invalidate();
     } catch (error) {
@@ -391,11 +396,18 @@ export default function BuilderPage() {
     try {
       const res = await rollback.mutateAsync({ versionNumber });
       toast.success(`تم التراجع — أُنشئ الإصدار ${res.versionNumber}`);
-      if (res.config) {
-        reset(res.config);
-        setSelectedId(sortSections(res.config.sections)[0]?.id ?? null);
+      if (res.draftConflict) {
+        toast.message(
+          "المسودة تغيّرت من تبويب آخر، فلم نكتب فوقها. حُمّلت أحدث مسودة."
+        );
+        await reloadLatest();
+      } else {
+        if (res.config) {
+          reset(res.config);
+          setSelectedId(sortSections(res.config.sections)[0]?.id ?? null);
+        }
+        setBaseVersion(res.draftVersion ?? baseVersion);
       }
-      setBaseVersion(res.draftVersion ?? baseVersion);
       await utils.storefront.managed.invalidate();
       setHistoryOpen(false);
     } catch (error) {
