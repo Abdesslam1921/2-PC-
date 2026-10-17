@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   computeOfferPricing,
   offerUnavailableReason,
@@ -76,6 +76,16 @@ import {
 import { decryptSecret, encryptSecret } from "./secureSecrets";
 import { mergeDigitalFileFields } from "./digitalFileMerge";
 import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
+import { isDuplicateKeyError } from "./storefrontConcurrency";
+import { normalizeAlgerianMobile } from "./phone";
+import {
+  ORDER_DUPLICATE_WINDOW_MS,
+  isDuplicateOrderWindow,
+  orderLineSignature,
+  orderNumberForId,
+  shouldReserveInventoryAtCreation,
+  shouldRestoreInventory,
+} from "./orderConcurrency";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -1812,6 +1822,240 @@ function resolveCostSnapshot(
   };
 }
 
+type DbHandle = NonNullable<Awaited<ReturnType<typeof getDb>>>;
+
+/**
+ * Serialise order creation per customer phone so a double click cannot create
+ * two orders and so the duplicate check + insert are one atomic decision.
+ *
+ * GET_LOCK is connection-scoped and survives the transaction commit, so the
+ * lock is held until after the insert is visible, then released before the
+ * pooled connection is returned. It is a no-op fallback for tools/tests where
+ * the drizzle handle has no pool.
+ */
+async function withOrderCreationLock<T>(
+  db: DbHandle,
+  phone: string,
+  fn: (db: DbHandle) => Promise<T>
+): Promise<T> {
+  const client = (
+    db as unknown as {
+      $client?: {
+        promise?: () => {
+          getConnection?: () => Promise<unknown>;
+        };
+        getConnection?: () => Promise<unknown>;
+      };
+    }
+  ).$client;
+  if (!client) return fn(db);
+  const promiseClient =
+    typeof client.promise === "function" ? client.promise() : client;
+  if (!promiseClient.getConnection) return fn(db);
+
+  const connection = (await promiseClient.getConnection()) as {
+    query: (
+      query: string,
+      values?: unknown[]
+    ) => Promise<[Array<Record<string, unknown>>, unknown]>;
+    release: () => void;
+  };
+  const lockedDb = drizzle(connection as never) as unknown as DbHandle;
+  const lockName = `order-idem-${createHash("sha1").update(phone).digest("hex")}`;
+  try {
+    const [rows] = await connection.query(
+      "SELECT GET_LOCK(?, 10) AS acquired",
+      [lockName]
+    );
+    if (Number(rows?.[0]?.acquired) !== 1) {
+      throw new Error(
+        "تعذّر تأمين إنشاء الطلب بسبب محاولة متزامنة. أعد المحاولة."
+      );
+    }
+    return await fn(lockedDb);
+  } finally {
+    try {
+      await connection.query("SELECT RELEASE_LOCK(?)", [lockName]);
+    } catch {
+      /* connection already gone */
+    }
+    try {
+      connection.release();
+    } catch {
+      /* already released */
+    }
+  }
+}
+
+async function findRecentDuplicateOrder(
+  tx: any,
+  storeId: number,
+  customerPhone: string,
+  signature: string
+) {
+  const since = new Date(Date.now() - ORDER_DUPLICATE_WINDOW_MS);
+  const recent = await tx
+    .select({
+      id: storeOrders.id,
+      orderNumber: storeOrders.orderNumber,
+      subtotal: storeOrders.subtotal,
+      discountAmount: storeOrders.discountAmount,
+      deliveryFee: storeOrders.deliveryFee,
+      total: storeOrders.total,
+      createdAt: storeOrders.createdAt,
+    })
+    .from(storeOrders)
+    .where(
+      and(
+        eq(storeOrders.storeId, storeId),
+        eq(storeOrders.customerPhone, customerPhone),
+        gte(storeOrders.createdAt, since),
+        not(eq(storeOrders.fulfillmentStatus, "abandoned"))
+      )
+    )
+    .orderBy(desc(storeOrders.createdAt))
+    .limit(10);
+  if (!recent.length) return null;
+
+  const items = await tx
+    .select({
+      orderId: storeOrderItems.orderId,
+      productId: storeOrderItems.productId,
+      variantId: storeOrderItems.variantId,
+      quantity: storeOrderItems.quantity,
+      unitPrice: storeOrderItems.unitPrice,
+    })
+    .from(storeOrderItems)
+    .where(
+      inArray(
+        storeOrderItems.orderId,
+        recent.map((order: { id: number }) => order.id)
+      )
+    );
+  const byOrder = new Map<number, Array<Record<string, unknown>>>();
+  for (const item of items) {
+    const list = byOrder.get(item.orderId) ?? [];
+    list.push(item);
+    byOrder.set(item.orderId, list);
+  }
+  for (const order of recent) {
+    if (!isDuplicateOrderWindow(new Date(order.createdAt))) continue;
+    const lines = (byOrder.get(order.id) ?? []).map(item => ({
+      productId: Number(item.productId),
+      variantId: (item.variantId as number | null) ?? null,
+      quantity: Number(item.quantity),
+      unitPrice: String(item.unitPrice),
+    }));
+    if (lines.length && orderLineSignature(lines) === signature) return order;
+  }
+  return null;
+}
+
+/** Reserve stock inside the order transaction: UPDATE ... WHERE stock >= qty. */
+async function reserveOrderStock(
+  tx: any,
+  storeId: number | null,
+  lines: Array<{
+    product: typeof storeProducts.$inferSelect;
+    variant?: typeof storeProductVariants.$inferSelect;
+    quantity: number;
+    inventoryQuantity: number;
+  }>
+): Promise<boolean> {
+  let reserved = false;
+  for (const line of lines) {
+    if (!shouldReserveInventoryAtCreation(line.product)) continue;
+    const quantity = line.inventoryQuantity;
+    const update = line.variant
+      ? await tx
+          .update(storeProductVariants)
+          .set({ stock: sql`${storeProductVariants.stock} - ${quantity}` })
+          .where(
+            and(
+              eq(storeProductVariants.id, line.variant.id),
+              eq(storeProductVariants.productId, line.product.id),
+              gte(storeProductVariants.stock, quantity)
+            )
+          )
+      : await tx
+          .update(storeProducts)
+          .set({ inventory: sql`${storeProducts.inventory} - ${quantity}` })
+          .where(
+            and(
+              eq(storeProducts.id, line.product.id),
+              storeId != null ? eq(storeProducts.storeId, storeId) : undefined,
+              gte(storeProducts.inventory, quantity)
+            )
+          );
+    if (affectedRows(update) !== 1) {
+      throw new Error(
+        `الكمية المطلوبة من «${line.product.title}» غير متوفرة حاليًا.`
+      );
+    }
+    reserved = true;
+  }
+  return reserved;
+}
+
+/** Distinct temporary number for the INSERT; the final number uses the row id. */
+async function insertOrderWithUniqueNumber(
+  tx: any,
+  values: Record<string, unknown>
+): Promise<{ insertId: number; temporaryNumber: string }> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const temporaryNumber = `TMP-${randomUUID()}`;
+    try {
+      const created = await tx
+        .insert(storeOrders)
+        .values({ ...values, orderNumber: temporaryNumber });
+      return {
+        insertId: Number(created[0]?.insertId),
+        temporaryNumber,
+      };
+    } catch (error) {
+      // A duplicate key here can only be the temporary orderNumber. Retry with
+      // a fresh UUID; the DB unique constraint remains the final arbiter.
+      if (!isDuplicateKeyError(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("تعذر توليد رقم طلب فريد. أعد المحاولة.");
+}
+
+async function finalizeOrderNumber(
+  tx: any,
+  orderId: number,
+  temporaryNumber: string
+): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidate =
+      attempt === 0
+        ? orderNumberForId(orderId)
+        : `${orderNumberForId(orderId)}-${attempt}`;
+    try {
+      const update = await tx
+        .update(storeOrders)
+        .set({ orderNumber: candidate })
+        .where(
+          and(
+            eq(storeOrders.id, orderId),
+            eq(storeOrders.orderNumber, temporaryNumber)
+          )
+        );
+      if (affectedRows(update) !== 1) {
+        throw new Error("تعذر تثبيت رقم الطلب.");
+      }
+      return candidate;
+    } catch (error) {
+      if (!isDuplicateKeyError(error)) throw error;
+      lastError = error;
+    }
+  }
+  throw lastError ?? new Error("تعذر تثبيت رقم طلب فريد. أعد المحاولة.");
+}
+
 export async function createCodOrder(
   customer: CodOrderCustomerInput,
   lines: CodOrderLineInput[],
@@ -1830,8 +2074,15 @@ export async function createCodOrder(
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
+  customer = {
+    ...customer,
+    customerPhone:
+      normalizeAlgerianMobile(customer.customerPhone) ??
+      customer.customerPhone.trim(),
+  };
 
-  return db.transaction(async tx => {
+  return withOrderCreationLock(db, customer.customerPhone, lockedDb =>
+    lockedDb.transaction(async tx => {
     let ownerId: number | undefined;
     let storeId: number | null | undefined;
     let subtotalCents = 0;
@@ -2029,6 +2280,50 @@ export async function createCodOrder(
       subtotalCents += toCents(unitPrice) * line.quantity;
     }
 
+    /**
+     * Double-submit guard: a retry of the same phone + same priced lines within
+     * the short window returns the already-created order instead of creating a
+     * duplicate. The per-phone named lock makes the check + insert atomic.
+     */
+    if (ownerId && storeId != null) {
+      const signature = orderLineSignature(
+        resolvedLines.map(line => ({
+          productId: line.product.id,
+          variantId: line.variant?.id ?? null,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+        }))
+      );
+      const duplicate = await findRecentDuplicateOrder(
+        tx,
+        storeId,
+        customer.customerPhone,
+        signature
+      );
+      if (duplicate) {
+        return {
+          id: duplicate.id,
+          orderNumber: duplicate.orderNumber,
+          subtotal: duplicate.subtotal,
+          discountAmount: duplicate.discountAmount,
+          deliveryFee: duplicate.deliveryFee,
+          total: duplicate.total,
+          paymentMethod: "cod" as const,
+          sharkCodDiscountPercent: 0,
+          retargetDiscountPercent: 0,
+          deduplicated: true,
+        };
+      }
+    }
+
+    // Reserve stock atomically BEFORE writing the order: every line is an
+    // `UPDATE ... WHERE stock >= qty`; one failure rolls the whole order back.
+    const stockReserved = await reserveOrderStock(
+      tx,
+      storeId ?? null,
+      resolvedLines
+    );
+
     if (!ownerId || !resolvedLines.length)
       throw new Error("لا يمكن إنشاء طلب فارغ.");
     const pricingModes = new Set(
@@ -2161,7 +2456,6 @@ export async function createCodOrder(
             Boolean(line.product?.freeDelivery)
         ));
     const deliveryFee = freeDelivery ? "0.00" : (rateFee ?? fixedFee ?? "0.00");
-    const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const percentDiscountCents = Math.round(
       (subtotalCents * activeDiscountPercent) / 100
     );
@@ -2186,10 +2480,9 @@ export async function createCodOrder(
     const total = fromCents(
       subtotalCents - discountCents + toCents(deliveryFee)
     );
-    const created = await tx.insert(storeOrders).values({
+    const created = await insertOrderWithUniqueNumber(tx, {
       ownerId,
       storeId: storeId ?? null,
-      orderNumber: temporaryNumber,
       customerName: customer.customerName,
       customerPhone: customer.customerPhone,
       wilaya: customer.wilaya,
@@ -2209,6 +2502,9 @@ export async function createCodOrder(
       deliveryCostSnapshot: deliveryFee,
       appliedOffers,
       total,
+      // Stock was reserved above; mark it so the at_carrier lifecycle is a
+      // no-op and a return restores exactly once.
+      inventoryDeductedAt: stockReserved ? new Date() : null,
       attributionSource: customer.attributionSource?.trim() || null,
       fbclid: customer.fbclid?.trim() || null,
       utmSource: customer.utmSource?.trim() || null,
@@ -2220,9 +2516,13 @@ export async function createCodOrder(
       metaAdSetId: customer.metaAdSetId?.trim() || null,
       metaAdId: customer.metaAdId?.trim() || null,
     });
-    const orderId = Number(created[0]?.insertId);
+    const orderId = created.insertId;
     if (!orderId) throw new Error("تعذر حفظ الطلب.");
-    const orderNumber = `ABD-${String(orderId).padStart(6, "0")}`;
+    const orderNumber = await finalizeOrderNumber(
+      tx,
+      orderId,
+      created.temporaryNumber
+    );
 
     await tx
       .update(storeOrders)
@@ -2310,6 +2610,26 @@ export async function createCodOrder(
       }
     }
 
+    /**
+     * Round-robin assignment is part of the SAME transaction: if it fails, the
+     * order/items/stock/offer usage roll back together (no half-written data).
+     * The assignment function locks the store's agent rows FOR UPDATE, so two
+     * concurrent orders cannot both pick the same "next" agent.
+     */
+    if (storeId != null) {
+      const { assignNewOrderToCallCenterAgentInTransaction } = await import(
+        "./callCenterDb"
+      );
+      await assignNewOrderToCallCenterAgentInTransaction(tx as never, {
+        storeId,
+        orderId,
+        customerPhone: customer.customerPhone,
+        productIds: Array.from(
+          new Set(resolvedLines.map(line => line.product.id))
+        ),
+      });
+    }
+
     return {
       id: orderId,
       orderNumber,
@@ -2320,8 +2640,10 @@ export async function createCodOrder(
       paymentMethod: "cod" as const,
       sharkCodDiscountPercent,
       retargetDiscountPercent,
+      deduplicated: false,
     };
-  });
+  })
+  );
 }
 
 type DigitalOrderLineInput = { productId: number; quantity: number };
@@ -3225,11 +3547,9 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     return { saved: true, orderId: existing.id } as const;
   }
 
-  const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const created = await db.insert(storeOrders).values({
+  const created = await insertOrderWithUniqueNumber(db, {
     ownerId: product.ownerId,
     storeId: product.storeId ?? null,
-    orderNumber: temporaryNumber,
     customerName: name,
     customerPhone: phone,
     wilaya,
@@ -3245,12 +3565,9 @@ export async function upsertAbandonedOrder(input: AbandonedOrderInput) {
     deliveryCostSnapshot: "0.00",
     total: subtotal,
   });
-  const orderId = Number(created[0]?.insertId);
+  const orderId = created.insertId;
   if (!orderId) throw new Error("تعذر حفظ الطلب المتروك.");
-  await db
-    .update(storeOrders)
-    .set({ orderNumber: `ABD-${String(orderId).padStart(6, "0")}` })
-    .where(eq(storeOrders.id, orderId));
+  await finalizeOrderNumber(db, orderId, created.temporaryNumber);
   const cost = resolveCostSnapshot(product);
   await db.insert(storeOrderItems).values({
     orderId,
@@ -3301,11 +3618,9 @@ export async function createManualOrder(
   const quantity = Math.max(1, Math.trunc(input.quantity || 1));
   const unitPrice = product.price ?? "0.00";
   const subtotal = (Number(unitPrice) * quantity).toFixed(2);
-  const temporaryNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const created = await db.insert(storeOrders).values({
+  const created = await insertOrderWithUniqueNumber(db, {
     ownerId: product.ownerId,
     storeId,
-    orderNumber: temporaryNumber,
     customerName: input.customerName.trim(),
     customerPhone: input.customerPhone.trim(),
     wilaya: input.wilaya.trim(),
@@ -3321,13 +3636,13 @@ export async function createManualOrder(
     deliveryCostSnapshot: "0.00",
     total: subtotal,
   });
-  const orderId = Number(created[0]?.insertId);
+  const orderId = created.insertId;
   if (!orderId) throw new Error("تعذر إنشاء الطلب.");
-  const orderNumber = `ABD-${String(orderId).padStart(6, "0")}`;
-  await db
-    .update(storeOrders)
-    .set({ orderNumber })
-    .where(eq(storeOrders.id, orderId));
+  const orderNumber = await finalizeOrderNumber(
+    db,
+    orderId,
+    created.temporaryNumber
+  );
   const cost = resolveCostSnapshot(product);
   await db.insert(storeOrderItems).values({
     orderId,
@@ -3529,20 +3844,22 @@ export async function applyOrderInventoryLifecycle(
         const update = variant
           ? await tx
               .update(storeProductVariants)
-              .set({ stock: variant.stock - item.quantity })
+              .set({ stock: sql`${storeProductVariants.stock} - ${item.quantity}` })
               .where(
                 and(
                   eq(storeProductVariants.id, variant.id),
-                  eq(storeProductVariants.stock, variant.stock)
+                  gte(storeProductVariants.stock, item.quantity)
                 )
               )
           : await tx
               .update(storeProducts)
-              .set({ inventory: product.inventory - item.quantity })
+              .set({
+                inventory: sql`${storeProducts.inventory} - ${item.quantity}`,
+              })
               .where(
                 and(
                   eq(storeProducts.id, product.id),
-                  eq(storeProducts.inventory, product.inventory)
+                  gte(storeProducts.inventory, item.quantity)
                 )
               );
         if (affectedRows(update) !== 1)
@@ -3631,7 +3948,7 @@ export async function updateStoreOrderStatus(
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
   if (fulfillmentStatus === "at_carrier")
     await applyOrderInventoryLifecycle(storeId, orderId, "at_carrier");
-  if (fulfillmentStatus === "returned")
+  if (shouldRestoreInventory(fulfillmentStatus))
     await applyOrderInventoryLifecycle(storeId, orderId, "returned");
   await db
     .update(storeOrders)
@@ -4861,7 +5178,10 @@ export async function updateOrderCarrierData(
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
   if (data.fulfillmentStatus === "at_carrier")
     await applyOrderInventoryLifecycle(storeId, orderId, "at_carrier");
-  if (data.fulfillmentStatus === "returned")
+  if (
+    data.fulfillmentStatus &&
+    shouldRestoreInventory(data.fulfillmentStatus)
+  )
     await applyOrderInventoryLifecycle(storeId, orderId, "returned");
   await db
     .update(storeOrders)

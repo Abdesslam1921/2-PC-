@@ -209,26 +209,56 @@ export async function assignNewOrderToCallCenterAgent(input: {
   productIds: number[];
 }) {
   try {
-    return await assignNewOrderToCallCenterAgentUnsafe(input);
+    const db = await getDb();
+    if (!db) return null;
+    return await db.transaction(tx =>
+      assignNewOrderToCallCenterAgentUnsafe(input, tx)
+    );
   } catch (error) {
     console.warn("[Call Center] round-robin assignment failed:", error);
     return null;
   }
 }
 
-async function assignNewOrderToCallCenterAgentUnsafe(input: {
-  storeId: number;
-  orderId: number;
-  customerPhone: string;
-  productIds: number[];
-}) {
+/**
+ * Same assignment, but on the caller's transaction. Used by `createCodOrder`
+ * so the order + items + stock + offer usage + assignment commit together.
+ * Errors propagate (the whole order rolls back) instead of being swallowed.
+ */
+export async function assignNewOrderToCallCenterAgentInTransaction(
+  executor: any,
+  input: {
+    storeId: number;
+    orderId: number;
+    customerPhone: string;
+    productIds: number[];
+  }
+) {
+  return assignNewOrderToCallCenterAgentUnsafe(input, executor);
+}
+
+async function assignNewOrderToCallCenterAgentUnsafe(
+  input: {
+    storeId: number;
+    orderId: number;
+    customerPhone: string;
+    productIds: number[];
+  },
+  executor?: any
+) {
   if (!input.storeId || !input.orderId) return null;
-  const db = await getDb();
+  const db = executor ?? (await getDb());
   if (!db) return null;
   // Store-level round-robin gate: master switch + optional product scope.
   const distribution = await getCallCenterDistributionSettings(input.storeId);
   if (!isOrderInDistributionScope(distribution, input.productIds)) return null;
-  const agents = await db
+  /**
+   * Serialise assignment per store: lock every enabled agent row until this
+   * transaction commits. The next order then reads the committed assignment
+   * and picks the following agent — two concurrent orders cannot choose the
+   * same "next" agent or corrupt the rotation.
+   */
+  const agents = (await db
     .select({
       id: callCenterAgents.id,
       email: callCenterAgents.email,
@@ -240,9 +270,10 @@ async function assignNewOrderToCallCenterAgentUnsafe(input: {
         eq(callCenterAgents.enabled, true)
       )
     )
-    .orderBy(callCenterAgents.id);
+    .orderBy(callCenterAgents.id)
+    .for("update")) as Array<{ id: number; email: string | null }>;
   if (!agents.length) return null;
-  const scopedRows = await db
+  const scopedRows = (await db
     .select({
       agentId: callCenterAgentProducts.agentId,
       productId: callCenterAgentProducts.productId,
@@ -252,7 +283,10 @@ async function assignNewOrderToCallCenterAgentUnsafe(input: {
       callCenterAgents,
       eq(callCenterAgentProducts.agentId, callCenterAgents.id)
     )
-    .where(eq(callCenterAgents.storeId, input.storeId));
+    .where(eq(callCenterAgents.storeId, input.storeId))) as Array<{
+    agentId: number;
+    productId: number;
+  }>;
   const productsByAgent = new Map<number, number[]>();
   for (const row of scopedRows) {
     const list = productsByAgent.get(row.agentId) ?? [];
@@ -269,7 +303,7 @@ async function assignNewOrderToCallCenterAgentUnsafe(input: {
   const phone = input.customerPhone.trim();
   let stickyAgentId: number | null = null;
   if (phone) {
-    const previous = await db
+    const previous = (await db
       .select({ agentId: storeOrderItems.confirmationAgentId })
       .from(storeOrderItems)
       .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
@@ -280,20 +314,31 @@ async function assignNewOrderToCallCenterAgentUnsafe(input: {
           ne(storeOrders.id, input.orderId)
         )
       )
-      .orderBy(desc(storeOrders.createdAt));
+      .orderBy(desc(storeOrders.createdAt))) as Array<{
+      agentId: number | null;
+    }>;
     stickyAgentId =
       previous.find(row => row.agentId && eligibleIds.includes(row.agentId))
         ?.agentId ?? null;
   }
 
-  const recentAssigned = await db
+  const recentAssigned = (await db
     .select({ agentId: storeOrderItems.confirmationAgentId })
     .from(storeOrderItems)
     .innerJoin(storeOrders, eq(storeOrderItems.orderId, storeOrders.id))
     .where(
       and(eq(storeOrders.storeId, input.storeId), ne(storeOrders.id, input.orderId))
     )
-    .orderBy(desc(storeOrders.createdAt));
+    .orderBy(desc(storeOrders.createdAt))
+    /**
+     * Locking read: under REPEATABLE READ a plain SELECT would use the
+     * transaction's old snapshot and miss assignments committed by concurrent
+     * orders. `FOR UPDATE` always reads the latest committed rows, so the
+     * rotation advances correctly while the agent-row lock serialises writers.
+     */
+    .for("update")) as Array<{
+    agentId: number | null;
+  }>;
   const lastAssignedAgentId =
     recentAssigned.find(
       row => row.agentId && eligibleIds.includes(row.agentId)

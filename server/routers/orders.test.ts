@@ -179,6 +179,29 @@ describe("orders.createCod", () => {
     expect(orders).toEqual([{ id: 12, orderNumber: "ABD-000012" }]);
   });
 
+  it("returns a deduplicated double submit without re-running side effects", async () => {
+    mocks.createCodOrder.mockResolvedValueOnce({
+      id: 12,
+      orderNumber: "ABD-000012",
+      total: "8400.00",
+      paymentMethod: "cod",
+      sharkCodDiscountPercent: 0,
+      retargetDiscountPercent: 0,
+      deduplicated: true,
+    });
+    const caller = appRouter.createCaller(context());
+    const result = await caller.orders.createCod({
+      customerName: "محمد أمين",
+      customerPhone: "0550000000",
+      wilaya: "الجزائر",
+      address: "الحي الجديد، شارع 1",
+      lines: [{ productId: 7, quantity: 1 }],
+    });
+    expect(result).toMatchObject({ id: 12, deduplicated: true });
+    expect(mocks.updateOrderStatus).not.toHaveBeenCalled();
+    expect(mocks.assignNewOrderToCallCenterAgent).not.toHaveBeenCalled();
+  });
+
   it("updates a fulfillment status only through the authenticated store owner", async () => {
     const caller = appRouter.createCaller(context());
     const result = await caller.orders.updateStatus({

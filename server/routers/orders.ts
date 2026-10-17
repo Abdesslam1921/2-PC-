@@ -236,6 +236,11 @@ export const ordersRouter = router({
           }
         }
         const result = await createCodOrder(input, lines, bundles);
+        /**
+         * A double submit returns the already-created order. Do not re-run
+         * order-clean, duplicate notifications or tracking events for it.
+         */
+        if (result.deduplicated) return result;
         if (clean?.verdict === "review")
           await updateStoreOrderStatus(clean.storeId, result.id, "review");
         if (clean?.settingsId)
@@ -269,14 +274,7 @@ export const ordersRouter = router({
           const productIds = Array.from(
             new Set(input.lines.map(line => line.productId))
           );
-          if (storeId != null) {
-            void assignNewOrderToCallCenterAgent({
-              storeId,
-              orderId: result.id,
-              customerPhone: input.customerPhone,
-              productIds,
-            });
-          }
+          // Round-robin is assigned inside createCodOrder's transaction.
           const orderNotification = {
             orderNumber: result.orderNumber,
             customerName: input.customerName,
