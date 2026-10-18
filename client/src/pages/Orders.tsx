@@ -119,6 +119,28 @@ type EditableStatus =
   | "fake"
   | "abandoned";
 
+type StockWarning = {
+  kind: "stock_warning";
+  at?: string;
+  lines?: Array<{
+    title?: string;
+    requested?: number;
+    available?: number | null;
+  }>;
+};
+
+/** Carrier/webhook transitions persist shortages here instead of blocking. */
+function stockWarningFor(order: { appliedOffers?: unknown }): StockWarning | null {
+  const offers = Array.isArray(order.appliedOffers) ? order.appliedOffers : [];
+  const entry = offers.find(
+    item =>
+      item &&
+      typeof item === "object" &&
+      (item as { kind?: unknown }).kind === "stock_warning"
+  );
+  return (entry as StockWarning | undefined) ?? null;
+}
+
 export default function Orders() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
@@ -559,6 +581,28 @@ export default function Orders() {
                         <p className="font-extrabold text-[var(--brand)]">
                           {order.orderNumber}
                         </p>
+                        {(() => {
+                          const warning = stockWarningFor(order);
+                          if (!warning) return null;
+                          const titles = (warning.lines ?? [])
+                            .map(line => line.title)
+                            .filter(Boolean)
+                            .join("، ");
+                          return (
+                            <p
+                              title={(warning.lines ?? [])
+                                .map(
+                                  line =>
+                                    `${line.title ?? ""}: مطلوب ${line.requested ?? "?"} / متاح ${line.available ?? "غير معروف"}`
+                                )
+                                .join("\n")}
+                              className="mt-1.5 flex items-start gap-1 rounded-lg bg-[#FCE8E4] px-2 py-1 text-[10px] font-bold leading-4 text-[#A63D28]"
+                            >
+                              <AlertCircle className="mt-0.5 size-3 shrink-0" />
+                              فرق مخزون: {titles || "راجع الطلب"}
+                            </p>
+                          );
+                        })()}
                         <p className="mt-1 text-[11px] text-[#8A938D]">
                           {new Date(order.createdAt).toLocaleDateString(
                             "ar-DZ"

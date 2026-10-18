@@ -23,6 +23,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { createConnection, type Connection } from "mysql2/promise";
 import { drizzle } from "drizzle-orm/mysql2";
 import { eq } from "drizzle-orm";
@@ -32,6 +33,7 @@ import {
   updateStoreOrderStatus,
 } from "../server/db";
 import { applyShipmentStatus } from "../server/forshipDb";
+import { normalizeAlgerianMobile } from "../server/phone";
 import { computeShipmentUpdate } from "../server/forshipCore";
 import { orderShipments } from "../drizzle/schema";
 
@@ -150,6 +152,13 @@ const setInventory = async (productId: number, value: number) => {
   await q(connA, "UPDATE store_products SET inventory = ? WHERE id = ?", [
     value,
     productId,
+  ]);
+};
+
+const setVariantStock = async (variantId: number, value: number) => {
+  await q(connA, "UPDATE store_product_variants SET stock = ? WHERE id = ?", [
+    value,
+    variantId,
   ]);
 };
 
@@ -280,18 +289,20 @@ try {
     `inventory=${await inventoryOf(productA)}`
   );
 
-  // (a2) Last unit: two new orders are created, only one confirmation wins.
-  await setInventory(productA, 1);
+  // (a2) Soft check passes at creation; a later shortage still blocks the
+  // human confirmation atomically.
+  await setInventory(productA, 2);
   const race = await Promise.all([
     createCodOrder(customer("0559900102"), [{ productId: productA, quantity: 1 }]),
     createCodOrder(customer("0559900103"), [{ productId: productA, quantity: 1 }]),
   ]);
   race.forEach(order => orderIds.push(order.id));
   check(
-    "two new orders can be created for the last unit (no early stock check)",
-    (await inventoryOf(productA)) === 1 &&
+    "two new orders pass the soft check at stock=2 without reserving",
+    (await inventoryOf(productA)) === 2 &&
       race.every(order => order.id > 0)
   );
+  await setInventory(productA, 1); // simulate another sale after creation
   const confirmations = await Promise.allSettled(
     race.map(order => confirm(order.id))
   );
@@ -320,17 +331,30 @@ try {
       raceStates.filter(state => state.inventoryDeductedAt == null).length === 1
   );
 
+  const softReject = await Promise.allSettled([
+    createCodOrder(customer("0559900104"), [{ productId: productD, quantity: 1 }]),
+  ]);
+  check(
+    "soft check rejects creation when stock is below the quantity",
+    softReject[0].status === "rejected" &&
+      String(
+        softReject[0].status === "rejected" ? softReject[0].reason : ""
+      ).includes("Probe D")
+  );
+
   // (a3) Multi-line all-or-nothing at confirmation.
   await setInventory(productC, 5);
-  const multi = await createCodOrder(customer("0559900104"), [
+  await setInventory(productD, 1);
+  const multi = await createCodOrder(customer("0559900105"), [
     { productId: productC, quantity: 1 },
     { productId: productD, quantity: 1 },
   ]);
   orderIds.push(multi.id);
   check(
-    "multi-line order can be created while one line has no stock",
+    "multi-line order passes the soft check at creation",
     (await inventoryOf(productC)) === 5
   );
+  await setInventory(productD, 0); // shortage appears before confirmation
   const multiConfirm = await Promise.allSettled([confirm(multi.id)]);
   check(
     "multi-line confirmation fails when one line is out of stock",
@@ -357,6 +381,7 @@ try {
     ]),
   ]);
   variantRace.forEach(order => orderIds.push(order.id));
+  await setVariantStock(variantE, 1); // shortage appears before confirmation
   const variantConfirms = await Promise.allSettled(
     variantRace.map(order => confirm(order.id))
   );
@@ -420,6 +445,26 @@ try {
       String(
         manualInvalid[0].status === "rejected"
           ? manualInvalid[0].reason
+          : ""
+      ).includes("Probe D")
+  );
+
+  const manualNewInvalid = await Promise.allSettled([
+    createManualOrder(probeStoreId, {
+      productId: productD,
+      quantity: 1,
+      customerName: "Probe Manual New OOS",
+      customerPhone: "0559900109",
+      wilaya: "???????",
+      fulfillmentStatus: "new",
+    }),
+  ]);
+  check(
+    "manual new order is soft-checked at creation too",
+    manualNewInvalid[0].status === "rejected" &&
+      String(
+        manualNewInvalid[0].status === "rejected"
+          ? manualNewInvalid[0].reason
           : ""
       ).includes("Probe D")
   );
@@ -622,6 +667,55 @@ try {
       (await orderRow(deliveredOrder.id)).inventoryDeductedAt != null
   );
 
+  // (g1b) A carrier "delivered" transition must NOT be rejected on a shortage:
+  // record the status + a visible stock warning instead.
+  await setInventory(productA, 1);
+  const shortDelivered = await createCodOrder(customer("0559900152"), [
+    { productId: productA, quantity: 1 },
+  ]);
+  orderIds.push(shortDelivered.id);
+  await setInventory(productA, 0);
+  const shortShipmentRes = await q(
+    connA,
+    `INSERT INTO order_shipments
+       (order_id, merchant_id, carrier_id, tracking_number, external_status_label,
+        status_history, sync_method, check_count)
+     VALUES (?, ?, 990003, ?, 'initial', '[]', 'webhook', 0)`,
+    [shortDelivered.id, probeOwnerId, `${PROBE_PREFIX}track-${shortDelivered.id}`]
+  );
+  const [shortShipment] = await dbA
+    .select()
+    .from(orderShipments)
+    .where(eq(orderShipments.id, Number(shortShipmentRes.insertId)))
+    .limit(1);
+  const shortComputed = computeShipmentUpdate(
+    shortShipment,
+    "probe-delivered-short",
+    { mapsTo: "delivered", isFinal: true },
+    new Date()
+  );
+  const shortDeliveryResult = await Promise.allSettled([
+    applyShipmentStatus(shortShipment, "probe-delivered-short", shortComputed),
+  ]);
+  const shortOrder = await orderRow(shortDelivered.id);
+  const shortOffers = (
+    await q(connA, "SELECT appliedOffers FROM store_orders WHERE id = ?", [
+      shortDelivered.id,
+    ])
+  )[0]?.appliedOffers;
+  check(
+    "carrier delivered transition is not rejected on stock shortage",
+    shortDeliveryResult[0].status === "fulfilled" &&
+      shortOrder.fulfillmentStatus === "delivered"
+  );
+  check(
+    "carrier shortage persists a visible stock warning",
+    shortOrder.inventoryDeductedAt != null &&
+      JSON.stringify(shortOffers).includes("stock_warning") &&
+      JSON.stringify(shortOffers).includes("Probe A"),
+    JSON.stringify(shortOffers)
+  );
+
   // (g2) Duplicate returned webhook: restore once + one order_returns row.
   const returnWebhookOrder = await createCodOrder(customer("0559900151"), [
     { productId: productB, quantity: 1 },
@@ -680,6 +774,30 @@ try {
         ])
       )[0].inventory
     ) === (await inventoryOf(productB))
+  );
+
+  const lockPhone = normalizeAlgerianMobile("0559900199") ?? "0559900199";
+  const lockName = `order-idem-${createHash("sha1").update(lockPhone).digest("hex")}`;
+  const lockFailure = await Promise.allSettled([
+    createCodOrder(customer(lockPhone), []),
+  ]);
+  const lockProbeConn = await createConnection(url);
+  const [lockProbe] = await q(
+    lockProbeConn,
+    "SELECT GET_LOCK(?, 1) AS acquired",
+    [lockName]
+  );
+  const lockRow = Array.isArray(lockProbe) ? lockProbe[0] : lockProbe;
+  const lockReleased = Number(lockRow?.acquired) === 1;
+  if (lockReleased)
+    await q(lockProbeConn, "SELECT RELEASE_LOCK(?)", [lockName]);
+  await lockProbeConn.end();
+  const lockOk =
+    lockFailure[0].status === "rejected" && lockReleased === true;
+  check(
+    "phone lock is released in finally after an error",
+    lockOk,
+    `lockOk=${lockOk} status=${lockFailure[0].status} released=${lockReleased} probe=${JSON.stringify(lockProbe)}`
   );
 
   const assignedIds = orderIds.filter(id => !manualOrderIds.includes(id));

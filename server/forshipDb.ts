@@ -541,7 +541,12 @@ async function handleFinalEvent(
    */
   if (order.storeId != null) {
     try {
-      await updateStoreOrderStatus(order.storeId, order.id, finalFulfillment);
+      await updateStoreOrderStatus(
+        order.storeId,
+        order.id,
+        finalFulfillment,
+        { strictInventory: false }
+      );
     } catch (error) {
       // A delivered parcel must still be recorded even if a legacy order was
       // never confirmed and its stock is short. Log for reconciliation.

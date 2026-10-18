@@ -2172,6 +2172,18 @@ export async function createCodOrder(
       const inventoryQuantity = quantityOffer
         ? quantityOffer.quantity * line.quantity
         : line.quantity;
+      /**
+       * Soft availability check at creation (no reservation): exactly the
+       * pre-16034e8 behaviour. The binding deduction still happens only on the
+       * first confirmed-or-later transition.
+       */
+      if (product.trackInventory && !product.continueSelling) {
+        const remaining = variant ? variant.stock : product.inventory;
+        if (remaining < inventoryQuantity)
+          throw new Error(
+            `الكمية المطلوبة من «${product.title}» غير متوفرة حاليًا.`
+          );
+      }
 
       resolvedLines.push({
         product,
@@ -3572,6 +3584,16 @@ export async function createManualOrder(
     const unitPrice = product.price ?? "0.00";
     const subtotal = (Number(unitPrice) * quantity).toFixed(2);
     const fulfillmentStatus = input.fulfillmentStatus ?? "new";
+    // Soft check for a manual order that is NOT confirmed yet (no deduction).
+    if (
+      fulfillmentStatus === "new" &&
+      product.trackInventory &&
+      !product.continueSelling &&
+      product.inventory < quantity
+    )
+      throw new Error(
+        `الكمية المطلوبة من «${product.title}» غير متوفرة حاليًا.`
+      );
     /**
      * A manual order created directly as `confirmed` follows the same rule as
      * the first confirmation transition: deduct once, atomically. `new` and
@@ -3836,11 +3858,79 @@ function inventoryQuantityForItem(
   return match?.inventoryQuantity ?? Number(item.quantity);
 }
 
-/** Deduct every tracked line atomically; any shortage throws and rolls back. */
+type StockDiscrepancy = {
+  productId: number;
+  variantId: number | null;
+  title: string;
+  requested: number;
+  available: number | null;
+};
+
+function normalizeAppliedOfferEntries(value: unknown): unknown[] {
+  let parsed: unknown = value;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+/**
+ * A carrier/webhook transition must never be rejected for a stock shortage.
+ * The shortage is persisted in `appliedOffers` as a visible `stock_warning`
+ * entry (Orders dashboard) and logged; the status still moves forward.
+ */
+async function recordStockDiscrepancies(
+  tx: any,
+  order: typeof storeOrders.$inferSelect,
+  discrepancies: StockDiscrepancy[]
+) {
+  const entries = normalizeAppliedOfferEntries(order.appliedOffers).filter(
+    entry =>
+      !(
+        entry &&
+        typeof entry === "object" &&
+        (entry as { kind?: unknown }).kind === "stock_warning"
+      )
+  );
+  const warning = {
+    kind: "stock_warning" as const,
+    at: new Date().toISOString(),
+    lines: discrepancies,
+  };
+  const next = [...entries, warning];
+  await tx
+    .update(storeOrders)
+    .set({ appliedOffers: next })
+    .where(eq(storeOrders.id, order.id));
+  order.appliedOffers = next;
+  console.warn(
+    `[Inventory] stock discrepancy on order ${order.id} (${order.orderNumber}):`,
+    discrepancies
+      .map(
+        line =>
+          `${line.title} requested=${line.requested} available=${line.available ?? "missing"}`
+      )
+      .join(" | ")
+  );
+}
+
+/**
+ * Deduct every tracked line once.
+ * - strict (human confirmation): any shortage throws and rolls the whole
+ *   transition back with a product-naming message.
+ * - tolerant (carrier webhook/sync): available lines are deducted, shortages
+ *   are recorded as a visible warning, and the status still moves forward.
+ */
 async function deductOrderInventoryInTransaction(
   tx: any,
-  order: typeof storeOrders.$inferSelect
+  order: typeof storeOrders.$inferSelect,
+  options?: { strict?: boolean }
 ) {
+  const strict = options?.strict ?? true;
   const items = (
     await tx
       .select()
@@ -3854,6 +3944,7 @@ async function deductOrderInventoryInTransaction(
       a.productId - b.productId || (a.variantId ?? 0) - (b.variantId ?? 0)
   );
   const snapshot = inventorySnapshotFromOffers(order.appliedOffers);
+  const discrepancies: StockDiscrepancy[] = [];
   for (const item of items) {
     const [product] = await tx
       .select()
@@ -3867,10 +3958,18 @@ async function deductOrderInventoryInTransaction(
         )
       )
       .limit(1);
-    if (!product)
-      throw new Error(
-        `المنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`
-      );
+    if (!product) {
+      const message = `المنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`;
+      if (strict) throw new Error(message);
+      discrepancies.push({
+        productId: item.productId,
+        variantId: item.variantId ?? null,
+        title: item.title,
+        requested: inventoryQuantityForItem(item, snapshot),
+        available: null,
+      });
+      continue;
+    }
     if (!product.trackInventory || product.continueSelling) continue;
     const quantity = inventoryQuantityForItem(item, snapshot);
     let variant: typeof storeProductVariants.$inferSelect | undefined;
@@ -3886,10 +3985,18 @@ async function deductOrderInventoryInTransaction(
         )
         .limit(1);
       variant = foundVariant;
-      if (!variant)
-        throw new Error(
-          `الخيار المحدد للمنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`
-        );
+      if (!variant) {
+        const message = `الخيار المحدد للمنتج «${item.title}» لم يعد موجودًا؛ تعذّر خصم المخزون.`;
+        if (strict) throw new Error(message);
+        discrepancies.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          title: item.title,
+          requested: quantity,
+          available: null,
+        });
+        continue;
+      }
     }
     const update = variant
       ? await tx
@@ -3914,11 +4021,20 @@ async function deductOrderInventoryInTransaction(
               gte(storeProducts.inventory, quantity)
             )
           );
-    if (affectedRows(update) !== 1)
-      throw new Error(
-        `الكمية غير كافية للمنتج «${item.title}»؛ تعذّر تأكيد الطلب.`
-      );
+    if (affectedRows(update) !== 1) {
+      const message = `الكمية غير كافية للمنتج «${item.title}»؛ تعذّر تأكيد الطلب.`;
+      if (strict) throw new Error(message);
+      discrepancies.push({
+        productId: item.productId,
+        variantId: item.variantId ?? null,
+        title: item.title,
+        requested: quantity,
+        available: variant ? variant.stock : product.inventory,
+      });
+    }
   }
+  if (discrepancies.length)
+    await recordStockDiscrepancies(tx, order, discrepancies);
   const now = new Date();
   await tx
     .update(storeOrders)
@@ -4002,13 +4118,16 @@ async function restoreOrderInventoryInTransaction(
 async function applyOrderInventoryForStatus(
   tx: any,
   order: typeof storeOrders.$inferSelect,
-  targetStatus: string
+  targetStatus: string,
+  options?: { strictInventory?: boolean }
 ) {
   if (
     shouldDeductInventoryAtStatus(targetStatus) &&
     (!order.inventoryDeductedAt || order.inventoryRestoredAt)
   ) {
-    await deductOrderInventoryInTransaction(tx, order);
+    await deductOrderInventoryInTransaction(tx, order, {
+      strict: options?.strictInventory ?? true,
+    });
   }
   if (
     shouldRestoreInventory(targetStatus) &&
@@ -4072,7 +4191,8 @@ export async function updateStoreOrderStatus(
     | "customer_unresponsive"
     | "phone_cancelled"
     | "fake"
-    | "abandoned"
+    | "abandoned",
+  options?: { strictInventory?: boolean }
 ) {
   const db = await getDb();
   if (!db) throw new Error("قاعدة البيانات غير متاحة حاليًا.");
@@ -4088,7 +4208,7 @@ export async function updateStoreOrderStatus(
       .limit(1)
       .for("update");
     if (!order) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
-    await applyOrderInventoryForStatus(tx, order, fulfillmentStatus);
+    await applyOrderInventoryForStatus(tx, order, fulfillmentStatus, options);
     await tx
       .update(storeOrders)
       .set({ fulfillmentStatus })
@@ -5324,7 +5444,9 @@ export async function updateOrderCarrierData(
       .for("update");
     if (!current) throw new Error("الطلب غير موجود أو لا تملك صلاحية تعديله.");
     if (data.fulfillmentStatus)
-      await applyOrderInventoryForStatus(tx, current, data.fulfillmentStatus);
+      await applyOrderInventoryForStatus(tx, current, data.fulfillmentStatus, {
+        strictInventory: false,
+      });
     await tx
       .update(storeOrders)
       .set(data)

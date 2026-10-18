@@ -209,7 +209,20 @@ describe("orders.createCod", () => {
       fulfillmentStatus: "shipped",
     });
 
-    expect(mocks.updateOrderStatus).toHaveBeenCalledWith(7, 12, "shipped");
+    expect(mocks.updateOrderStatus).toHaveBeenCalledWith(7, 12, "shipped", {
+      strictInventory: false,
+    });
     expect(result).toMatchObject({ id: 12, fulfillmentStatus: "shipped" });
+  });
+
+  it("keeps a human confirmation strict on stock", async () => {
+    const caller = appRouter.createCaller(context());
+    await caller.orders.updateStatus({
+      orderId: 12,
+      fulfillmentStatus: "confirmed",
+    });
+    expect(mocks.updateOrderStatus).toHaveBeenCalledWith(7, 12, "confirmed", {
+      strictInventory: true,
+    });
   });
 });

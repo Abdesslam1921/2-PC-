@@ -1090,7 +1090,9 @@ export async function updateCallCenterOrderStatus(
       );
     }
   }
-  return updateStoreOrderStatus(scope.storeId, orderId, fulfillmentStatus);
+  return updateStoreOrderStatus(scope.storeId, orderId, fulfillmentStatus, {
+    strictInventory: fulfillmentStatus === "confirmed",
+  });
 }
 
 export async function syncCallCenterOrderStatus(token: string, orderId: number) {

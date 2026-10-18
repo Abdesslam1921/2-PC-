@@ -466,7 +466,10 @@ export const ordersRouter = router({
         const updated = await updateStoreOrderStatus(
           getStoreId(ctx),
           input.orderId,
-          input.fulfillmentStatus
+          input.fulfillmentStatus,
+          // Reject only a human confirmation; other human/carrier transitions
+          // record a stock warning instead of blocking the status change.
+          { strictInventory: input.fulfillmentStatus === "confirmed" }
         );
         const orders = await listStoreOrders(getStoreId(ctx));
         const order = orders.find(candidate => candidate.id === input.orderId);

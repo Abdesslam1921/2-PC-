@@ -13,7 +13,7 @@ function sliceBetween(source: string, from: string, to: string) {
 }
 
 describe("order race guards (source-level)", () => {
-  it("does NOT deduct inventory when a COD order is created as new", () => {
+  it("soft-checks availability at creation without reserving stock", () => {
     const create = sliceBetween(
       dbSource(),
       "export async function createCodOrder",
@@ -21,7 +21,8 @@ describe("order race guards (source-level)", () => {
     );
     expect(create).not.toContain("reserveOrderStock");
     expect(create).not.toContain("inventoryDeductedAt");
-    expect(create).not.toContain("remaining <");
+    expect(create).toContain("remaining < inventoryQuantity");
+    expect(create).toContain("غير متوفرة حاليًا");
   });
 
   it("deducts atomically on the first confirmed-or-later status", () => {
@@ -37,6 +38,44 @@ describe("order race guards (source-level)", () => {
     expect(deduct).toContain("affectedRows(update) !== 1");
     expect(deduct).toContain("inventoryDeductedAt: now");
     expect(deduct).toContain("inventoryRestoredAt: null");
+  });
+
+  it("tolerates stock shortages on carrier transitions and records a visible warning", () => {
+    const deduct = sliceBetween(
+      dbSource(),
+      "async function deductOrderInventoryInTransaction",
+      "async function restoreOrderInventoryInTransaction"
+    );
+    expect(deduct).toContain("const strict = options?.strict ?? true");
+    expect(deduct).toContain("if (strict) throw new Error(message)");
+    expect(deduct).toContain("recordStockDiscrepancies");
+    expect(dbSource()).toContain("stock_warning");
+    expect(forshipSource()).toContain("strictInventory: false");
+    const carrier = sliceBetween(
+      dbSource(),
+      "export async function updateOrderCarrierData",
+      "export async function getCarrierWilayaRates"
+    );
+    expect(carrier).toContain("strictInventory: false");
+    expect(readFileSync("client/src/pages/Orders.tsx", "utf8")).toContain(
+      "فرق مخزون"
+    );
+  });
+
+  it("releases the phone lock on the same connection in finally", () => {
+    const lock = sliceBetween(
+      dbSource(),
+      "async function withOrderCreationLock",
+      "async function findRecentDuplicateOrder"
+    );
+    const finallyAt = lock.indexOf("} finally {");
+    expect(finallyAt).toBeGreaterThan(-1);
+    expect(lock.indexOf("SELECT RELEASE_LOCK(?)", finallyAt)).toBeGreaterThan(
+      finallyAt
+    );
+    expect(lock.indexOf("connection.release()", finallyAt)).toBeGreaterThan(
+      finallyAt
+    );
   });
 
   it("locks the order row and updates stock + status in one transaction", () => {
