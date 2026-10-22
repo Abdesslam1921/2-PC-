@@ -823,4 +823,44 @@ CREATE TABLE stock_movements (
 - **(و)** `Sitemap:` في `robots.txt` فقط عند متجر **نشط ومحلول**.
 - **بلا migration وبلا `store_seo_settings` وبلا نطاق مخصص وبلا سجل تدقيق** (قرار المستخدم).
 
+---
+
+## سجل التنفيذ — البند 4: SEO (22-10-2026) — الخيار A
+
+### الكوميتات
+- `2273a5f` — تصحيح حالة البند في هذا الملف + توثيق فجوات الجرد.
+- `c4df266` — تصنيف المسارات: `noindex` (ترويسة + ميتا) للخاص/السلة/الدفع/المحرر/المعاينة، و**404 + noindex** للكيانات المفقودة والمضيف غير المحلول.
+- `89dd699` — `isActive` شرط للحل العام للمتجر (لوحة المالك عبر `getActiveStoreForUser` غير متأثرة).
+- `667c215` — أصل موثوق `https://<slug>.<APP_BASE_DOMAIN>` لـcanonical/OG/sitemap/robots + إصلاح روابط بريد التنزيل (تجاهل `baseUrl` من الكليان) وروابط Retarget/WhatsApp.
+- `6b45cf6` — meta/JSON-LD للباقة والفئة من DB معزولة + إضافتهما لـsitemap مع `lastmod`.
+- (هذا الكوميت) — تأكيد `Sitemap:` في `robots.txt` فقط لمتجر نشط محلول + اختبار تكامل + هذا السجل.
+
+### التفاصيل التقنية
+- **حالة المسار على الطلب:** `WeakMap<Request, SeoRouteState>` — القرار يُحسب مرة واحدة في `seoGuard` ويعيد استخدامه محقن HTML (بلا استعلام ثانٍ لنفس المنتج/الباقة).
+- **404 مع جسم SPA:** `lockResponseStatus` يثبّت رمز 404/503 حتى لا يطغى عليه `res.status(200)` في قالب Vite/static.
+- **403/503 عند تعذّر DB:** المضيف غير المحلول → 404، فشل استعلام الحل → **503 + noindex** (قابل لإعادة المحاولة، وليس 404 كاذبًا).
+- **الأصل الموثوق:** `server/publicOrigin.ts` يطبّع `APP_BASE_DOMAIN` (يجرّد scheme/path/نقطة زائدة) ويرفض الـslug غير الصالح؛ لا يقرأ `Host`/`X-Forwarded-Proto` إطلاقًا. `requestOrigin` حُذف.
+- **الباقة:** `Product` + `BreadcrumbList` بسعر محسوب من `pricing.bundlePrice` وعملة أول عنصر وصورة الباقة/أول منتج.
+- **الفئة:** `CollectionPage` + `ItemList` + `BreadcrumbList` مع صورة الفئة/أول منتج؛ استعلام SEO خفيف (`listPublicCategorySeoProducts`) بلا hydration كامل.
+- **sitemap:** الرئيسية + المنتجات + الباقات **المتاحة فقط** (`listPublicOffers` يفلتر التوفّر) + الفئات النشطة، مع `lastmod`.
+- **بلا migration** (استُخدمت أعمدة موجودة؛ `listOfferItems` أضاف `currency` المفروض أصلاً).
+
+### التحقق
+- `pnpm check` → **0 أخطاء**.
+- `pnpm test` → **636 ناجح · 8 فاشل · 3 متخطّى (647)**؛ الثمانية هي **نفس baseline المعروفة** (OAuth/Meta/connecteurs/واجهات UI/SSR) → **صفر انحدار** (زيادة +26 اختبارًا عن 621).
+- اختبارات SEO/العروض/الفئات المستهدفة → **68/68** (SEO 34 · العروض 19 · الفئات 15)، واختبارات الأصل الموثوق **5/5** في تشغيل منفصل.
+- **دليل HTTP محلي فعلي (بلا DB):**
+  - `/store/cart` و`/dashboard` → 200 + `X-Robots-Tag: noindex, nofollow` + `<meta name="robots" content="noindex, nofollow">` وبلا canonical.
+  - `/p/999` على النطاق الرئيسي → **404** + noindex.
+  - مضيف متجر غير محلول (DB معطّلة) → **503** + noindex.
+  - `Host: evil.example.com` + `X-Forwarded-Proto: http` → canonical/og:url = `https://localtest.me/` (من `APP_BASE_DOMAIN`) وليس المضيف المزوّر.
+- **لم يُتحقق حيًا:** قاعدة TiDB رفضت الاتصال من IP الجهاز (`ER_ACCESS_DENIED`) → لم يُشغّل `scripts/seo-check.ts` الحي، ولم تُفحص صفحات متجر حقيقي (منتج/باقة/فئة) ولا `sitemap.xml` على بيانات فعلية ولا `robots.txt` لمتجر نشط. التغطية هنا اختبارات وحدات/تكامل محلية فقط.
+
+### قيود
+- canonical يستعمل `https` دائمًا؛ في التطوير مع `localtest.me` بلا منفذ يشير إلى 443 (سلوك مقصود للإنتاج).
+- لا نطاق مخصص (غير موجود في المخطط) ولا `store_seo_settings` — قرار المستخدم.
+- `robots.txt` لا يمنع مسارات الخاص صراحةً؛ الاعتماد على `noindex` (حتى يراها الزاحف) هو المقصود.
+- صفحات 404 تُخدم بجسم SPA (رمز 404 صحيح) — تطابق سلوك التطبيق الحالي.
+
+
 

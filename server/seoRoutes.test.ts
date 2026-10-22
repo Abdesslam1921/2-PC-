@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import type { AddressInfo } from "node:net";
+import express from "express";
 import type { Request, Response } from "express";
 import type { Store } from "../drizzle/schema";
 import {
@@ -7,6 +9,7 @@ import {
   createSeoGuard,
   isHtmlNavigationPath,
   isPublicSeoPath,
+  registerSeoRoutes,
   requestPath,
   seoStateFor,
 } from "./seoRoutes";
@@ -342,5 +345,40 @@ describe("SEO route guard", () => {
       null
     );
     expect(html).toContain("عبده ستور");
+  });
+});
+
+describe("robots.txt", () => {
+  async function robotsFor(storeValue: Store | null): Promise<string> {
+    const app = express();
+    app.use((_req, res, next) => {
+      res.locals.store = storeValue;
+      next();
+    });
+    registerSeoRoutes(app);
+    const server = app.listen(0, "127.0.0.1");
+    await new Promise<void>(resolve => server.once("listening", () => resolve()));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/robots.txt`);
+      return await response.text();
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  }
+
+  it("advertises the sitemap only for an active resolved store", async () => {
+    vi.stubEnv("APP_BASE_DOMAIN", "abdou-store.com");
+    try {
+      const withStore = await robotsFor(store);
+      expect(withStore).toContain("Sitemap: https://shop.abdou-store.com/sitemap.xml");
+
+      // Inactive/unresolved stores never reach res.locals.store (see
+      // resolveStoreBySlug), so robots must not advertise a sitemap.
+      const withoutStore = await robotsFor(null);
+      expect(withoutStore).not.toContain("Sitemap:");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
