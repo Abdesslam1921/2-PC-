@@ -290,6 +290,22 @@ export function injectSeoHead(html: string, model: SeoModel): string {
   return cleaned.replace(/<\/head>/i, `${renderSeoHead(model)}\n</head>`);
 }
 
+/**
+ * Private/preview/missing pages keep the shell but must never be indexed.
+ * Mirrors the `X-Robots-Tag` header set by the route guard.
+ */
+export function renderRobotsMeta(content: string): string {
+  return `<meta name="robots" content="${escapeHtml(content)}">`;
+}
+
+export function injectRobotsMeta(html: string, content: string): string {
+  if (!/<\/head>/i.test(html)) return html;
+  const cleaned = html
+    .replace(/<!-- seo:start -->[\s\S]*?<!-- seo:end -->/gi, "")
+    .replace(/<meta\s+name=["']robots["'][^>]*>/gi, "");
+  return cleaned.replace(/<\/head>/i, `${renderRobotsMeta(content)}\n</head>`);
+}
+
 export function renderSitemap(input: {
   store: Pick<Store, "name" | "slug">;
   origin: string;
