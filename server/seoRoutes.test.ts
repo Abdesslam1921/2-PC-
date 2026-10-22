@@ -69,10 +69,34 @@ function guardWith(overrides: Record<string, unknown> = {}) {
     resolveStore: vi.fn(async () => store),
     getProduct: vi.fn(async (id: number) => (id === 7 ? product : undefined)),
     getBundle: vi.fn(async (slug: string) =>
-      slug === "winter" ? { id: 1, slug } : undefined
+      slug === "winter"
+        ? {
+            name: "باقة الشتاء",
+            slug,
+            imageUrl: "/winter.jpg",
+            updatedAt: new Date(),
+            pricing: { bundlePrice: 9000, originalTotal: 10000, freeDelivery: true },
+            items: [
+              { title: "حقيبة", quantity: 1, imageUrl: "/bag.jpg", currency: "DZD" },
+              { title: "وشاح", quantity: 2, imageUrl: "/scarf.jpg", currency: "DZD" },
+            ],
+          }
+        : undefined
     ),
     getCategory: vi.fn(async (slug: string) =>
-      slug === "bags" ? { id: 1, slug } : undefined
+      slug === "bags"
+        ? {
+            category: {
+              name: "حقائب",
+              slug,
+              imageUrl: "/category.jpg",
+              updatedAt: new Date(),
+            },
+            products: [
+              { id: 7, title: "حقيبة", price: "4500.00", images: [{ url: "/bag.jpg" }] },
+            ],
+          }
+        : undefined
     ),
     ...overrides,
   } as any);
@@ -273,6 +297,35 @@ describe("SEO route guard", () => {
     expect(html).toContain("حقيبة");
     expect(html).toContain('rel="canonical"');
     expect(html).not.toContain("noindex");
+  });
+
+  it("builds bundle and category metadata from the resolved entities", async () => {
+    const bundleReq = makeReq("/b/winter");
+    const bundleRes = makeRes();
+    await guardWith()(bundleReq, bundleRes.res, vi.fn());
+    expect(seoStateFor(bundleReq)?.index).toBe(true);
+    const bundleHtml = await applySeoToHtml(
+      bundleReq,
+      "<html><head></head><body></body></html>",
+      store
+    );
+    expect(bundleHtml).toContain("باقة الشتاء | متجر الاختبار");
+    expect(bundleHtml).toContain('"price":"9000.00"');
+    expect(bundleHtml).toContain("BreadcrumbList");
+
+    const categoryReq = makeReq("/store/category/bags");
+    const categoryRes = makeRes();
+    await guardWith()(categoryReq, categoryRes.res, vi.fn());
+    expect(seoStateFor(categoryReq)?.index).toBe(true);
+    const categoryHtml = await applySeoToHtml(
+      categoryReq,
+      "<html><head></head><body></body></html>",
+      store
+    );
+    expect(categoryHtml).toContain("حقائب | متجر الاختبار");
+    expect(categoryHtml).toContain("CollectionPage");
+    expect(categoryHtml).toContain("ItemList");
+    expect(categoryHtml).toContain("https://shop.abdou-store.com/p/7");
   });
 
   it("keeps the main domain indexable when no store is involved", async () => {

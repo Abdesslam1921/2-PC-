@@ -553,6 +553,8 @@ export interface OfferItemRow {
   quantity: number;
   title: string;
   price: string | null;
+  /** Product currency (used by SEO/structured data). */
+  currency?: string | null;
   /** First product image (for bundle cards / the bundle purchase page). */
   imageUrl: string | null;
   status: "draft" | "active";
@@ -597,6 +599,7 @@ async function listOfferItems(
       quantity: offerProducts.quantity,
       title: storeProducts.title,
       price: storeProducts.price,
+      currency: storeProducts.currency,
       status: storeProducts.status,
       productKind: storeProducts.productKind,
       inventory: storeProducts.inventory,
@@ -908,6 +911,7 @@ export async function listPublicOffers(storeId?: number | null) {
         name: offer.name,
         slug: offer.slug,
         imageUrl: offer.imageUrl,
+        updatedAt: offer.updatedAt,
         items,
         pricing,
         unavailableReason: offerUnavailableReason(offer, items, pricing),
@@ -1301,6 +1305,71 @@ export async function getPublicCategoryBySlug(
     )
     .limit(1);
   return row;
+}
+
+/** Lightweight sitemap entries for active categories (no product hydration). */
+export async function listPublicCategorySitemapEntries(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      slug: categories.slug,
+      updatedAt: categories.updatedAt,
+    })
+    .from(categories)
+    .where(
+      and(eq(categories.storeId, storeId), eq(categories.isActive, true))
+    )
+    .orderBy(desc(categories.updatedAt));
+}
+
+/** Lightweight category-page entries for SEO (title + first image only). */
+export async function listPublicCategorySeoProducts(
+  categoryId: number,
+  storeId?: number | null
+) {
+  const db = await getDb();
+  if (!db) return [];
+  if (storeId == null) return [];
+  const rows = await db
+    .select({
+      id: storeProducts.id,
+      title: storeProducts.title,
+      price: storeProducts.price,
+    })
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.status, "active"),
+        eq(storeProducts.storeId, storeId),
+        or(
+          eq(storeProducts.categoryId, categoryId),
+          sql`EXISTS (SELECT 1 FROM product_categories pc
+                        WHERE pc.productId = ${storeProducts.id} AND pc.categoryId = ${categoryId})`
+        )
+      )
+    )
+    .orderBy(desc(storeProducts.createdAt));
+  const productIds = rows.map(row => row.id);
+  const firstImage = new Map<number, string>();
+  if (productIds.length) {
+    const images = await db
+      .select({
+        productId: storeProductImages.productId,
+        url: storeProductImages.url,
+      })
+      .from(storeProductImages)
+      .where(inArray(storeProductImages.productId, productIds))
+      .orderBy(storeProductImages.position);
+    for (const image of images) {
+      if (!firstImage.has(image.productId))
+        firstImage.set(image.productId, image.url);
+    }
+  }
+  return rows.map(row => ({
+    ...row,
+    images: firstImage.has(row.id) ? [{ url: firstImage.get(row.id)! }] : [],
+  }));
 }
 
 /** Active products of one category, same hydration as every public list. */

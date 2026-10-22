@@ -4,11 +4,16 @@ import {
   getPublicCategoryBySlug,
   getPublicOfferBySlug,
   getPublicStoreProduct,
+  listPublicCategorySeoProducts,
+  listPublicCategorySitemapEntries,
+  listPublicOffers,
   listPublicStoreProductSitemapEntries,
 } from "./db";
 import { getSlugFromHostname, resolveStoreBySlug } from "./_core/stores";
 import { mainSiteOrigin, publicOriginForStore } from "./publicOrigin";
 import {
+  buildBundleSeo,
+  buildCategorySeo,
   buildGenericSeo,
   buildProductSeo,
   buildStoreSeo,
@@ -16,6 +21,8 @@ import {
   injectSeoHead,
   renderRobots,
   renderSitemap,
+  type SeoBundle,
+  type SeoCategoryPage,
   type SeoProduct,
 } from "./seo";
 
@@ -46,8 +53,8 @@ export type SeoRouteState = {
   reason?: string;
   store: Store | null;
   product?: SeoProduct | null;
-  bundle?: unknown;
-  category?: unknown;
+  bundle?: SeoBundle | null;
+  category?: SeoCategoryPage | null;
 };
 
 const routeStates = new WeakMap<Request, SeoRouteState>();
@@ -163,25 +170,24 @@ function decide(
 
 export type SeoGuardDeps = {
   resolveStore: (slug: string) => Promise<Store | null>;
-  getProduct: (
-    id: number,
-    storeId: number
-  ) => Promise<unknown | undefined>;
-  getBundle: (
-    slug: string,
-    storeId: number
-  ) => Promise<unknown | undefined>;
+  getProduct: (id: number, storeId: number) => Promise<SeoProduct | undefined>;
+  getBundle: (slug: string, storeId: number) => Promise<SeoBundle | undefined>;
   getCategory: (
     slug: string,
     storeId: number
-  ) => Promise<unknown | undefined>;
+  ) => Promise<SeoCategoryPage | undefined>;
 };
 
 const defaultDeps: SeoGuardDeps = {
   resolveStore: resolveStoreBySlug,
-  getProduct: getPublicStoreProduct,
-  getBundle: getPublicOfferBySlug,
-  getCategory: getPublicCategoryBySlug,
+  getProduct: getPublicStoreProduct as SeoGuardDeps["getProduct"],
+  getBundle: getPublicOfferBySlug as SeoGuardDeps["getBundle"],
+  getCategory: async (slug, storeId) => {
+    const category = await getPublicCategoryBySlug(slug, storeId);
+    if (!category) return undefined;
+    const products = await listPublicCategorySeoProducts(category.id, storeId);
+    return { category, products };
+  },
 };
 
 function safeDecode(value: string): string | null {
@@ -346,28 +352,49 @@ export async function applySeoToHtml(
 
   if (state?.index) {
     const resolvedStore = state.store ?? store ?? null;
+    const origin = resolvedStore
+      ? publicOriginForStore(resolvedStore)
+      : mainSiteOrigin();
     if (state.kind === "public-product" && state.product && resolvedStore) {
       return injectSeoHead(
         html,
         buildProductSeo({
           store: resolvedStore,
-          origin: publicOriginForStore(resolvedStore),
+          origin,
           path,
           product: state.product,
+        })
+      );
+    }
+    if (state.kind === "public-bundle" && state.bundle && resolvedStore) {
+      return injectSeoHead(
+        html,
+        buildBundleSeo({
+          store: resolvedStore,
+          origin,
+          path,
+          bundle: state.bundle,
+        })
+      );
+    }
+    if (state.kind === "public-category" && state.category && resolvedStore) {
+      return injectSeoHead(
+        html,
+        buildCategorySeo({
+          store: resolvedStore,
+          origin,
+          path,
+          categoryPage: state.category,
         })
       );
     }
     if (resolvedStore) {
       return injectSeoHead(
         html,
-        buildStoreSeo({
-          store: resolvedStore,
-          origin: publicOriginForStore(resolvedStore),
-          path,
-        })
+        buildStoreSeo({ store: resolvedStore, origin, path })
       );
     }
-    return injectSeoHead(html, buildGenericSeo({ origin: mainSiteOrigin(), path }));
+    return injectSeoHead(html, buildGenericSeo({ origin, path }));
   }
 
   if (!isPublicSeoPath(path)) return html;
@@ -426,7 +453,11 @@ export function registerSeoRoutes(app: Express) {
         res.status(404).type("text/plain").send("Not found");
         return;
       }
-      const products = await listPublicStoreProductSitemapEntries(store.id);
+      const [products, bundles, categories] = await Promise.all([
+        listPublicStoreProductSitemapEntries(store.id),
+        listPublicOffers(store.id),
+        listPublicCategorySitemapEntries(store.id),
+      ]);
       res
         .type("application/xml")
         .set("Cache-Control", "public, max-age=300, s-maxage=3600")
@@ -435,6 +466,11 @@ export function registerSeoRoutes(app: Express) {
             store,
             origin: publicOriginForStore(store),
             products,
+            bundles: bundles.map(bundle => ({
+              slug: bundle.slug,
+              updatedAt: bundle.updatedAt,
+            })),
+            categories,
           })
         );
     } catch (error) {

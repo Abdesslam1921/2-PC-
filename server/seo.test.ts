@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   absoluteUrl,
+  buildBundleSeo,
+  buildCategorySeo,
   buildGenericSeo,
   buildProductSeo,
   buildStoreSeo,
@@ -179,6 +181,120 @@ describe("store/generic SEO + injection", () => {
   });
 });
 
+describe("bundle SEO model", () => {
+  const bundle = {
+    name: "باقة الشتاء",
+    slug: "winter",
+    imageUrl: null,
+    pricing: { bundlePrice: 9000, originalTotal: 10000, freeDelivery: true },
+    items: [
+      { title: "حقيبة", quantity: 1, imageUrl: "/bag.jpg", currency: "dzd" },
+      { title: "وشاح", quantity: 2, imageUrl: "/scarf.jpg", currency: "dzd" },
+    ],
+  };
+
+  it("builds a Product + Breadcrumb from the computed bundle price", () => {
+    const model = buildBundleSeo({
+      store,
+      origin,
+      path: "/b/winter?utm=fb",
+      bundle,
+    });
+    expect(model.title).toBe("باقة الشتاء | متجر النور");
+    expect(model.canonical).toBe(`${origin}/b/winter`);
+    expect(model.image).toBe(`${origin}/bag.jpg`);
+    expect(model.description).toContain("9000.00 DZD");
+    expect(model.description).toContain("توصيل مجاني");
+
+    const [productLd, breadcrumbLd] = model.jsonLd as Record<string, any>[];
+    expect(productLd["@type"]).toBe("Product");
+    expect(productLd.offers.price).toBe("9000.00");
+    expect(productLd.offers.priceCurrency).toBe("DZD");
+    expect(productLd.offers.availability).toBe("https://schema.org/InStock");
+    expect(productLd.url).toBe(`${origin}/b/winter`);
+    expect(breadcrumbLd["@type"]).toBe("BreadcrumbList");
+  });
+
+  it("prefers the bundle image and omits the offer when no price exists", () => {
+    const model = buildBundleSeo({
+      store,
+      origin,
+      path: "/b/winter",
+      bundle: {
+        ...bundle,
+        imageUrl: "/bundle.jpg",
+        pricing: { bundlePrice: 0, originalTotal: 0, freeDelivery: false },
+      },
+    });
+    expect(model.image).toBe(`${origin}/bundle.jpg`);
+    expect((model.jsonLd[0] as Record<string, any>).offers).toBeUndefined();
+  });
+
+  it("escapes merchant text inside the head and JSON-LD", () => {
+    const model = buildBundleSeo({
+      store,
+      origin,
+      path: "/b/winter",
+      bundle: {
+        ...bundle,
+        name: `باقة </script><script>alert(1)</script>`,
+      },
+    });
+    const head = renderSeoHead(model);
+    expect(head).not.toContain("</script><script>");
+    expect(head.match(/<\/script>/g)).toHaveLength(2);
+  });
+});
+
+describe("category SEO model", () => {
+  const categoryPage = {
+    category: { name: "حقائب", slug: "bags", imageUrl: "/category.jpg" },
+    products: [
+      {
+        id: 7,
+        title: "حقيبة جلدية",
+        price: "4500.00",
+        images: [{ url: "/bag.jpg" }],
+      },
+      { id: 8, title: "حقيبة قماش", price: "2500.00", images: [] },
+    ],
+  };
+
+  it("builds CollectionPage + ItemList + Breadcrumb", () => {
+    const model = buildCategorySeo({
+      store,
+      origin,
+      path: "/store/category/bags",
+      categoryPage,
+    });
+    expect(model.title).toBe("حقائب | متجر النور");
+    expect(model.canonical).toBe(`${origin}/store/category/bags`);
+    expect(model.image).toBe(`${origin}/category.jpg`);
+    expect(model.jsonLd.map(entry => (entry as any)["@type"])).toEqual([
+      "CollectionPage",
+      "ItemList",
+      "BreadcrumbList",
+    ]);
+    const list = model.jsonLd[1] as Record<string, any>;
+    expect(list.numberOfItems).toBe(2);
+    expect(list.itemListElement[0].url).toBe(`${origin}/p/7`);
+    expect(list.itemListElement[1].name).toBe("حقيبة قماش");
+  });
+
+  it("falls back to the first product image", () => {
+    const model = buildCategorySeo({
+      store,
+      origin,
+      path: "/store/category/bags",
+      categoryPage: {
+        ...categoryPage,
+        category: { ...categoryPage.category, imageUrl: null },
+      },
+    });
+    expect(model.image).toBe(`${origin}/bag.jpg`);
+  });
+});
+
 describe("robots/sitemap", () => {
   it("emits a sitemap with home + products and escaped URLs", () => {
     const xml = renderSitemap({
@@ -194,6 +310,21 @@ describe("robots/sitemap", () => {
     expect(xml).toContain(`${origin}/p/42</loc>`);
     expect(xml).toContain(`<lastmod>2026-10-18T10:00:00.000Z</lastmod>`);
     expect(xml.match(/<url>/g)).toHaveLength(3);
+  });
+
+  it("includes bundles and categories with lastmod", () => {
+    const xml = renderSitemap({
+      store,
+      origin,
+      products: [{ id: 42, updatedAt: "2026-10-18T10:00:00.000Z" }],
+      bundles: [{ slug: "winter", updatedAt: "2026-10-19T10:00:00.000Z" }],
+      categories: [{ slug: "bags", updatedAt: "2026-10-20T10:00:00.000Z" }],
+    });
+    expect(xml).toContain(`${origin}/b/winter</loc>`);
+    expect(xml).toContain(`${origin}/store/category/bags</loc>`);
+    expect(xml).toContain(`<lastmod>2026-10-19T10:00:00.000Z</lastmod>`);
+    expect(xml).toContain(`<lastmod>2026-10-20T10:00:00.000Z</lastmod>`);
+    expect(xml.match(/<url>/g)).toHaveLength(4);
   });
 
   it("adds the sitemap to robots only when a store is resolved", () => {
