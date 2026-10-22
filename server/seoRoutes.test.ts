@@ -7,7 +7,6 @@ import {
   createSeoGuard,
   isHtmlNavigationPath,
   isPublicSeoPath,
-  requestOrigin,
   requestPath,
   seoStateFor,
 } from "./seoRoutes";
@@ -119,19 +118,50 @@ describe("SEO route scope", () => {
     expect(isHtmlNavigationPath("/p/7")).toBe(true);
   });
 
-  it("builds a safe origin from forwarded headers", () => {
-    const req = makeReq("/");
-    expect(requestOrigin(req)).toBe("https://shop.abdou-store.com");
+  it("builds canonical from configured origin, never from Host/X-Forwarded-Proto", async () => {
+    vi.stubEnv("APP_BASE_DOMAIN", "abdou-store.com");
+    try {
+      const req = {
+        method: "GET",
+        headers: {
+          host: "evil.example.com",
+          "x-forwarded-proto": "http",
+        },
+        originalUrl: "/",
+        url: "/",
+        protocol: "http",
+      } as unknown as Request;
+      const { res } = makeRes(store);
+      await guardWith()(req, res, vi.fn());
+
+      const html = await applySeoToHtml(
+        req,
+        "<html><head></head><body></body></html>",
+        store
+      );
+      expect(html).toContain('rel="canonical" href="https://shop.abdou-store.com/"');
+      expect(html).toContain('property="og:url" content="https://shop.abdou-store.com/"');
+      expect(html).not.toContain("evil.example.com");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
-  it("ignores an invalid Host header", () => {
-    const req = {
-      headers: { host: "evil.example.com/<script>" },
-      protocol: "https",
-    } as unknown as Request;
-    const origin = requestOrigin(req);
-    expect(origin).toMatch(/^https:\/\/[a-z0-9.-]+$/i);
-    expect(origin).not.toContain("<script>");
+  it("uses the configured marketing origin when no store is resolved", async () => {
+    vi.stubEnv("APP_BASE_DOMAIN", "abdou-store.com");
+    try {
+      const req = makeReq("/", "abdou-store.com");
+      const { res } = makeRes(null);
+      await guardWith()(req, res, vi.fn());
+      const html = await applySeoToHtml(
+        req,
+        "<html><head></head><body></body></html>",
+        null
+      );
+      expect(html).toContain('rel="canonical" href="https://abdou-store.com/"');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("strips query/hash from the request path", () => {

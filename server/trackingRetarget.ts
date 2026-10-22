@@ -2,6 +2,7 @@ import type { TrackingRetargetSettings, stores } from "../drizzle/schema";
 import { storeProducts } from "../drizzle/schema";
 import { and, eq } from "drizzle-orm";
 import { getDb } from "./db";
+import { mainSiteOrigin, storeOrigin } from "./publicOrigin";
 import {
   DELIVERED_RAW_STATUSES,
   ensureOrderTrackingState,
@@ -147,11 +148,7 @@ export function publicStoreOrigin(
 ): string {
   const override = process.env.RETARGET_PUBLIC_BASE_URL;
   if (override) return override.replace(/\/+$/, "");
-  const baseDomain = (
-    process.env.APP_BASE_DOMAIN || "abdou-store.com"
-  ).toLowerCase();
-  if (store?.slug) return `https://${store.slug}.${baseDomain}`;
-  return "http://localhost:3000";
+  return storeOrigin(store) ?? mainSiteOrigin();
 }
 
 export function buildRetargetProductUrl(

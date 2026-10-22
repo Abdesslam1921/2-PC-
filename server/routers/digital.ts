@@ -11,6 +11,7 @@ import {
 import { sendGmailMessage } from "../callCenterNotifications";
 import { storageGetSignedUrl } from "../storage";
 import { withoutDigitalFileRefs } from "../productPayload";
+import { publicOriginForStore } from "../publicOrigin";
 import {
   protectedProcedure,
   publicProcedure,
@@ -33,8 +34,7 @@ async function emailDigitalLinks(
   ownerId: number,
   result: DownloadResult,
   baseUrl?: string
-) {
-  if (!result.customerEmail || !result.links.length) return "skipped" as const;
+) {  if (!result.customerEmail || !result.links.length) return "skipped" as const;
   const connection = await getGoogleOAuthConnection(ownerId);
   if (!connection?.refreshToken || !connection.email) return "skipped" as const;
   const links = result.links
@@ -76,7 +76,7 @@ async function emailDigitalLinks(
 async function confirmAndEmail(
   ownerId: number,
   orderId: number,
-  baseUrl?: string,
+  trustedOrigin: string,
   forceNewLink = false
 ) {
   const result = await confirmDigitalOrderPayment(
@@ -84,7 +84,7 @@ async function confirmAndEmail(
     orderId,
     forceNewLink
   );
-  const emailStatus = await emailDigitalLinks(ownerId, result, baseUrl);
+  const emailStatus = await emailDigitalLinks(ownerId, result, trustedOrigin);
   return { ...result, emailStatus };
 }
 
@@ -135,21 +135,32 @@ export const digitalRouter = router({
     .input(
       z.object({
         orderId: z.number().int().positive(),
+        /** Accepted for backward compatibility; links never use client input. */
         baseUrl: z.string().url().optional(),
       })
     )
     .mutation(async ({ ctx, input }) =>
-      confirmAndEmail(getStoreId(ctx), input.orderId, input.baseUrl)
+      confirmAndEmail(
+        getStoreId(ctx),
+        input.orderId,
+        publicOriginForStore(ctx.store)
+      )
     ),
   regenerateLinks: protectedProcedure
     .input(
       z.object({
         orderId: z.number().int().positive(),
+        /** Accepted for backward compatibility; links never use client input. */
         baseUrl: z.string().url().optional(),
       })
     )
     .mutation(async ({ ctx, input }) =>
-      confirmAndEmail(getStoreId(ctx), input.orderId, input.baseUrl, true)
+      confirmAndEmail(
+        getStoreId(ctx),
+        input.orderId,
+        publicOriginForStore(ctx.store),
+        true
+      )
     ),
   resolveDownload: publicProcedure
     .input(z.object({ token: z.string().regex(/^[a-f0-9]{64}$/) }))

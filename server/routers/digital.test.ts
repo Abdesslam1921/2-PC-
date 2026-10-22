@@ -187,8 +187,14 @@ describe("digital products and offers", () => {
       customerEmail: "buyer@example.com",
       lines: [{ productId: 9, quantity: 1 }],
     });
-    const confirmed = await caller.digital.confirmPayment({ orderId: 101 });
-    const regenerated = await caller.digital.regenerateLinks({ orderId: 101 });
+    const confirmed = await caller.digital.confirmPayment({
+      orderId: 101,
+      baseUrl: "https://evil.example",
+    });
+    const regenerated = await caller.digital.regenerateLinks({
+      orderId: 101,
+      baseUrl: "https://evil.example",
+    });
     const download = await caller.digital.resolveDownload({
       token: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
     });
@@ -229,6 +235,9 @@ describe("digital products and offers", () => {
       expect.stringContaining("ABD-000101"),
       expect.stringContaining("/api/downloads/")
     );
+    const emailBody = mocks.sendGmailMessage.mock.calls[0][4] as string;
+    expect(emailBody).toContain("https://store.abdou-store.com/api/downloads/");
+    expect(emailBody).not.toContain("evil.example");
     expect(download.signedUrl).toBe("https://signed.example/download");
     // The raw storage key must never reach the client.
     expect(download).not.toHaveProperty("storageKey");

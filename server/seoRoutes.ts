@@ -7,6 +7,7 @@ import {
   listPublicStoreProductSitemapEntries,
 } from "./db";
 import { getSlugFromHostname, resolveStoreBySlug } from "./_core/stores";
+import { mainSiteOrigin, publicOriginForStore } from "./publicOrigin";
 import {
   buildGenericSeo,
   buildProductSeo,
@@ -129,21 +130,6 @@ export function isHtmlNavigationPath(path: string): boolean {
 
 export function requestPath(req: Request): string {
   return (req.originalUrl || req.url || "/").split("?")[0].split("#")[0];
-}
-
-export function requestOrigin(req: Request): string {
-  const forwarded = req.headers["x-forwarded-proto"];
-  const proto =
-    (Array.isArray(forwarded) ? forwarded[0] : forwarded)
-      ?.split(",")[0]
-      ?.trim() ||
-    req.protocol ||
-    "https";
-  const hostHeader = (req.headers.host ?? "").toLowerCase();
-  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(hostHeader)
-    ? hostHeader
-    : process.env.APP_BASE_DOMAIN || "localhost";
-  return `${proto}://${host}`;
 }
 
 /** Keep the explicit 404/503 while the SPA shell still answers 200. */
@@ -365,7 +351,7 @@ export async function applySeoToHtml(
         html,
         buildProductSeo({
           store: resolvedStore,
-          origin: requestOrigin(req),
+          origin: publicOriginForStore(resolvedStore),
           path,
           product: state.product,
         })
@@ -374,14 +360,18 @@ export async function applySeoToHtml(
     if (resolvedStore) {
       return injectSeoHead(
         html,
-        buildStoreSeo({ store: resolvedStore, origin: requestOrigin(req), path })
+        buildStoreSeo({
+          store: resolvedStore,
+          origin: publicOriginForStore(resolvedStore),
+          path,
+        })
       );
     }
-    return injectSeoHead(html, buildGenericSeo({ origin: requestOrigin(req), path }));
+    return injectSeoHead(html, buildGenericSeo({ origin: mainSiteOrigin(), path }));
   }
 
   if (!isPublicSeoPath(path)) return html;
-  const origin = requestOrigin(req);
+  const origin = store ? publicOriginForStore(store) : mainSiteOrigin();
 
   try {
     if (store) {
@@ -421,7 +411,12 @@ export function registerSeoRoutes(app: Express) {
     res
       .type("text/plain")
       .set("Cache-Control", "public, max-age=300")
-      .send(renderRobots({ store, origin: requestOrigin(req) }));
+      .send(
+        renderRobots({
+          store,
+          origin: store ? publicOriginForStore(store) : mainSiteOrigin(),
+        })
+      );
   });
 
   app.get("/sitemap.xml", async (req, res, next) => {
@@ -438,7 +433,7 @@ export function registerSeoRoutes(app: Express) {
         .send(
           renderSitemap({
             store,
-            origin: requestOrigin(req),
+            origin: publicOriginForStore(store),
             products,
           })
         );
