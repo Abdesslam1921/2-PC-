@@ -1,6 +1,6 @@
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { stores, type Store } from "../../drizzle/schema";
 import { getDb } from "../db";
 
@@ -28,13 +28,19 @@ export function getSlugFromHostname(hostname: string): string | null {
   return null;
 }
 
+/**
+ * Public storefront resolution: only ACTIVE stores are reachable by hostname.
+ * An inactive store must not be served, indexed or listed in a sitemap. The
+ * owner dashboard is unaffected because it resolves through
+ * `getActiveStoreForUser` (owner-scoped), not through the request host.
+ */
 export async function resolveStoreBySlug(slug: string): Promise<Store | null> {
   const db = await getDb();
   if (!db) return null;
   const [store] = await db
     .select()
     .from(stores)
-    .where(eq(stores.slug, slug))
+    .where(and(eq(stores.slug, slug), eq(stores.isActive, true)))
     .limit(1);
   return store ?? null;
 }
