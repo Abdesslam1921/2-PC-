@@ -1,4 +1,4 @@
-# Phase 6 — ضمان الجودة النهائي (خطة + تقدّم)
+﻿# Phase 6 — ضمان الجودة النهائي (خطة + تقدّم)
 
 > هذا الملف يُحدَّث ويُcommit بعد كل بند. لا كود/تعديل قبل موافقة المستخدم على الخطة.
 
@@ -63,7 +63,7 @@
    - **خصم المخزون ذريًا** عند إنشاء الطلب لتفادي البيع الزائد (شرط `WHERE stock >= qty` داخل معاملة + التحقق من `affectedRows`).
    - **توليد رقم الطلب تحت الضغط** بلا تصادم (بلا «اقرأ آخر رقم ثم +1»).
    - **التعيين بالتناوب لموظفي Call Center** عند وصول طلبين في نفس اللحظة (عدم إسناد نفس الموظف مرتين بفعل سباق).
-4. SEO
+4. SEO — ✅ منجز (تفاصيل في السجل أسفل)
 5. الأداء الفعلي
 6. RTL / Responsive الشامل
 7. تقرير عربي نهائي
@@ -764,4 +764,42 @@ CREATE TABLE stock_movements (
 - الاختبارات المستهدفة (5 ملفات) → **66/66**.
 - `pnpm test` الكامل → **593 ناجح · 8 فاشل · 3 متخطّى (604)**؛ الثمانية هي **نفس baseline المعروفة** → **صفر انحدار**.
 - **لا migration مولّد/مطبّق.**
+
+---
+
+## 4) SEO — منجز (18-10-2026)
+
+### ما نُفِّذ
+- **حقن SEO في أول استجابة HTML** للواجهة العامة، في وضعي التطوير (Vite shell) والإنتاج (`serveStatic`)، دون المساس بلوحة التحكم:
+  - `<title>` + `meta description` + `link canonical`.
+  - Open Graph (`og:type/title/description/url/image/site_name/locale`) + Twitter Card.
+  - JSON-LD: `WebSite` للصفحة الرئيسية، و`Product` + `BreadcrumbList` لصفحة المنتج.
+  - `robots: index,follow` فقط لصفحات المتجر العامة.
+- **`/robots.txt`** لكل مضيف: `Allow: /` + `Disallow: /api/` + `Disallow: /dashboard`، و`Sitemap` عند وجود متجر.
+- **`/sitemap.xml`** لكل متجر: الصفحة الرئيسية + كل المنتجات النشطة (`/p/:id`) مع `lastmod`، وبترتيب `updatedAt`. بدون متجر → **404** (لا تسريب عبر النطاق الرئيسي).
+- **مصادر البيانات الحقيقية:** `res.locals.store` (المضيف الفرعي) + `getPublicStoreProduct` (معزول بالمتجر) + `listPublicStoreProductSitemapEntries` (استعلام خفيف). قوالب/ثيمات المتجر لا تكتب SEO ولا تستبدله؛ يُبنى وقت الطلب.
+- **حدود الأمان:** تحقق من `Host` قبل بناء canonical/OG، و`escapeHtml` لكل القيم، وJSON-LD يهرّب `<`/`>`/`&` لمنع كسر `<script>`. أي فشل في SEO → إرجاع HTML الأصلي (لا يُسقط المتجر).
+- **الأداء:** قالب `index.html` يُقرأ مرة في الإنتاج ويُخزَّن في الذاكرة؛ `robots`/`sitemap` بترويسات كاش (`max-age=300`, `s-maxage=3600`).
+- **لا migration** (لا تغيير مخطط).
+
+### الملفات
+- **جديد:** `server/seo.ts` (helpers نقية: build/inject/robots/sitemap).
+- **جديد:** `server/seoRoutes.ts` (تحديد المسارات العامة + `robots`/`sitemap` + `applySeoToHtml`).
+- **معدّل:** `server/_core/vite.ts` (حقن SEO في dev/prod).
+- **معدّل:** `server/_core/index.ts` (تسجيل المسارات).
+- **معدّل:** `server/db.ts` (`listPublicStoreProductSitemapEntries` خفيفة).
+- **جديد:** `server/seo.test.ts` (13) + `server/seoRoutes.test.ts` (4) + `scripts/seo-check.ts` (تحقق حي).
+
+### التحقق
+- `pnpm check` → **0 أخطاء**.
+- اختبارات SEO المستهدفة → **17/17**.
+- السكربت الحي `scripts/seo-check.ts` → **9/9 PASS** على قاعدة TiDB الحقيقية بمعرّفات تجريبية مخصصة (`probesfseo-`)، وتنظيف مؤكد: `products=0 images=0 stores=0 users=0`.
+  - تحقق: عنوان/كانونيكال/OG للرئيسية، Product JSON-LD + BreadcrumbList + السعر + التوفر + صورة مطلقة، sitemap، robots، **عدم حقن لوحة التحكم**، وfallback عند منتج غير موجود.
+- `pnpm test` الكامل → **610 ناجح · 8 فاشل · 3 متخطّى (621)**؛ الثمانية هي **نفس baseline المعروفة** → **صفر انحدار**.
+
+### قيود معروفة
+- **الجسم ما زال CSR:** الحقن يغطي `head` (crawlers/social)، لكن محتوى الصفحة يُرسم بعد JS. تحسين LCP/SSR الكامل يبقى في بند الأداء (5).
+- صفحات `/b/:slug` و`/store/category/:slug` تحصل على meta المتجر العامة، وليس schema خاصًا بالباقة/الفئة بعد.
+- لا `hreflang` (متجر عربي واحد) ولا image sitemap منفصل (الصور داخل Product JSON-LD).
+- SEO لا يضيف `noindex` للمسارات الخاصة؛ يتركها دون حقن بدل تغيير سلوكها.
 

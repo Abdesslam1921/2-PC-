@@ -24,6 +24,7 @@ import { sdk } from "./sdk";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./cookies";
 import { resolveStoreByRequest, getActiveStoreForUser } from "./stores";
+import { registerSeoRoutes } from "../seoRoutes";
 import { parseFormData, uploadFileToStorage } from "../fileUpload";
 import { resolveCallCenterOrderForMedia } from "../callCenterDb";
 
@@ -73,6 +74,9 @@ async function startServer() {
         next();
       });
   });
+
+  // Public SEO endpoints (per-store robots + sitemap).
+  registerSeoRoutes(app);
 
   // DEV LOGIN - دخول مطور بلا Google
   app.get("/api/auth/dev-login", async (req, res) => {

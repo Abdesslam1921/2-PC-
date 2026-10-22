@@ -964,6 +964,25 @@ export async function listPublicStoreProducts(storeId?: number | null) {
   return hydratePublicProducts(products, storeId);
 }
 
+/** Lightweight sitemap entries (no per-product hydration). */
+export async function listPublicStoreProductSitemapEntries(storeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: storeProducts.id,
+      updatedAt: storeProducts.updatedAt,
+    })
+    .from(storeProducts)
+    .where(
+      and(
+        eq(storeProducts.status, "active"),
+        eq(storeProducts.storeId, storeId)
+      )
+    )
+    .orderBy(desc(storeProducts.updatedAt));
+}
+
 /** Shared hydration so every public listing behaves identically. */
 async function hydratePublicProducts(
   products: Array<typeof storeProducts.$inferSelect>,

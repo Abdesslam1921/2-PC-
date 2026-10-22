@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import viteConfig from "../../vite.config";
+import { applySeoToHtml } from "../seoRoutes";
 
 export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
@@ -34,6 +35,7 @@ export async function setupVite(app: Express, server: Server) {
 
       // always reload the index.html file from disk incase it changes
       let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = await applySeoToHtml(req, template, res.locals.store ?? null);
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
@@ -60,8 +62,19 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  // Fall through to index.html, injecting per-store SEO tags into the first
+  // HTML response (the SPA body itself stays client-rendered).
+  let cachedHtml: string | null = null;
+  app.use("*", async (req, res, next) => {
+    try {
+      cachedHtml ??= await fs.promises.readFile(
+        path.resolve(distPath, "index.html"),
+        "utf-8"
+      );
+      const page = await applySeoToHtml(req, cachedHtml, res.locals.store ?? null);
+      res.status(200).type("html").send(page);
+    } catch (error) {
+      next(error);
+    }
   });
 }
