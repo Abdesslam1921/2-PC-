@@ -1,11 +1,7 @@
-import Storefront from "@/pages/Storefront";
-import { ModernStorefront } from "@/storefront/ModernStorefront";
-import { MinimalStorefront } from "@/storefront/MinimalStorefront";
-import { BoldStorefront } from "@/storefront/BoldStorefront";
-import { BoutiqueStorefront } from "@/storefront/BoutiqueStorefront";
 import { trpc } from "@/lib/trpc";
 import { buildStorefrontTokenOverrides } from "@shared/storefront/themeRuntime";
 import { templateDefaultTokens } from "@/storefront/themeDefaults";
+import { lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import type { CSSProperties } from "react";
 
@@ -14,21 +10,46 @@ import type { CSSProperties } from "react";
  *
  * Legacy coexistence: stores that never opted into the new template system
  * keep rendering the existing storefront. Only a store with a valid PUBLISHED
- * Modern config renders the Modern template.
+ * config renders a template. Each template is lazy-loaded so a visit ships
+ * only the active template's chunk, never all four.
  */
+const Storefront = lazy(() => import("@/pages/Storefront"));
+const ModernStorefront = lazy(() =>
+  import("@/storefront/ModernStorefront").then(module => ({
+    default: module.ModernStorefront,
+  }))
+);
+const MinimalStorefront = lazy(() =>
+  import("@/storefront/MinimalStorefront").then(module => ({
+    default: module.MinimalStorefront,
+  }))
+);
+const BoldStorefront = lazy(() =>
+  import("@/storefront/BoldStorefront").then(module => ({
+    default: module.BoldStorefront,
+  }))
+);
+const BoutiqueStorefront = lazy(() =>
+  import("@/storefront/BoutiqueStorefront").then(module => ({
+    default: module.BoutiqueStorefront,
+  }))
+);
+
+function StorefrontFallback() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#FFFCF6]">
+      <Loader2 className="size-8 animate-spin text-[#0F766E]" />
+    </div>
+  );
+}
+
 export default function StorePublic() {
   const query = trpc.storefront.publicConfig.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
   });
 
-  if (query.isLoading) {
-    return (
-      <div className="grid min-h-screen place-items-center bg-[#FFFCF6]">
-        <Loader2 className="size-8 animate-spin text-[#0F766E]" />
-      </div>
-    );
-  }
+  if (query.isLoading) return <StorefrontFallback />;
 
   if (query.data) {
     const name = query.data.storeName || "المتجر";
@@ -53,12 +74,18 @@ export default function StorePublic() {
 
     if (template) {
       return (
-        <div data-sf-root style={themeStyle}>
-          {template}
-        </div>
+        <Suspense fallback={<StorefrontFallback />}>
+          <div data-sf-root style={themeStyle}>
+            {template}
+          </div>
+        </Suspense>
       );
     }
   }
 
-  return <Storefront />;
+  return (
+    <Suspense fallback={<StorefrontFallback />}>
+      <Storefront />
+    </Suspense>
+  );
 }

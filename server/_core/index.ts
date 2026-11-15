@@ -1,4 +1,5 @@
 import "dotenv/config";
+import compression from "compression";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -59,6 +60,7 @@ async function startServer() {
   );
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  app.use(compression());
 
   // Resolve the store from the subdomain (storename.abdou-store.com) for
   // visitors, and stash it on res.locals so the tRPC context can scope

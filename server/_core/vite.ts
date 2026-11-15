@@ -60,7 +60,23 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      index: false,
+      setHeaders(res, filePath) {
+        if (
+          /\.(?:js|css|woff2?|ttf|otf|png|jpe?g|webp|avif|svg|ico)$/i.test(
+            filePath
+          )
+        ) {
+          res.setHeader(
+            "Cache-Control",
+            "public, max-age=31536000, immutable"
+          );
+        }
+      },
+    })
+  );
 
   // Fall through to index.html, injecting per-store SEO tags into the first
   // HTML response (the SPA body itself stays client-rendered).
@@ -72,7 +88,11 @@ export function serveStatic(app: Express) {
         "utf-8"
       );
       const page = await applySeoToHtml(req, cachedHtml, res.locals.store ?? null);
-      res.status(200).type("html").send(page);
+      res
+        .status(200)
+        .type("html")
+        .set("Cache-Control", "no-cache")
+        .send(page);
     } catch (error) {
       next(error);
     }
