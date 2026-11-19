@@ -25,6 +25,7 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./cookies";
 import { resolveStoreByRequest, getActiveStoreForUser } from "./stores";
 import { registerSeoRoutes } from "../seoRoutes";
+import { registerDevLoginRoute } from "./devLogin";
 import { parseFormData, uploadFileToStorage } from "../fileUpload";
 import { resolveCallCenterOrderForMedia } from "../callCenterDb";
 
@@ -78,31 +79,8 @@ async function startServer() {
   // Public SEO endpoints (per-store robots + sitemap).
   registerSeoRoutes(app);
 
-  // DEV LOGIN - دخول مطور بلا Google
-  app.get("/api/auth/dev-login", async (req, res) => {
-    try {
-      const openId = ENV.ownerOpenId || "dev_owner_001";
-      await db.upsertUser({
-        openId,
-        name: "Dev Owner",
-        email: "dev@localhost",
-        loginMethod: "dev",
-        lastSignedIn: new Date(),
-      });
-      const token = await sdk.createSessionToken(openId, {
-        name: "Dev Owner",
-        expiresInMs: ONE_YEAR_MS,
-      });
-      res.cookie(COOKIE_NAME, token, {
-        ...getSessionCookieOptions(req),
-        maxAge: ONE_YEAR_MS,
-      });
-      res.redirect("/");
-    } catch (e) {
-      console.error("DEV LOGIN ERROR", e);
-      res.status(500).json({ error: String(e) });
-    }
-  });
+  // DEV LOGIN - local development only (fail-closed outside development).
+  registerDevLoginRoute(app);
 
   // File upload endpoint for WhatsApp media
   app.post("/api/upload-whatsapp-media", async (req, res) => {
