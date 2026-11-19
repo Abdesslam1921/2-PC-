@@ -349,7 +349,9 @@ describe("SEO route guard", () => {
 });
 
 describe("robots.txt", () => {
-  async function robotsFor(storeValue: Store | null): Promise<string> {
+  async function robotsFor(
+    storeValue: Store | null
+  ): Promise<{ body: string; headers: Headers }> {
     const app = express();
     app.use((_req, res, next) => {
       res.locals.store = storeValue;
@@ -361,7 +363,7 @@ describe("robots.txt", () => {
     const port = (server.address() as AddressInfo).port;
     try {
       const response = await fetch(`http://127.0.0.1:${port}/robots.txt`);
-      return await response.text();
+      return { body: await response.text(), headers: response.headers };
     } finally {
       await new Promise<void>(resolve => server.close(() => resolve()));
     }
@@ -371,12 +373,18 @@ describe("robots.txt", () => {
     vi.stubEnv("APP_BASE_DOMAIN", "abdou-store.com");
     try {
       const withStore = await robotsFor(store);
-      expect(withStore).toContain("Sitemap: https://shop.abdou-store.com/sitemap.xml");
+      expect(withStore.body).toContain(
+        "Sitemap: https://shop.abdou-store.com/sitemap.xml"
+      );
+      expect(withStore.headers.get("vary")).toBe("Host");
+      expect(withStore.headers.get("x-store-id")).toBe("5");
 
       // Inactive/unresolved stores never reach res.locals.store (see
       // resolveStoreBySlug), so robots must not advertise a sitemap.
       const withoutStore = await robotsFor(null);
-      expect(withoutStore).not.toContain("Sitemap:");
+      expect(withoutStore.body).not.toContain("Sitemap:");
+      expect(withoutStore.headers.get("vary")).toBe("Host");
+      expect(withoutStore.headers.get("x-store-id")).toBe("none");
     } finally {
       vi.unstubAllEnvs();
     }

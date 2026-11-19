@@ -438,6 +438,8 @@ export function registerSeoRoutes(app: Express) {
     res
       .type("text/plain")
       .set("Cache-Control", "public, max-age=300")
+      .set("Vary", "Host")
+      .set("X-Store-Id", store ? String(store.id) : "none")
       .send(
         renderRobots({
           store,
@@ -461,6 +463,8 @@ export function registerSeoRoutes(app: Express) {
       res
         .type("application/xml")
         .set("Cache-Control", "public, max-age=300, s-maxage=3600")
+        .set("Vary", "Host")
+        .set("X-Store-Id", String(store.id))
         .send(
           renderSitemap({
             store,

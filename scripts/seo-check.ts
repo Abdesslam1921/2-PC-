@@ -14,6 +14,7 @@ import path from "node:path";
 import { createConnection } from "mysql2/promise";
 import express from "express";
 import { applySeoToHtml, registerSeoRoutes } from "../server/seoRoutes";
+import { publicOriginForStore } from "../server/publicOrigin";
 
 const ROOT = process.cwd();
 const env = fs.readFileSync(path.join(ROOT, ".env"), "utf8");
@@ -22,6 +23,8 @@ const url = env
   .trim()
   .replace(/^['"]|['"]$/g, "");
 process.env.DATABASE_URL = process.env.DATABASE_URL || url;
+process.env.APP_BASE_DOMAIN =
+  process.env.APP_BASE_DOMAIN || "abdou-store.com";
 
 const PREFIX = "probesfseo-";
 const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -142,7 +145,7 @@ try {
   const port = typeof address === "object" && address ? address.port : 0;
 
   const home = await request(port, "/");
-  const origin = `http://${STORE_HOST}`;
+  const origin = publicOriginForStore({ slug: STORE_SLUG }) ?? "";
   check(
     "store home HTML carries title/canonical/OG",
     home.status === 200 &&
@@ -196,10 +199,11 @@ try {
 
   const missing = await request(port, "/p/999999999");
   check(
-    "missing product falls back to store meta (no Product schema)",
-    missing.status === 200 &&
-      missing.body.includes("<title>متجر SEO التجريبي</title>") &&
-      !missing.body.includes('"@type":"Product"')
+    "missing product answers 404 + noindex (no Product schema)",
+    missing.status === 404 &&
+      missing.body.includes('content="noindex, nofollow"') &&
+      !missing.body.includes('"@type":"Product"'),
+    `status=${missing.status}`
   );
 } catch (error) {
   check(

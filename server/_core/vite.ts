@@ -60,7 +60,9 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  // `index: false` is required: otherwise express.static serves index.html
+  // directly for "/" and bypasses the per-store SEO injection below.
+  app.use(express.static(distPath, { index: false }));
 
   // Fall through to index.html, injecting per-store SEO tags into the first
   // HTML response (the SPA body itself stays client-rendered).
