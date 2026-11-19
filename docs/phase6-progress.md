@@ -63,7 +63,7 @@
    - **خصم المخزون ذريًا** عند إنشاء الطلب لتفادي البيع الزائد (شرط `WHERE stock >= qty` داخل معاملة + التحقق من `affectedRows`).
    - **توليد رقم الطلب تحت الضغط** بلا تصادم (بلا «اقرأ آخر رقم ثم +1»).
    - **التعيين بالتناوب لموظفي Call Center** عند وصول طلبين في نفس اللحظة (عدم إسناد نفس الموظف مرتين بفعل سباق).
-4. SEO — ✅ **منجز كوديًا (22-10-2026)** — التحقق الحي على DB حقيقية **معلّق** لأن TiDB رفض اتصال IP الجهاز. التفاصيل في «سجل التنفيذ — البند 4» أسفل.
+4. SEO — ✅ **منجز ومُتحقق حيًا (19-11-2026)** على قاعدة التطوير الجديدة. التفاصيل في «سجل التنفيذ — البند 4» و«بيئة التطوير الجديدة» أسفل.
 5. الأداء الفعلي
 6. RTL / Responsive الشامل
 7. تقرير عربي نهائي
@@ -331,6 +331,9 @@
 10. **سياسة تنظيف/أرشفة الطلبات المتروكة القديمة غير المحوَّلة** (صفوف `fulfillmentStatus='abandoned'` التي لن تُحوَّل لطلب أو تُثبَّت) + تحديد مدة الاحتفاظ.
 11. **التأكد أن الإحصائيات والربحية وعدّادات الطلبات تستثني `abandoned`** (Dashboard/Analytics/Profitability/Order counters) — تدقيق + اختبار صريح.
 12. **تنفيذ احتفاظ `storefront_versions` (200/50) — بلا حذف الآن:** مهمة مجدولة **dry-run أولًا** على الشجرة الحقيقية → تقرير بالمرشّحين للحذف → تنفيذ مصرّح → **تسجيل في `storefront_audit_logs`**؛ والتأكد أن حذف أي نسخة **لا يكسر مراجع `fromVersion/toVersion`** في سجل التدقيق (إبقاء الصفوف المُشار إليها أو تعليمها «مُقلَّمة»).
+13. **قاعدة إنتاج مستقلة نهائيًا** (منفصلة عن قاعدة التطوير المؤقتة `abdou_store_dev`) + نسخة احتياطية واسترجاع مُختبَران قبل الإطلاق.
+14. **تقييد الشبكة لقاعدة الإنتاج:** IP Allowlist دقيق أو PrivateLink عندما يصبح عنوان السيرفر ثابتًا؛ `0.0.0.0/0` مقبول **للتطوير فقط**.
+15. **ضمان `NODE_ENV=production` في الإنتاج** (يُعطّل `/api/auth/dev-login` تمامًا)، ومراجعة/تعطيل مستخدم `dev_owner_001` في قاعدة الإنتاج وعدم شحنه.
 
 ---
 
@@ -861,6 +864,76 @@ CREATE TABLE stock_movements (
 - لا نطاق مخصص (غير موجود في المخطط) ولا `store_seo_settings` — قرار المستخدم.
 - `robots.txt` لا يمنع مسارات الخاص صراحةً؛ الاعتماد على `noindex` (حتى يراها الزاحف) هو المقصود.
 - صفحات 404 تُخدم بجسم SPA (رمز 404 صحيح) — تطابق سلوك التطبيق الحالي.
+
+---
+
+## بيئة التطوير الجديدة + تحقق البند 4 (19-11-2026)
+
+### 1) قاعدة التطوير المؤقتة `abdou_store_dev`
+- الكلستر: `gateway01.eu-central-1.prod.aws.tidbcloud.com` (ليس كلستر Manus).
+- أُنشئت قاعدة `abdou_store_dev` (utf8mb4/utf8mb4_unicode_ci)، وتأكد **0 جداول** قبل الاستيراد.
+- استُورد `abdou-backup-2026-10-14T10-11-46-757Z.sql` (350,526 بايت) → **64 جدولًا / 1140 صفًا** بالضبط.
+- **تسوية استثناء:** بعد تشغيل السكربتات الحية ظهر صف يتيم واحد `store_order_items.id=1740024` («Probe C (offer)»، orderId=1740023 غير موجود) — يُرجَّح من تشغيل سابق قبل هذه الجولة. حُذف بشرط `id+orderId+title` وأُعيد العدّ إلى **1140**، و**لا صفوف Probe متبقية**.
+- **القاعدة القديمة (Manus) لم تُلمس**، وبيانات اتصالها لم تبقَ في `.env` (نسخ `.env` الاحتياطية في `%TEMP%\kilo`).
+- **مصدر إعداد DB واحد الآن:** `DATABASE_URL` فقط. أُزيلت `DB_PORT/DB_USERNAME/DB_PASSWORD/DB_DATABASE` من `.env` بعد التحقق أن كل السكربتات والتطبيق يقرؤون `DATABASE_URL` ولا تقرأ أي منها `DB_*`.
+  - ملاحظة: `VITE_FRONTEND_FORGE_API_URL` ما زال يشير إلى خدمة Manus للتخزين/AI — **ليس اتصال قاعدة بيانات**، وتُرِك لأن إزالته تُعطّل التخزين/AI بلا بديل.
+
+### 2) إثبات قاعدة البيانات من التطبيق ومن السكربتات
+- **التطبيق** (`getDb()` → drizzle على `process.env.DATABASE_URL`): `SELECT DATABASE()` → **`abdou_store_dev`**.
+- كل السكربتات الحية شُغّلت مع preflight يعترض `mysql2.createConnection` ويطبع `SELECT DATABASE()`؛ النتيجة في كل تشغيل: **`abdou_store_dev`**:
+  - `db-backup.mjs` · `seo-check.ts` · `storefront-versions-check.ts` · `storefront-concurrency-check.ts` · `checkout-pricing-check.ts` · `digital-file-preserve-check.ts` · `orders-concurrency-check.ts` · `storefront-snapshots-audit.ts`.
+- `db-restore-check.mjs` / `db-restore-inplace.mjs` لم يُشغّلا (سكربتات استرجاع مدمِّرة وليست تحققًا)، لكنهما يقرآن `DATABASE_URL` نفسه (فحص ثابت).
+
+### 3) نتائج السكربتات الحية (حقيقية)
+| السكربت | النتيجة |
+|---|---|
+| `seo-check.ts` | **9/9 PASS** (بعد تحديث العقد: canonical من الأصل الموثوق، والمفقود 404+noindex) |
+| `storefront-versions-check.ts` | **12/12 PASS** |
+| `storefront-concurrency-check.ts` | **13/13 PASS** |
+| `checkout-pricing-check.ts` | **6/6 PASS** |
+| `digital-file-preserve-check.ts` | **6/6 PASS** |
+| `orders-concurrency-check.ts` | **41/41 PASS** |
+| `storefront-snapshots-audit.ts` | متجر واحد · 41 نسخة **strict-valid** · 0 drops |
+| `db-backup.mjs` | 64 جدولًا (بعد التنظيف 1140 صفًا) |
+
+### 4) البند 4 — متابعات
+- **(أ) isActive:** `SELECT isActive, COUNT(*)` → **6 نشط / 0 معطّل**. المتاجر الستة كلها نشطة: `store-1` · `dev` · `متجر Abde Sslam` · `متحري` · `gjkhkjkjkhj` · `zzzzzzzzz`.
+- **(ب) كاش sitemap/robots:** أُضيف `Vary: Host` + `X-Store-Id` إلى `/sitemap.xml` و`/robots.txt`.
+  - اختبار A/B حي: `store-1` → `X-Store-Id=30001`، 16 مدخلًا؛ `dev` → `X-Store-Id=180001`، مدخل واحد؛ المحتوى **مختلف**؛ `Vary: Host` في الاثنين؛ `Cache-Control` كما هو (`max-age=300, s-maxage=3600` للـsitemap).
+- **(ج) الاختبارات الفاشلة الثمانية بالاسم** (بعد `pnpm test` → **639 ناجح · 8 فاشل · 3 متخطّى / 650**):
+  1. `server/googleOAuth.test.ts > Google OAuth configuration > has configured client credentials and reaches the Google token endpoint`
+  2. `server/metaOAuthCredentials.test.ts > Meta OAuth application credentials > validates the OAuth app credentials against Meta`
+  3. `server/routers/connecteurs.test.ts > connecteurs contract > exposes all supported integrations in stable order`
+  4. `client/src/ui.contract.test.ts > presentation-state contracts > keeps the catalog, cart, and checkout connected`
+  5. `client/src/pages/Orders.ui.test.tsx > Orders > sends the selected operational status for an order`
+  6. `client/src/pages/ProductLanding.ui.test.tsx > ProductLanding > submits the selected live variant through the direct COD form`
+  7. `client/src/pages/Storefront.ui.test.tsx > Storefront > renders the live public catalog and adds an available product to the independent cart`
+  8. `client/src/pages/StorefrontJourney.ui.test.tsx > Storefront shopping journey > sends a published product directly to COD without passing through the cart`
+  - **مطابقة للـbaseline المعروف** (OAuth/Meta/connecteurs/UI/SSR) — صفر انحدار.
+
+### 5) دخول التطوير `dev_owner_001`
+- المسار الوحيد: `GET /api/auth/dev-login`، بلا كلمة سر، يستعمل `OWNER_OPEN_ID` (حاليًا `dev_owner_001`).
+- نُقل إلى `server/_core/devLogin.ts` وصار **fail-closed**: يُسجّل فقط عند `NODE_ENV === "development"` بالضبط؛ production/test/unset لا يُسجّل المسار.
+- تحقق حي: نسخة production مبنية على المنفذ 3011 → `/api/auth/dev-login` رجع SPA عاديًا **بلا Set-Cookie وبلا تحويل**.
+- تحقق حي في التطوير: 302 + كوكي `app_session_id`، ثم `auth.me` أعاد المستخدم `13230001 / dev_owner_001 / admin`، و`storefront.managed` استجاب 200.
+- أُضيف بند ما قبل الإطلاق (15) لضمان `NODE_ENV=production` وتعطيل هذا المستخدم في قاعدة الإنتاج.
+
+### 6) إصلاح إنتاجي مكتشف أثناء التحقق
+- في وضع production، كان `express.static(distPath)` يخدم `/` مباشرة فيتجاوز حقن SEO. أُصلح بـ`{ index: false }` في `server/_core/vite.ts`.
+- تحقق حي بعد البناء: `store-1.localtest.me:3011` → `<title>Abdo Dz</title>` + canonical صحيح + `seo:start`؛ وsitemap 200 بـ`Vary: Host`.
+
+### 7) انحرافات مخطط حرجة (بلا أي migration — بانتظار قرار)
+| الجدول | النتيجة |
+|---|---|
+| `storefront_versions` | 10 أعمدة + 3 فهارس (منها UNIQUE `storeId,versionNumber`) — **مطابق** |
+| `storefront_drafts` | 8 أعمدة + UNIQUE `storeId` — **مطابق** |
+| `offers` | 18 عمودًا + UNIQUE `storeId,slug` — **مطابق** |
+| `categories` | 10 أعمدة + UNIQUE `storeId,slug` — **مطابق** |
+| `store_orders` | 45 عمودًا + UNIQUE `orderNumber` — **مطابق** |
+| `stores` | **فرقان:** `slug` في DB `varchar(180)` مقابل `varchar(80)` في `schema.ts` (migration `0003` أنشأته 180)؛ وفهرس UNIQUE إضافي `stores_owner_slug_unique(ownerId, slug)` غير موجود في `schema.ts` ولا في أي snapshot |
+
+> لم يُطبَّق أي migration. أي توحيد لاحق لهذين الفرقين يحتاج موافقة صريحة وخطة migration/rollback.
+
 
 
 
