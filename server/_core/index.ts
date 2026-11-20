@@ -69,7 +69,25 @@ async function startServer() {
   // Resolve the store from the subdomain (storename.abdou-store.com) for
   // visitors, and stash it on res.locals so the tRPC context can scope
   // public storefront queries to the matching store.
+  //
+  // Static assets never need the store row. Resolving it for every file turned
+  // one storefront visit into dozens of identical `select from stores` queries
+  // (measured: 12 on the pre-split bundle, 61 on the split one). Those paths
+  // are skipped; `/robots.txt` and `/sitemap.xml` still need the store and are
+  // handled below by the SEO routes.
+  const storeLookupSkip = [
+    /^\/assets\//,
+    /^\/manus-storage\//,
+    /^\/__manus__\//,
+    /^\/favicon\.ico$/i,
+    /^\/umami$/i,
+  ];
   app.use((req, res, next) => {
+    if (storeLookupSkip.some(pattern => pattern.test(req.path))) {
+      res.locals.store = null;
+      next();
+      return;
+    }
     void resolveStoreByRequest(req)
       .then(store => {
         res.locals.store = store;
