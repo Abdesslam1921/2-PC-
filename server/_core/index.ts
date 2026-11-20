@@ -1,4 +1,5 @@
 import "dotenv/config";
+import compression from "compression";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
@@ -51,6 +52,10 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  // Compress every text response (HTML, JS, CSS, JSON, SVG). Measured on the
+  // public storefront: this cuts the entry JS over the wire from ~3.5 MB to
+  // ~790 KB gzip before any code splitting is applied.
+  app.use(compression());
   // Carrier webhook (ForShip) — registered before the JSON body parser so the
   // exact request bytes are available for HMAC signature verification.
   app.post(
