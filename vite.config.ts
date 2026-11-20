@@ -150,12 +150,38 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+function vitePluginAnalytics(): Plugin {
+  return {
+    name: "analytics-script",
+    transformIndexHtml(html) {
+      const endpoint = (process.env.VITE_ANALYTICS_ENDPOINT || "").trim();
+      if (!endpoint) return html;
+      const base = endpoint.replace(/\/+$/, "");
+      return {
+        html,
+        tags: [
+          {
+            tag: "script",
+            attrs: {
+              src: `${base}/umami`,
+              "data-website-id": process.env.VITE_ANALYTICS_WEBSITE_ID || "",
+              defer: true,
+            },
+            injectTo: "body",
+          },
+        ],
+      };
+    },
+  };
+}
+
 const plugins = [
   react(),
   tailwindcss(),
   jsxLocPlugin(),
   ...(process.env.NODE_ENV !== "production" ? [vitePluginManusRuntime()] : []),
   vitePluginManusDebugCollector(),
+  vitePluginAnalytics(),
 ];
 
 export default defineConfig({
