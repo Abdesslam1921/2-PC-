@@ -30,6 +30,17 @@ vi.mock("../storefrontDb", () => ({
 }));
 
 import { appRouter } from "../routers";
+import {
+  getCachedPublicConfig,
+  invalidatePublicConfig,
+  setCachedPublicConfig,
+} from "../storefrontPublicConfigCache";
+
+// publicConfig is cached per store for a few seconds; tests swap the mocked
+// snapshot between cases, so start every test with an empty cache.
+beforeEach(() => {
+  invalidatePublicConfig();
+});
 
 function makeContext(storeId: number | null): TrpcContext {
   const store =
@@ -475,6 +486,8 @@ describe("storefront publish — immutable snapshot + audit + tenancy", () => {
   });
 
   it("publish creates a new immutable version scoped to the store and audits it", async () => {
+    // A warm public-config entry must be dropped as soon as the new version exists.
+    setCachedPublicConfig(7, { templateKey: "stale" });
     mocks.getStorefrontDraft.mockResolvedValueOnce({
       configJson: JSON.stringify(DEFAULT_MODERN_CONFIG),
       concurrencyVersion: 4,
@@ -498,6 +511,7 @@ describe("storefront publish — immutable snapshot + audit + tenancy", () => {
     expect(mocks.recordStorefrontAuditLog).toHaveBeenCalledTimes(1);
     const audit = mocks.recordStorefrontAuditLog.mock.calls[0][0];
     expect(audit).toMatchObject({ storeId: 7, actorId: 42, action: "publish", toVersion: 4 });
+    expect(getCachedPublicConfig(7)).toBeUndefined();
   });
 
   it("publish refuses when there is no draft", async () => {
