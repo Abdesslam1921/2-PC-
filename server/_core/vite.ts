@@ -62,7 +62,22 @@ export function serveStatic(app: Express) {
 
   // `index: false` is required: otherwise express.static serves index.html
   // directly for "/" and bypasses the per-store SEO injection below.
-  app.use(express.static(distPath, { index: false }));
+  const assetsRoot = path.join(distPath, "assets") + path.sep;
+  app.use(
+    express.static(distPath, {
+      index: false,
+      setHeaders(res, filePath) {
+        // Only Vite's content-hashed build assets are safe to pin for a year.
+        // Everything else in the public dir (debug collector, favicon) must be
+        // revalidated, because those names are not content-addressed.
+        if (filePath.startsWith(assetsRoot)) {
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        } else {
+          res.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+        }
+      },
+    })
+  );
 
   // Fall through to index.html, injecting per-store SEO tags into the first
   // HTML response (the SPA body itself stays client-rendered).
@@ -74,6 +89,14 @@ export function serveStatic(app: Express) {
         "utf-8"
       );
       const page = await applySeoToHtml(req, cachedHtml, res.locals.store ?? null);
+      // The HTML is per-store (title/canonical/OG): it must never be stored by
+      // a shared cache unless the cache keys on Host.
+      res.setHeader("Cache-Control", "no-store");
+      res.vary("Host");
+      res.setHeader(
+        "X-Store-Id",
+        res.locals.store ? String(res.locals.store.id) : "none"
+      );
       res.status(200).type("html").send(page);
     } catch (error) {
       next(error);
