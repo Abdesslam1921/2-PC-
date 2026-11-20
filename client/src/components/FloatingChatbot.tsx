@@ -1,10 +1,21 @@
-import { AIChatBox, type Message } from "@/components/AIChatBox";
+import type { Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import mascotUrl from "@/assets/mascot.svg";
 import { ShieldCheck, X } from "lucide-react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { trpc } from "@/lib/trpc";
+
+/**
+ * The chat panel pulls Streamdown + mermaid (~230 KB) only when the visitor
+ * actually opens it. Keeping it out of the initial storefront chunk matters on
+ * the product page, where the widget is always mounted but rarely opened.
+ */
+const AIChatBox = lazy(() =>
+  import("@/components/AIChatBox").then(module => ({
+    default: module.AIChatBox,
+  }))
+);
 
 type ChatAudience = "owner" | "buyer";
 
@@ -102,20 +113,28 @@ export default function FloatingChatbot({
               ? "بيانات المتجر الداخلية تبقى ضمن حسابك"
               : "أجيب من بيانات الكتالوج المتاحة فقط"}
           </div>
-          <AIChatBox
-            messages={messages}
-            onSendMessage={handleSend}
-            isLoading={mutation.isPending}
-            placeholder={
-              audience === "owner"
-                ? "اسأل عن إدارة متجرك..."
-                : "اكتب سؤالك عن المنتجات..."
+          <Suspense
+            fallback={
+              <div className="grid h-[440px] place-items-center text-sm font-bold text-[#66716B]">
+                جارٍ تحميل المساعد…
+              </div>
             }
-            emptyStateMessage="ابدأ محادثة جديدة"
-            suggestedPrompts={prompts[audience]}
-            height={440}
-            className="rounded-none border-0 shadow-none"
-          />
+          >
+            <AIChatBox
+              messages={messages}
+              onSendMessage={handleSend}
+              isLoading={mutation.isPending}
+              placeholder={
+                audience === "owner"
+                  ? "اسأل عن إدارة متجرك..."
+                  : "اكتب سؤالك عن المنتجات..."
+              }
+              emptyStateMessage="ابدأ محادثة جديدة"
+              suggestedPrompts={prompts[audience]}
+              height={440}
+              className="rounded-none border-0 shadow-none"
+            />
+          </Suspense>
         </div>
       )}
       <button
