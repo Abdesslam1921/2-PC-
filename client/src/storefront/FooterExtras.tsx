@@ -189,9 +189,9 @@ export function signatureStyle(section: StorefrontSection) {
   const color = typeof section.settings.color === "string" ? section.settings.color : "";
   const stacks: Record<string, string> = {
     greatvibes: '"Great Vibes", "Segoe Script", cursive',
-    cairo: '"Cairo", "Tajawal", system-ui, sans-serif',
+    cairo: '"Cairo", "Cairo Fallback", "Tajawal", system-ui, sans-serif',
     tajawal: '"Tajawal", "Cairo", system-ui, sans-serif',
-    rubik: '"Rubik", "Tajawal", system-ui, sans-serif',
+    rubik: '"Rubik", "Rubik Fallback", "Tajawal", system-ui, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
     mono: '"Courier New", ui-monospace, monospace',
   };

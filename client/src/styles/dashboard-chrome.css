@@ -16,7 +16,7 @@
   --brand-soft: #e4f3ef;
   --warm: #b45309;
   --warm-soft: #fbf1de;
-  font-family: "Cairo", var(--font-sans);
+  font-family: "Cairo", "Cairo Fallback", var(--font-sans);
   background: radial-gradient(
     120% 90% at 85% 0%,
     #fffdf8 0%,

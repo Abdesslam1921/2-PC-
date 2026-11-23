@@ -9,9 +9,9 @@ import {
 } from "react";
 
 const FONT_STACKS: Record<string, string> = {
-  cairo: '"Cairo", "Tajawal", system-ui, sans-serif',
+  cairo: '"Cairo", "Cairo Fallback", "Tajawal", system-ui, sans-serif',
   tajawal: '"Tajawal", "Cairo", system-ui, sans-serif',
-  rubik: '"Rubik", "Tajawal", system-ui, sans-serif',
+  rubik: '"Rubik", "Rubik Fallback", "Tajawal", system-ui, sans-serif',
 };
 
 const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
