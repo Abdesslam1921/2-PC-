@@ -75,6 +75,7 @@ import {
 } from "./ecotrack-catalog";
 import { decryptSecret, encryptSecret } from "./secureSecrets";
 import { mergeDigitalFileFields } from "./digitalFileMerge";
+import { withoutDigitalFileRefs } from "./productPayload";
 import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 import { isDuplicateKeyError } from "./storefrontConcurrency";
 import { normalizeAlgerianMobile } from "./phone";
@@ -380,18 +381,50 @@ export async function createStoreProduct(
  * 0066 moved the legacy rows. `id` is the LEGACY id when available so carts
  * created before the migration keep matching; lookups stay scoped by `kind`.
  */
+export type PublicQuantityOffer = {
+  id: number;
+  description: string;
+  quantity: number;
+  price: string;
+  maxUses: number;
+  usedCount: number;
+  freeDelivery: boolean;
+  enabled: boolean;
+};
+
 export async function listQuantityOffersForProduct(
   storeId: number | null | undefined,
   productId: number,
   options: { onlyUsable?: boolean } = {}
-) {
+): Promise<PublicQuantityOffer[]> {
+  const byProduct = await listQuantityOffersForProducts(
+    storeId,
+    [productId],
+    options
+  );
+  return byProduct.get(productId) ?? [];
+}
+
+/**
+ * Batched form of `listQuantityOffersForProduct`.
+ *
+ * The public catalog used to call the single-product version once per product
+ * (N+1). One query for the whole page keeps the same payload/order while
+ * removing the fan-out.
+ */
+export async function listQuantityOffersForProducts(
+  storeId: number | null | undefined,
+  productIds: number[],
+  options: { onlyUsable?: boolean } = {}
+): Promise<Map<number, PublicQuantityOffer[]>> {
   const db = await getDb();
   // Fail-closed: without a store there is nothing safe to expose.
-  if (!db || storeId == null) return [];
+  if (!db || storeId == null || productIds.length === 0)
+    return new Map<number, PublicQuantityOffer[]>();
   const conditions = [
     eq(offers.kind, "quantity"),
     eq(offers.storeId, storeId),
-    eq(offerProducts.productId, productId),
+    inArray(offerProducts.productId, productIds),
   ];
   if (options.onlyUsable) {
     conditions.push(eq(offers.isActive, true));
@@ -401,6 +434,7 @@ export async function listQuantityOffersForProduct(
   }
   const rows = await db
     .select({
+      productId: offerProducts.productId,
       id: offers.id,
       legacyId: offers.legacyId,
       name: offers.name,
@@ -415,16 +449,22 @@ export async function listQuantityOffersForProduct(
     .innerJoin(offerProducts, eq(offerProducts.offerId, offers.id))
     .where(and(...conditions))
     .orderBy(offers.sortOrder, offers.name);
-  return rows.map(row => ({
-    id: row.legacyId ?? row.id,
-    description: row.name,
-    quantity: row.quantity,
-    price: row.fixedPrice ?? "0.00",
-    maxUses: row.maxUses,
-    usedCount: row.usedCount,
-    freeDelivery: row.freeDelivery,
-    enabled: row.isActive,
-  }));
+  const byProduct = new Map<number, PublicQuantityOffer[]>();
+  for (const row of rows) {
+    const list = byProduct.get(row.productId) ?? [];
+    list.push({
+      id: row.legacyId ?? row.id,
+      description: row.name,
+      quantity: row.quantity,
+      price: row.fixedPrice ?? "0.00",
+      maxUses: row.maxUses,
+      usedCount: row.usedCount,
+      freeDelivery: row.freeDelivery,
+      enabled: row.isActive,
+    });
+    byProduct.set(row.productId, list);
+  }
+  return byProduct;
 }
 
 export async function getStoreProductById(storeId: number, id: number) {
@@ -487,6 +527,25 @@ export async function listStoreProducts(storeId: number) {
   });
 }
 
+/** Strips internal costing fields and digital file references from a row. */
+export function toPublicProduct(product: typeof storeProducts.$inferSelect) {
+  const {
+    costPerItem: _costPerItem,
+    costAccountingMode: _costAccountingMode,
+    costQuantity: _costQuantity,
+    productCostTotal: _productCostTotal,
+    packagingCostPerItem: _packagingCostPerItem,
+    packagingCostTotal: _packagingCostTotal,
+    procurementDeliveryCostPerItem: _procurementDeliveryCostPerItem,
+    procurementDeliveryCostTotal: _procurementDeliveryCostTotal,
+    returnCostPerOrder: _returnCostPerOrder,
+    returnDeliveryFree: _returnDeliveryFree,
+    ...publicProduct
+  } = product;
+  // Raw storage refs must never leave the server through a public response.
+  return withoutDigitalFileRefs(publicProduct);
+}
+
 export async function getPublicStoreProduct(
   id: number,
   storeId?: number | null
@@ -521,23 +580,8 @@ export async function getPublicStoreProduct(
       onlyUsable: true,
     }),
   ]);
-  const {
-    costPerItem: _costPerItem,
-    costAccountingMode: _costAccountingMode,
-    costQuantity: _costQuantity,
-    productCostTotal: _productCostTotal,
-    packagingCostPerItem: _packagingCostPerItem,
-    packagingCostTotal: _packagingCostTotal,
-    procurementDeliveryCostPerItem: _procurementDeliveryCostPerItem,
-    procurementDeliveryCostTotal: _procurementDeliveryCostTotal,
-    returnCostPerOrder: _returnCostPerOrder,
-    returnDeliveryFree: _returnDeliveryFree,
-    ...publicProduct
-  } = product;
   return {
-    ...publicProduct,
-    digitalFileStorageKey: null,
-    digitalFileUrl: null,
+    ...toPublicProduct(product),
     offers,
     images,
     variants,
@@ -992,12 +1036,39 @@ async function hydratePublicProducts(
   products: Array<typeof storeProducts.$inferSelect>,
   storeId: number
 ) {
-  const hydrated = await Promise.all(
-    products.map(product => getPublicStoreProduct(product.id, storeId))
-  );
-  return hydrated.filter((product): product is NonNullable<typeof product> =>
-    Boolean(product)
-  );
+  const db = await getDb();
+  if (!db || products.length === 0) return [];
+  const ids = products.map(product => product.id);
+  const [images, variants, offersByProduct] = await Promise.all([
+    db
+      .select()
+      .from(storeProductImages)
+      .where(inArray(storeProductImages.productId, ids))
+      .orderBy(storeProductImages.productId, storeProductImages.position),
+    db
+      .select()
+      .from(storeProductVariants)
+      .where(inArray(storeProductVariants.productId, ids)),
+    listQuantityOffersForProducts(storeId, ids, { onlyUsable: true }),
+  ]);
+  const imagesByProduct = new Map<number, typeof images>();
+  for (const image of images) {
+    const list = imagesByProduct.get(image.productId) ?? [];
+    list.push(image);
+    imagesByProduct.set(image.productId, list);
+  }
+  const variantsByProduct = new Map<number, typeof variants>();
+  for (const variant of variants) {
+    const list = variantsByProduct.get(variant.productId) ?? [];
+    list.push(variant);
+    variantsByProduct.set(variant.productId, list);
+  }
+  return products.map(product => ({
+    ...toPublicProduct(product),
+    offers: offersByProduct.get(product.id) ?? [],
+    images: imagesByProduct.get(product.id) ?? [],
+    variants: variantsByProduct.get(product.id) ?? [],
+  }));
 }
 
 /* ---------------------------------------------------------------------------

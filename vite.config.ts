@@ -150,12 +150,38 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+function vitePluginAnalytics(): Plugin {
+  return {
+    name: "analytics-script",
+    transformIndexHtml(html) {
+      const endpoint = (process.env.VITE_ANALYTICS_ENDPOINT || "").trim();
+      if (!endpoint) return html;
+      const base = endpoint.replace(/\/+$/, "");
+      return {
+        html,
+        tags: [
+          {
+            tag: "script",
+            attrs: {
+              src: `${base}/umami`,
+              "data-website-id": process.env.VITE_ANALYTICS_WEBSITE_ID || "",
+              defer: true,
+            },
+            injectTo: "body",
+          },
+        ],
+      };
+    },
+  };
+}
+
 const plugins = [
   react(),
   tailwindcss(),
   jsxLocPlugin(),
   ...(process.env.NODE_ENV !== "production" ? [vitePluginManusRuntime()] : []),
   vitePluginManusDebugCollector(),
+  vitePluginAnalytics(),
 ];
 
 export default defineConfig({
@@ -173,6 +199,31 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        /**
+         * Keep the public storefront light: merge React, icons, Radix and the
+         * data layer into a few cacheable vendor chunks instead of emitting
+         * one tiny chunk per icon. Markdown/mermaid/shiki are deliberately not
+         * listed here so they stay in lazy, on-demand chunks.
+         */
+        manualChunks(id: string) {
+          if (!id.includes("node_modules")) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id))
+            return "react-vendor";
+          if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) return "icons";
+          if (/[\\/]node_modules[\\/]@radix-ui[\\/]/.test(id))
+            return "radix-vendor";
+          if (
+            /[\\/]node_modules[\\/](@tanstack|@trpc|wouter|superjson)[\\/]/.test(
+              id
+            )
+          )
+            return "data-vendor";
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     host: true,

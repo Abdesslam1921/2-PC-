@@ -20,6 +20,11 @@ import {
 import { evaluatePublishedSnapshots } from "../storefrontSnapshotHealth";
 import { logStorefrontNormalization } from "../storefrontNormalizationLog";
 import { isStorefrontVersionConflict } from "../storefrontConcurrency";
+import {
+  getCachedPublicConfig,
+  invalidatePublicConfig,
+  setCachedPublicConfig,
+} from "../storefrontPublicConfigCache";
 import { storagePut } from "../storage";
 import { hasActiveBundle } from "../db";
 import {
@@ -35,6 +40,17 @@ import type { StorefrontNormalizationReport } from "../../shared/storefront/norm
 const TEMPLATE_DEFAULTS = TEMPLATE_DEFAULT_CONFIGS;
 
 type TemplateKey = (typeof STOREFRONT_TEMPLATE_KEYS)[number];
+
+type PublicConfigPayload = {
+  templateKey: string;
+  config: StorefrontConfig;
+  storeName: string;
+  versionNumber: number | null;
+  publishedAt: Date | string | null;
+  fallback: boolean;
+  fallbackReason: string | null;
+  latestVersionNumber: number | null;
+};
 
 /**
  * Seed config for a template.
@@ -169,6 +185,7 @@ async function seedAndPublishTemplate(input: {
   } catch (error) {
     throwVersionWriteError(error);
   }
+  invalidatePublicConfig(input.storeId);
   await recordStorefrontAuditLog({
     storeId: input.storeId,
     actorId: input.userId,
@@ -189,6 +206,8 @@ export const storefrontRouter = router({
   /** Public: the live storefront reads the newest valid PUBLISHED config. */
   publicConfig: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.store) return null;
+    const cached = getCachedPublicConfig<PublicConfigPayload>(ctx.store.id);
+    if (cached) return cached;
     const versions = await listStorefrontVersionSnapshots(ctx.store.id);
     // No published version at all → legacy coexistence (render the old store).
     if (!versions.length) return null;
@@ -232,7 +251,7 @@ export const storefrontRouter = router({
     const resolved = (await hasActiveBundle(ctx.store.id))
       ? ensureOffersSection(config)
       : config;
-    return {
+    const payload: PublicConfigPayload = {
       templateKey: resolved.templateKey,
       config: resolved,
       storeName: ctx.store.name,
@@ -242,6 +261,8 @@ export const storefrontRouter = router({
       fallbackReason: servedFallback ? health.reason : null,
       latestVersionNumber: health.latestVersionNumber,
     };
+    setCachedPublicConfig(ctx.store.id, payload);
+    return payload;
   }),
 
   /** Owner: current draft + latest published + history. */
@@ -411,6 +432,7 @@ export const storefrontRouter = router({
       } catch (error) {
         throwVersionWriteError(error);
       }
+      invalidatePublicConfig(storeId);
       await recordStorefrontAuditLog({
         storeId,
         actorId: userId,
@@ -462,6 +484,7 @@ export const storefrontRouter = router({
       } catch (error) {
         throwVersionWriteError(error);
       }
+      invalidatePublicConfig(storeId);
       /**
        * Also restore the DRAFT to the rolled-back config so the editor reflects
        * it — but never overwrite a newer draft written by another tab. In that
