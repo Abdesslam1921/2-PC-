@@ -1,4 +1,5 @@
 import { trpc } from "@/lib/trpc";
+import { isChunkLoadError, tryChunkReload } from "@/lib/chunkLoadRecovery";
 import { COOKIE_NAME, UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
@@ -8,6 +9,18 @@ import App from "./App";
 import "./index.css";
 
 const queryClient = new QueryClient();
+
+/**
+ * After a deploy, an open tab can still reference old hashed chunks. Vite
+ * raises `vite:preloadError`; the ErrorBoundary handles lazy-route failures.
+ * Both paths share the same one-reload guard, so a broken deploy cannot loop.
+ */
+window.addEventListener("vite:preloadError", () => {
+  tryChunkReload();
+});
+window.addEventListener("unhandledrejection", event => {
+  if (isChunkLoadError(event.reason)) tryChunkReload();
+});
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
