@@ -41,6 +41,17 @@ import {
 beforeEach(() => {
   invalidatePublicConfig();
 });
+import {
+  getCachedPublicConfig,
+  invalidatePublicConfig,
+  setCachedPublicConfig,
+} from "../storefrontPublicConfigCache";
+
+// publicConfig is cached per store for a few seconds; tests swap the mocked
+// snapshot between cases, so start every test with an empty cache.
+beforeEach(() => {
+  invalidatePublicConfig();
+});
 
 function makeContext(storeId: number | null): TrpcContext {
   const store =
@@ -106,6 +117,33 @@ describe("storefront.publicConfig tenant isolation", () => {
     const result = await caller.storefront.publicConfig();
     expect(mocks.listStorefrontVersionSnapshots).toHaveBeenCalledWith(7);
     expect(result?.templateKey).toBe("modern");
+  });
+
+  it("caches per storeId and never reuses one store's config for another", async () => {
+    mocks.listStorefrontVersionSnapshots
+      .mockResolvedValueOnce([
+        snapshotRow(1, JSON.stringify(DEFAULT_MODERN_CONFIG)),
+      ])
+      .mockResolvedValueOnce([
+        snapshotRow(1, JSON.stringify(DEFAULT_BOLD_CONFIG)),
+      ]);
+
+    const storeSeven = appRouter.createCaller(makeContext(7));
+    const storeEight = appRouter.createCaller(makeContext(8));
+    const seven = await storeSeven.storefront.publicConfig();
+    const eight = await storeEight.storefront.publicConfig();
+
+    expect(seven?.templateKey).toBe("modern");
+    expect(eight?.templateKey).toBe("bold");
+    expect(mocks.listStorefrontVersionSnapshots).toHaveBeenLastCalledWith(8);
+
+    // Warm cache: each store gets its own entry, no extra query.
+    const callsBefore = mocks.listStorefrontVersionSnapshots.mock.calls.length;
+    const sevenAgain = await storeSeven.storefront.publicConfig();
+    expect(sevenAgain?.templateKey).toBe("modern");
+    expect(mocks.listStorefrontVersionSnapshots.mock.calls.length).toBe(
+      callsBefore
+    );
   });
 
   it("serves the LAST GOOD previous version when the newest snapshot is corrupt", async () => {

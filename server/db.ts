@@ -75,6 +75,7 @@ import {
 } from "./ecotrack-catalog";
 import { decryptSecret, encryptSecret } from "./secureSecrets";
 import { mergeDigitalFileFields } from "./digitalFileMerge";
+import { withoutDigitalFileRefs } from "./productPayload";
 import { confirmationCostCentsForOrder } from "./callCenterConfirmation";
 import { isDuplicateKeyError } from "./storefrontConcurrency";
 import { normalizeAlgerianMobile } from "./phone";
@@ -527,7 +528,7 @@ export async function listStoreProducts(storeId: number) {
 }
 
 /** Strips internal costing fields and digital file references from a row. */
-function toPublicProduct(product: typeof storeProducts.$inferSelect) {
+export function toPublicProduct(product: typeof storeProducts.$inferSelect) {
   const {
     costPerItem: _costPerItem,
     costAccountingMode: _costAccountingMode,
@@ -541,11 +542,8 @@ function toPublicProduct(product: typeof storeProducts.$inferSelect) {
     returnDeliveryFree: _returnDeliveryFree,
     ...publicProduct
   } = product;
-  return {
-    ...publicProduct,
-    digitalFileStorageKey: null,
-    digitalFileUrl: null,
-  };
+  // Raw storage refs must never leave the server through a public response.
+  return withoutDigitalFileRefs(publicProduct);
 }
 
 export async function getPublicStoreProduct(
